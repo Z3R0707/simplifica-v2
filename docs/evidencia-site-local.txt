@@ -1,5 +1,5 @@
 Teste do site num Chromium real contra o Supabase simulado (SQL real das migrações 0001–0004, Edge Function excluir-conta real, política de segurança do netlify.toml aplicada)
-Data: 2026-10-13 10:55 -03 — executado 3 vezes seguidas, todas aprovadas; abaixo a última
+Data: 2026-10-13 11:22 -03 — executado 3 vezes seguidas, todas aprovadas; abaixo a última
 
   OK: tela de entrar abre
   OK: senha curta recusada no cadastro
@@ -24,19 +24,19 @@ Data: 2026-10-13 10:55 -03 — executado 3 vezes seguidas, todas aprovadas; abai
   OK: edição de valor recalcula o saldo (R$ 4.450,00)
   OK: clique duplo em Lançar grava um único lançamento
   OK: despesa: não pergunta se entrou ou saiu
+  OK: lançamento novo não oferece estorno (despesa desfeita = cancelar)
   OK: receita: não pergunta se entrou ou saiu
   OK: sem categoria: pergunta se entrou ou saiu
-  OK: estorno entra na conta (R$ 4.460,00)
   OK: valor inválido é recusado antes de enviar
   OK: data futura sem marcar previsto é recusada
-  OK: consolidado reflete os lançamentos (R$ 12.710,00)
+  OK: consolidado reflete os lançamentos (R$ 12.690,00)
   OK: saldo numa data passada (03/10 = R$ 13.000,00)
   OK: data anterior ao saldo inicial avisa que as contas ficaram fora
   OK: conta sem saldo conferido fica marcada
-  OK: conta arquivada sai do consolidado (R$ 11.960,00)
+  OK: conta arquivada sai do consolidado (R$ 11.940,00)
   OK: consolidado avisa a conta com saldo a confirmar
   OK: arquivada aparece separada
-  OK: resumo de outubro: receitas R$ 50,00 e despesas R$ 530,00 (sem o cancelado, com o estorno)
+  OK: resumo de outubro: receitas R$ 50,00 e despesas R$ 550,00 (sem o cancelado)
   OK: resumo avisa lançamentos sem categoria
   OK: categoria nova criada
   OK: sessão expirada é renovada sem pedir login

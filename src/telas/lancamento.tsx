@@ -13,8 +13,9 @@ type Props = {
 };
 
 // Tipo escolhido na tela. Despesa sempre sai e receita sempre entra; o
-// sentido só é livre em "Sem categoria". Estorno (despesa que volta) é uma
-// escolha explícita, para não acontecer por engano.
+// sentido só é livre em "Sem categoria". Despesa desfeita: cancela-se o
+// lançamento original. "Estorno" e "Devolução de receita" só aparecem ao
+// editar um lançamento antigo que já esteja assim (ex.: vindo de importação).
 type TipoTela = "despesa" | "receita" | "estorno" | "devolucao_receita" | "sem_categoria";
 const MAPA_TIPO: Record<Exclude<TipoTela, "sem_categoria">, { classificacao: Classificacao; natureza: "debito" | "credito" }> = {
   despesa: { classificacao: "despesa", natureza: "debito" },
@@ -127,7 +128,9 @@ export function DialogoLancamento({ contaId, movimento, aoFechar, aoConcluir }: 
           <legend>Tipo</legend>
           <label><input type="radio" name="tipo" checked={tipo === "despesa"} onChange={() => trocarTipo("despesa")} /> Despesa</label>
           <label><input type="radio" name="tipo" checked={tipo === "receita"} onChange={() => trocarTipo("receita")} /> Receita</label>
-          <label><input type="radio" name="tipo" checked={tipo === "estorno"} onChange={() => trocarTipo("estorno")} /> Estorno de despesa</label>
+          {tipo === "estorno" && (
+            <label><input type="radio" name="tipo" checked onChange={() => trocarTipo("estorno")} /> Estorno de despesa</label>
+          )}
           {tipo === "devolucao_receita" && (
             <label><input type="radio" name="tipo" checked onChange={() => trocarTipo("devolucao_receita")} /> Devolução de receita</label>
           )}

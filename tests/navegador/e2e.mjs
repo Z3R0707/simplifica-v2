@@ -196,17 +196,13 @@ try {
   // despesa sempre sai, receita sempre entra: o sentido só aparece em "Sem categoria"
   await p.getByRole("button", { name: "Novo lançamento" }).click();
   ok((await dialogo().getByRole("radio", { name: "Saiu" }).count()) === 0, "despesa: não pergunta se entrou ou saiu");
+  ok((await dialogo().getByRole("radio", { name: /Estorno/ }).count()) === 0, "lançamento novo não oferece estorno (despesa desfeita = cancelar)");
   await dialogo().getByRole("radio", { name: "Receita", exact: true }).check();
   ok((await dialogo().getByRole("radio", { name: "Entrou" }).count()) === 0, "receita: não pergunta se entrou ou saiu");
   await dialogo().getByRole("radio", { name: "Sem categoria" }).check();
   ok((await dialogo().getByRole("radio", { name: "Saiu" }).count()) === 1, "sem categoria: pergunta se entrou ou saiu");
   await dialogo().getByRole("button", { name: "Cancelar" }).click();
   await esperarFechar();
-
-  // estorno explícito: entra na conta e reduz a despesa da categoria
-  await lancar({ tipo: "Estorno de despesa", valor: "20,00", data: "2026-10-07", descricao: "Estorno mercado", categoria: "Alimentação" });
-  await esperarTexto(".resumo-conta .valor-destaque", "4.460,00");
-  ok((await texto(".resumo-conta .valor-destaque")) === "R$ 4.460,00", "estorno entra na conta (R$ 4.460,00)");
 
   // valores inválidos
   await p.getByRole("button", { name: "Novo lançamento" }).click();
@@ -224,8 +220,8 @@ try {
 
   // ============================================================ painel e consolidado
   await p.getByRole("link", { name: "Saldos" }).first().click();
-  await p.waitForFunction(() => document.querySelector(".consolidado-valor")?.textContent?.includes("12.710,00"));
-  ok(true, "consolidado reflete os lançamentos (R$ 12.710,00)");
+  await p.waitForFunction(() => document.querySelector(".consolidado-valor")?.textContent?.includes("12.690,00"));
+  ok(true, "consolidado reflete os lançamentos (R$ 12.690,00)");
   await p.screenshot({ path: CAPTURAS + "02-saldos.png", fullPage: true });
   await p.getByLabel("Saldo em").fill("2026-10-03");
   await p.waitForFunction(() => document.querySelector(".consolidado-valor")?.textContent?.includes("13.000,00"));
@@ -243,8 +239,8 @@ try {
   await dialogo().getByRole("button", { name: "Arquivar" }).click();
   await esperarFechar();
   await p.getByRole("link", { name: "Saldos" }).first().click();
-  await p.waitForFunction(() => document.querySelector(".consolidado-valor")?.textContent?.includes("11.960,00"));
-  ok(true, "conta arquivada sai do consolidado (R$ 11.960,00)");
+  await p.waitForFunction(() => document.querySelector(".consolidado-valor")?.textContent?.includes("11.940,00"));
+  ok(true, "conta arquivada sai do consolidado (R$ 11.940,00)");
   ok((await texto(".consolidado")).includes("1 conta ficou fora da soma"), "consolidado avisa a conta com saldo a confirmar");
   ok((await p.getByRole("button", { name: /Mostrar contas arquivadas \(1\)/ }).count()) === 1, "arquivada aparece separada");
 
@@ -252,9 +248,9 @@ try {
   await p.getByRole("link", { name: "Resumo" }).first().click();
   await p.getByLabel("Mês").fill("2026-10");
   await p.locator(".totais").waitFor();
-  await p.waitForFunction(() => document.querySelector(".totais")?.textContent?.includes("R$ 530,00"));
+  await p.waitForFunction(() => document.querySelector(".totais")?.textContent?.includes("R$ 550,00"));
   const totais = await texto(".totais");
-  ok(totais.includes("R$ 50,00") && totais.includes("R$ 530,00"), "resumo de outubro: receitas R$ 50,00 e despesas R$ 530,00 (sem o cancelado, com o estorno)", totais);
+  ok(totais.includes("R$ 50,00") && totais.includes("R$ 550,00"), "resumo de outubro: receitas R$ 50,00 e despesas R$ 550,00 (sem o cancelado)", totais);
   ok((await texto("body")).includes("sem categoria somam"), "resumo avisa lançamentos sem categoria");
   await p.screenshot({ path: CAPTURAS + "05-resumo.png", fullPage: true });
 
@@ -281,7 +277,7 @@ try {
   await p.getByRole("link", { name: "Minha conta" }).first().click();
   const [download] = await Promise.all([p.waitForEvent("download"), p.getByRole("button", { name: "Baixar meus dados" }).click()]);
   const exportado = JSON.parse(readFileSync(await download.path(), "utf8"));
-  ok(exportado.movimentos?.length === 7 && exportado.contas?.length === 6, "exportação traz contas e lançamentos", `${exportado.movimentos?.length} mov, ${exportado.contas?.length} contas`);
+  ok(exportado.movimentos?.length === 6 && exportado.contas?.length === 6, "exportação traz contas e lançamentos", `${exportado.movimentos?.length} mov, ${exportado.contas?.length} contas`);
 
   // ============================================================ isolamento: outro usuário
   const ctx2 = await navegador.newContext({ viewport: { width: 390, height: 844 }, locale: "pt-BR", timezoneId: "America/Sao_Paulo" });
