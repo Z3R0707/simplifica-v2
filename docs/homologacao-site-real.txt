@@ -1,0 +1,26 @@
+VALIDAÇÃO DO SITE NO SISTEMA REAL — APROVADA
+Site: https://simplifica-v2.netlify.app (Netlify, publicado a partir de Z3R0707/simplifica-v2, branch main)
+Banco: Supabase Simplifica V2 (0001–0005)
+Data: 13/10/2026
+
+Publicação
+  Variáveis SUPABASE_URL e SUPABASE_ANON_KEY (sem "secret") · repositório ligado · build automático OK
+  Site tornado público (antes "Private" bloqueava visitantes e links de e-mail)
+  Supabase Auth: Site URL e Redirect URL apontando para simplifica-v2.netlify.app
+
+Roteiro executado pelo usuário (janela anônima, conta de teste criada pelo site)
+  Cadastro pelo site → e-mail de confirmação recebido → link entrou no sistema (token removido do endereço)
+  2 contas (R$ 5.000 + R$ 3.500, saldo de 01/10) → consolidado R$ 8.500,00
+  Lançamento de 30/09 marcado "Já incluído no saldo inicial" e fora do saldo → saldo R$ 5.800,00
+  Edição de categoria (Outras despesas → Salário) com saldo inalterado
+  Previsto (R$ 300) só no "com previstos" → "Aconteceu" sem duplicar → saldo R$ 5.500,00
+  Cancelamento com motivo obrigatório → saldo R$ 5.700,00, linha riscada no histórico
+  Cancelamento parcial R$ 100 do Aluguel → saldo R$ 5.800,00, vínculo exibido, "Tudo" bloqueado
+  Resumo outubro: receitas R$ 1.000,00, despesas R$ 200,00, resultado +R$ 800,00
+  Exportação LGPD: contas, 5 lançamentos e histórico completo, canal "web" registrado
+  Exclusão: e-mail errado recusado; e-mail correto → "Sua conta foi excluída"; login recusado depois
+  Conferência no banco: login 0, perfil 0, contas 0, lançamentos 0, histórico 0, arquivos 0, exclusão "concluida"
+
+Ajustes feitos durante a validação, a pedido do usuário
+  Formulário: despesa sempre sai, receita sempre entra; sentido só em "Sem categoria"; sem opção de estorno
+  Cancelamento parcial (migração 0005), validado no banco real: 30/30
