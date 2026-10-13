@@ -41,6 +41,7 @@ export type Movimento = {
   situacao: "efetivo" | "previsto" | "cancelado";
   observacao: string | null;
   cancelado_motivo: string | null;
+  estorno_de: string | null;
   versao: number;
   criado_em: string;
 };

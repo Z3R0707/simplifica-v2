@@ -1,5 +1,5 @@
-Teste do site num Chromium real contra o Supabase simulado (SQL real das migrações 0001–0004, Edge Function excluir-conta real, política de segurança do netlify.toml aplicada)
-Data: 2026-10-13 11:22 -03 — executado 3 vezes seguidas, todas aprovadas; abaixo a última
+Teste do site num Chromium real contra o Supabase simulado (SQL real das migrações 0001–0005, Edge Function excluir-conta real, política de segurança do netlify.toml aplicada)
+Data: 2026-10-13 11:32 -03 — executado 3 vezes seguidas, todas aprovadas; abaixo a última
 
   OK: tela de entrar abre
   OK: senha curta recusada no cadastro
@@ -22,6 +22,12 @@ Data: 2026-10-13 11:22 -03 — executado 3 vezes seguidas, todas aprovadas; abai
   OK: cancelado some da lista por padrão
   OK: cancelado continua no histórico com o motivo
   OK: edição de valor recalcula o saldo (R$ 4.450,00)
+  OK: cancelamento parcial acima do valor é recusado
+  OK: cancelamento parcial devolve R$ 100 ao saldo (R$ 4.550,00)
+  OK: original mostra quanto já foi cancelado
+  OK: cancelamento parcial aparece ligado ao original
+  OK: com parcial ativo, não deixa cancelar tudo
+  OK: desfazer o cancelamento parcial volta o saldo (R$ 4.450,00)
   OK: clique duplo em Lançar grava um único lançamento
   OK: despesa: não pergunta se entrou ou saiu
   OK: lançamento novo não oferece estorno (despesa desfeita = cancelar)
@@ -50,9 +56,21 @@ Data: 2026-10-13 11:22 -03 — executado 3 vezes seguidas, todas aprovadas; abai
   OK: contas e lançamentos da conta excluída removidos do banco
   OK: segundo usuário continua usando normalmente
   OK: nenhum erro de JavaScript no navegador
-== Site (navegador): 49 verificações aprovadas ==
+== Site (navegador): 55 verificações aprovadas ==
 
 Testes de unidade (dinheiro e datas):
 # tests 6
 # pass 6
 # fail 0
+
+Banco (suíte completa, etapas 1 e 2 + cancelamento parcial):
+== 10_cadastro_permissoes: concluído ==
+== 20_correcoes_revisao: concluído ==
+== 30_exclusao_conta: concluído ==
+== 40_concorrencia: concluído ==
+== 50_etapa2_saldos: concluído ==
+== 60_etapa2_concorrencia: concluído ==
+== 70_cancelamento_parcial: concluído ==
+== Edge Functions: 40 verificações aprovadas ==
+== Página de validação: VALIDAÇÃO APROVADA — 28 verificações ==
+== RESULTADO: todos os testes passaram ==

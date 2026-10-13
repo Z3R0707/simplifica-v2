@@ -229,3 +229,80 @@ export function DialogoEfetivar({ movimento, aoFechar, aoConcluir }: { movimento
     </Dialogo>
   );
 }
+
+/** Cancelar: total (o lançamento sai do saldo) ou parcial (lançamento de volta ligado ao original). */
+export function DialogoCancelar({ movimento, jaCancelado, aoFechar, aoConcluir }: {
+  movimento: Movimento; jaCancelado: number; aoFechar: () => void; aoConcluir: () => void;
+}) {
+  const podeParcial = !movimento.estorno_de && movimento.situacao === "efetivo";
+  const restante = movimento.valor_centavos - jaCancelado;
+  const [modo, setModo] = useState<"total" | "parcial">(jaCancelado > 0 ? "parcial" : "total");
+  const [valor, setValor] = useState("");
+  const [data, setData] = useState(hoje());
+  const [motivo, setMotivo] = useState("");
+  const { chave, enviando, erro, setErro, enviar } = useEnvio("mov-cancelar");
+  const valorLido = lerValor(valor);
+  const verbo = movimento.natureza === "debito" ? "volta para a conta" : "sai da conta";
+
+  return (
+    <Dialogo titulo="Cancelar lançamento" aoFechar={aoFechar}>
+      <form className="formulario" onSubmit={(e) => {
+        e.preventDefault();
+        if (motivo.trim().length < 3) return setErro("Escreva o motivo (pelo menos 3 letras).");
+        if (modo === "parcial") {
+          if (valorLido === null || valorLido <= 0) return setErro("Informe o valor cancelado, maior que zero.");
+          if (valorLido > restante) return setErro(`O valor passa do que resta do lançamento (${formatarCentavos(restante)}).`);
+          if (!dataValida(data) || data > hoje()) return setErro("Informe a data do cancelamento (hoje ou antes).");
+          if (data < movimento.data_movimento) return setErro(`A data não pode ser anterior ao lançamento (${formatarData(movimento.data_movimento)}).`);
+        }
+        void enviar(async () => {
+          if (modo === "total") {
+            await rpc("movimento_cancelar", { p_id: movimento.id, p_versao_esperada: movimento.versao, p_motivo: motivo, p_chave_idempotencia: chave });
+          } else {
+            await rpc("movimento_cancelar_parcial", { p_id: movimento.id, p_valor_centavos: valorLido, p_data: data, p_motivo: motivo, p_chave_idempotencia: chave });
+          }
+          aoConcluir();
+        });
+      }}>
+        <p className="dialogo-texto"><strong>{movimento.descricao}</strong>, {formatarCentavos(movimento.valor_centavos)} em {formatarData(movimento.data_movimento)}.</p>
+        {podeParcial && (
+          <fieldset className="campo opcoes">
+            <legend>Cancelar</legend>
+            <label><input type="radio" name="modo" checked={modo === "total"} disabled={jaCancelado > 0} onChange={() => setModo("total")} /> Tudo</label>
+            <label><input type="radio" name="modo" checked={modo === "parcial"} disabled={restante <= 0} onChange={() => setModo("parcial")} /> Só uma parte</label>
+          </fieldset>
+        )}
+        {modo === "total" && (
+          <p className="campo-ajuda">O lançamento sai do saldo e fica no histórico, riscado, com o motivo.</p>
+        )}
+        {jaCancelado > 0 && (
+          <Alerta tipo="aviso">
+            Já foram cancelados {formatarCentavos(jaCancelado)}; restam {formatarCentavos(restante)}.
+            Para cancelar tudo, cancele também o restante como parcial ou desfaça os cancelamentos parciais.
+          </Alerta>
+        )}
+        {modo === "parcial" && (
+          <>
+            <p className="campo-ajuda">O lançamento original continua como está. O valor cancelado {verbo} na data informada, na mesma categoria, ligado a este lançamento.</p>
+            <div className="grade-2">
+              <Campo rotulo="Valor cancelado (R$)" ajuda={`Até ${formatarCentavos(restante)}`}>
+                {(id) => <input id={id} inputMode="decimal" required value={valor} onChange={(e) => setValor(e.target.value)} />}
+              </Campo>
+              <Campo rotulo="Data do cancelamento">
+                {(id) => <input id={id} type="date" required min={movimento.data_movimento} max={hoje()} value={data} onChange={(e) => setData(e.target.value)} />}
+              </Campo>
+            </div>
+          </>
+        )}
+        <Campo rotulo="Motivo">{(id) => <input id={id} value={motivo} maxLength={200} onChange={(e) => setMotivo(e.target.value)} />}</Campo>
+        {erro && <Alerta>{erro}</Alerta>}
+        <div className="acoes">
+          <button type="button" className="botao-secundario" onClick={aoFechar}>Voltar</button>
+          <button type="submit" className="botao-perigo" disabled={enviando}>
+            {enviando ? "Salvando…" : modo === "total" ? "Cancelar lançamento" : "Cancelar esta parte"}
+          </button>
+        </div>
+      </form>
+    </Dialogo>
+  );
+}

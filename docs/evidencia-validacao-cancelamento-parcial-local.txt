@@ -1,0 +1,11 @@
+Execução local dos roteiros de validação sobre 0001–0005 (PostgreSQL 16 + simulação mínima do Supabase)
+Data: 2026-10-13 11:33 -03
+
+01_validar_banco_no_supabase.sql:
+VALIDAÇÃO APROVADA: 74 de 74 verificações OK
+
+03_validar_etapa2_no_supabase.sql:
+VALIDAÇÃO APROVADA: 63 de 63 verificações OK
+
+04_validar_cancelamento_parcial_no_supabase.sql:
+VALIDAÇÃO APROVADA: 30 de 30 verificações OK

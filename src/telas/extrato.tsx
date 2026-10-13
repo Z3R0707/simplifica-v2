@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { listar, rpc } from "../lib/api";
 import { formatarData, hoje } from "../lib/datas";
+import { formatarCentavos } from "../lib/dinheiro";
 import type { LinhaExtrato, LinhaSaldo, Movimento } from "../lib/tipos";
-import { Alerta, Carregando, Confirmar, TituloPagina, Valor, useCadastros, useCarregar } from "../ui";
-import { DialogoEfetivar, DialogoLancamento } from "./lancamento";
+import { Alerta, Carregando, TituloPagina, Valor, useCadastros, useCarregar } from "../ui";
+import { DialogoCancelar, DialogoEfetivar, DialogoLancamento } from "./lancamento";
 
 type Acao = { tipo: "novo" } | { tipo: "editar" | "efetivar" | "cancelar"; mov: Movimento } | null;
 
@@ -18,8 +19,13 @@ export function TelaExtrato({ contaId }: { contaId: string }) {
       listar<Movimento>("movimentos", { conta_id: `eq.${contaId}` }),
       rpc<LinhaSaldo[]>("saldos_por_conta", { p_data: hoje(), p_projetar_ate: null }),
     ]);
-    const porId = new Map(movimentos.filter((m) => m.conta_id === contaId).map((m) => [m.id, m]));
-    return { linhas, porId, saldo: saldos.find((s) => s.conta_id === contaId) ?? null };
+    const daConta = movimentos.filter((m) => m.conta_id === contaId);
+    const porId = new Map(daConta.map((m) => [m.id, m]));
+    const parciais = new Map<string, number>();
+    for (const m of daConta) {
+      if (m.estorno_de && m.situacao !== "cancelado") parciais.set(m.estorno_de, (parciais.get(m.estorno_de) ?? 0) + m.valor_centavos);
+    }
+    return { linhas, porId, parciais, saldo: saldos.find((s) => s.conta_id === contaId) ?? null };
   }, [contaId]);
 
   const visiveis = useMemo(
@@ -87,6 +93,12 @@ export function TelaExtrato({ contaId }: { contaId: string }) {
                       {l.situacao === "previsto" && <span className="selo selo-previsto">Previsto</span>}
                       {l.situacao === "cancelado" && <span className="selo">Cancelado{mov?.cancelado_motivo ? `: ${mov.cancelado_motivo}` : ""}</span>}
                       {l.situacao === "efetivo" && !l.conta_no_saldo && <span className="selo selo-neutro">Já incluído no saldo inicial</span>}
+                      {mov?.estorno_de && dados!.porId.get(mov.estorno_de) && (
+                        <span className="selo selo-neutro">Cancelamento parcial do lançamento de {formatarData(dados!.porId.get(mov.estorno_de)!.data_movimento)}</span>
+                      )}
+                      {mov && !mov.estorno_de && (dados!.parciais.get(mov.id) ?? 0) > 0 && (
+                        <span className="selo selo-neutro">Cancelado parcialmente: {formatarCentavos(dados!.parciais.get(mov.id)!)} de {formatarCentavos(mov.valor_centavos)}</span>
+                      )}
                     </td>
                     <td className="num"><Valor centavos={l.valor_assinado_centavos} sinal /></td>
                     <td className="num saldo-apos">{l.saldo_apos_centavos !== null ? <><span className="rotulo-celular">Saldo após </span><Valor centavos={l.saldo_apos_centavos} /></> : ""}</td>
@@ -116,17 +128,11 @@ export function TelaExtrato({ contaId }: { contaId: string }) {
       {acao?.tipo === "editar" && <DialogoLancamento movimento={acao.mov} aoFechar={() => setAcao(null)} aoConcluir={concluir} />}
       {acao?.tipo === "efetivar" && <DialogoEfetivar movimento={acao.mov} aoFechar={() => setAcao(null)} aoConcluir={concluir} />}
       {acao?.tipo === "cancelar" && (
-        <Confirmar
-          titulo="Cancelar lançamento"
-          texto={<p>{acao.mov.descricao}: o lançamento sai do saldo, mas continua registrado no histórico com o motivo.</p>}
-          rotuloAcao="Cancelar lançamento"
-          pedirMotivo="obrigatorio"
-          perigo
+        <DialogoCancelar
+          movimento={acao.mov}
+          jaCancelado={dados?.parciais.get(acao.mov.id) ?? 0}
           aoFechar={() => setAcao(null)}
-          aoConfirmar={async (motivo) => {
-            await rpc("movimento_cancelar", { p_id: acao.mov.id, p_versao_esperada: acao.mov.versao, p_motivo: motivo, p_chave_idempotencia: null });
-            concluir();
-          }}
+          aoConcluir={concluir}
         />
       )}
     </>

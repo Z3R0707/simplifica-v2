@@ -22,7 +22,7 @@ psql(["-d", "postgres", "-c", `drop database if exists ${DB}`, "-c", `create dat
 const stub = readFileSync(RAIZ + "supabase/tests/00_stub_supabase.sql", "utf8")
   .replace(/^create role (\w+) ([^;]*);/gm, "do $$$$ begin create role $1 $2; exception when duplicate_object then null; end $$$$;");
 execFileSync("psql", [...PSQL, "-q", "-v", "ON_ERROR_STOP=1", "-d", DB], { input: stub, stdio: ["pipe", "ignore", "pipe"] });
-for (const f of ["0001_fundacao_infra.sql", "0002_fundacao_cadastros.sql", "0003_fundacao_lgpd_storage.sql", "0004_etapa2_movimentos_saldos.sql"]) {
+for (const f of ["0001_fundacao_infra.sql", "0002_fundacao_cadastros.sql", "0003_fundacao_lgpd_storage.sql", "0004_etapa2_movimentos_saldos.sql", "0005_etapa2_cancelamento_parcial.sql"]) {
   psql(["-d", DB, "-f", RAIZ + "supabase/migrations/" + f]);
 }
 
@@ -182,6 +182,33 @@ try {
   await p.waitForFunction(() => document.querySelector(".resumo-conta .valor-destaque")?.textContent?.includes("4.450,00"));
   ok(true, "edição de valor recalcula o saldo (R$ 4.450,00)");
 
+  // cancelamento parcial e desfazer
+  const linhaAluguel = () => p.locator("tr").filter({ has: p.locator(".descricao", { hasText: /^Aluguel$/ }) });
+  await linhaAluguel().getByRole("button", { name: "Cancelar" }).click();
+  await dialogo().getByRole("radio", { name: "Só uma parte" }).check();
+  await dialogo().getByLabel("Valor cancelado (R$)").fill("400,00");
+  await dialogo().getByLabel("Data do cancelamento").fill("2026-10-11");
+  await dialogo().getByLabel("Motivo").fill("Desconto no aluguel");
+  await dialogo().getByRole("button", { name: "Cancelar esta parte" }).click();
+  ok((await dialogo().innerText()).includes("passa do que resta"), "cancelamento parcial acima do valor é recusado");
+  await dialogo().getByLabel("Valor cancelado (R$)").fill("100,00");
+  await dialogo().getByRole("button", { name: "Cancelar esta parte" }).click();
+  await esperarFechar();
+  await esperarTexto(".resumo-conta .valor-destaque", "4.550,00");
+  ok((await texto(".resumo-conta .valor-destaque")) === "R$ 4.550,00", "cancelamento parcial devolve R$ 100 ao saldo (R$ 4.550,00)");
+  ok((await texto("body")).includes("Cancelado parcialmente: R$ 100,00 de R$ 300,00"), "original mostra quanto já foi cancelado");
+  ok((await p.locator("tr", { hasText: "Cancelamento parcial: Aluguel" }).count()) === 1, "cancelamento parcial aparece ligado ao original");
+  await linhaAluguel().getByRole("button", { name: "Cancelar" }).click();
+  ok(await dialogo().getByRole("radio", { name: "Tudo" }).isDisabled(), "com parcial ativo, não deixa cancelar tudo");
+  await dialogo().getByRole("button", { name: "Voltar" }).click();
+  await esperarFechar();
+  await p.locator("tr", { hasText: "Cancelamento parcial: Aluguel" }).getByRole("button", { name: "Cancelar" }).click();
+  await dialogo().getByLabel("Motivo").fill("Desconto não confirmado");
+  await dialogo().getByRole("button", { name: "Cancelar lançamento" }).click();
+  await esperarFechar();
+  await esperarTexto(".resumo-conta .valor-destaque", "4.450,00");
+  ok((await texto(".resumo-conta .valor-destaque")) === "R$ 4.450,00", "desfazer o cancelamento parcial volta o saldo (R$ 4.450,00)");
+
   // clique duplo não duplica
   await p.getByRole("button", { name: "Novo lançamento" }).click();
   await dialogo().getByRole("radio", { name: "Sem categoria" }).check();
@@ -277,7 +304,7 @@ try {
   await p.getByRole("link", { name: "Minha conta" }).first().click();
   const [download] = await Promise.all([p.waitForEvent("download"), p.getByRole("button", { name: "Baixar meus dados" }).click()]);
   const exportado = JSON.parse(readFileSync(await download.path(), "utf8"));
-  ok(exportado.movimentos?.length === 6 && exportado.contas?.length === 6, "exportação traz contas e lançamentos", `${exportado.movimentos?.length} mov, ${exportado.contas?.length} contas`);
+  ok(exportado.movimentos?.length === 7 && exportado.contas?.length === 6, "exportação traz contas e lançamentos", `${exportado.movimentos?.length} mov, ${exportado.contas?.length} contas`);
 
   // ============================================================ isolamento: outro usuário
   const ctx2 = await navegador.newContext({ viewport: { width: 390, height: 844 }, locale: "pt-BR", timezoneId: "America/Sao_Paulo" });

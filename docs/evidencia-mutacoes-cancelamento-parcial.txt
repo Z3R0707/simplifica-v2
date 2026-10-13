@@ -1,0 +1,7 @@
+Prova de que os testes do cancelamento parcial detectam o defeito (teste de mutação)
+Data: 2026-10-13 — mutação aplicada numa CÓPIA da migração 0005 e suíte inteira rodada.
+
+Sem a trava do lançamento original (FOR UPDATE retirado da função e do gatilho):
+  FALHOU: P1: segundo ESPERA o primeiro — esperado t, obtido f
+  == RESULTADO: FALHOU ==
+(sem a trava, dois cancelamentos parciais simultâneos de R$ 60 num lançamento de R$ 100 passariam juntos)
