@@ -1,0 +1,20 @@
+Simplifica Finanças v2 — homologação da Etapa 5 parte 2 (0009) no Supabase real (projeto simplifica-v2)
+Data: 2026-10-13 (horário de Brasília), executada pelo usuário no SQL Editor; resultados enviados em capturas de tela.
+
+1) Migração
+   0009_etapa5_leitores_bancos.sql → "Success. No rows returned" (etapa passa a 5.2-leitores-bancos)
+
+2) Validação da etapa
+   08_validar_etapa5_leitores_no_supabase.sql → VALIDAÇÃO APROVADA: 26 de 26 verificações OK (rollback)
+
+3) Regressão (roteiros com as guardas atualizadas para a etapa 5.2)
+   01_validar_banco_no_supabase                → VALIDAÇÃO APROVADA: 74 de 74
+   03_validar_etapa2_no_supabase               → VALIDAÇÃO APROVADA: 63 de 63
+   04_validar_cancelamento_parcial_no_supabase → VALIDAÇÃO APROVADA: 30 de 30
+   05_validar_etapa3_no_supabase               → VALIDAÇÃO APROVADA: 77 de 77
+   06_validar_etapa4_no_supabase               → VALIDAÇÃO APROVADA: 82 de 82
+   07_validar_etapa5_importacao_no_supabase    → VALIDAÇÃO APROVADA: 49 de 49
+   Todos com rollback: nenhum usuário, arquivo ou dado de teste ficou gravado.
+
+4) Site
+   Publicação do site com os leitores (PDF do Itaú, CSV do Nubank): aguardando autorização do usuário.
