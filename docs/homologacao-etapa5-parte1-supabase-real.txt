@@ -1,0 +1,17 @@
+Simplifica Finanças v2 — Homologação da Etapa 5, parte 1 (importação de extratos) no Supabase real
+Data: 13/10/2026 (horário de Brasília)
+
+1) Instalação da migração 0008_etapa5_importacao_extratos.sql (SQL Editor)
+   Instalada (o roteiro 07 só roda com a etapa "5.1-importacao-extratos").
+   Uma segunda execução da 0008 foi recusada pela guarda, como previsto:
+   "ABORTADO: este banco não está na Etapa 4 (0007) do Simplifica v2. Nada foi alterado."
+
+2) Validação da Etapa 5 parte 1 — validacao/07_validar_etapa5_importacao_no_supabase.sql
+   VALIDAÇÃO APROVADA: 49 de 49 verificações OK. Tudo desfeito (rollback), inclusive os arquivos de teste no Storage.
+
+3) Regressão das etapas anteriores, depois da 0008
+   01 ... 74 de 74 | 03 ... 63 de 63 | 04 ... 30 de 30 | 05 ... 77 de 77 | 06 ... 82 de 82
+   Todos com rollback.
+
+Situação: banco da Etapa 5 parte 1 homologado no Supabase real.
+Pendente: publicar o site com "Importar extrato" (após autorização) e testar com um extrato real.
