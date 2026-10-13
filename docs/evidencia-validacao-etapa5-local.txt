@@ -1,0 +1,24 @@
+Simplifica Finanças v2 — validação da Etapa 5 parte 1 executada localmente (mesmo SQL que vai para o Supabase)
+Gerado em 2026-10-13T21:44Z
+
+1) Banco novo com 0001–0008: os seis roteiros de validação
+   01_validar_banco_no_supabase: VALIDAÇÃO APROVADA: 74 de 74 verificações OK
+   03_validar_etapa2_no_supabase: VALIDAÇÃO APROVADA: 63 de 63 verificações OK
+   04_validar_cancelamento_parcial_no_supabase: VALIDAÇÃO APROVADA: 30 de 30 verificações OK
+   05_validar_etapa3_no_supabase: VALIDAÇÃO APROVADA: 77 de 77 verificações OK
+   06_validar_etapa4_no_supabase: VALIDAÇÃO APROVADA: 82 de 82 verificações OK
+   07_validar_etapa5_importacao_no_supabase: VALIDAÇÃO APROVADA: 49 de 49 verificações OK
+   Depois: 0 usuários e 0 arquivos no banco (tudo desfeito).
+
+2) O roteiro 07 reprova um banco com uma proteção retirada (mutação 'item já importado sugerido como novo'):
+   VALIDAÇÃO REPROVADA: 48 de 49 OK — #41 esperado ja_importado ja_importado ja_importado novo, obtido novo possivel_duplicado possivel_duplicado novo
+
+3) Atualização de um banco já em uso (0007 com dados) para a 0008
+== banco na versão anterior (0007) com dados (lançamentos, conta a pagar paga, cartão com compra parcelada e fatura paga) ==
+antes:  saldo=276000 resumo_out=Alimentação:20000,Não classificado:-4000 a_pagar=Fatura Nubank 10/2026:0:paga,Fatura Nubank 11/2026:10000:a_vencer,Fatura Nubank 12/2026:10000:a_vencer,Luz:6000:parcial cartao_usado=20000
+== aplica 0008 ==
+COMMIT
+depois: saldo=276000 resumo_out=Alimentação:20000,Não classificado:-4000 a_pagar=Fatura Nubank 10/2026:0:paga,Fatura Nubank 11/2026:10000:a_vencer,Fatura Nubank 12/2026:10000:a_vencer,Luz:6000:parcial cartao_usado=20000
+etapa: 5.1-importacao-extratos
+== reaplicar 0008 por engano é recusado sem alterar nada ==
+ABORTADO: este banco não está na Etapa 4 (0007) do Simplifica v2. Nada foi alterado.

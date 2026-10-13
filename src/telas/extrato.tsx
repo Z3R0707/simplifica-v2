@@ -46,6 +46,7 @@ export function TelaExtrato({ contaId }: { contaId: string }) {
     <>
       <p className="trilha"><a href="#/saldos">Saldos</a></p>
       <TituloPagina titulo={conta?.apelido ?? "Conta"}>
+        {conta?.ativa && <a className="botao-secundario" href={`#/importar/${contaId}`}>Importar extrato</a>}
         {conta?.ativa && <button type="button" className="botao" onClick={() => setAcao({ tipo: "novo" })}>Novo lançamento</button>}
       </TituloPagina>
 
@@ -94,6 +95,7 @@ export function TelaExtrato({ contaId }: { contaId: string }) {
                       <span className="texto-suave">{l.classificacao === "pagamento_fatura" ? "Pagamento de fatura" : l.categoria ?? "Sem categoria"}</span>
                       {l.situacao === "previsto" && <span className="selo selo-previsto">Previsto</span>}
                       {l.situacao === "cancelado" && <span className="selo">Cancelado{mov?.cancelado_motivo ? `: ${mov.cancelado_motivo}` : ""}</span>}
+                      {mov?.origem === "importacao" && <span className="selo selo-neutro">Importado</span>}
                       {l.situacao === "efetivo" && !l.conta_no_saldo && <span className="selo selo-neutro">Já incluído no saldo inicial</span>}
                       {mov?.estorno_de && dados!.porId.get(mov.estorno_de) && (
                         <span className="selo selo-neutro">Cancelamento parcial do lançamento de {formatarData(dados!.porId.get(mov.estorno_de)!.data_movimento)}</span>

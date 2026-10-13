@@ -1,4 +1,4 @@
-# Simplifica Finanças v2 — Etapas 1 a 4
+# Simplifica Finanças v2 — Etapas 1 a 5 (parte 1)
 
 Base do novo sistema: banco, permissões, auditoria, idempotência, versão e exclusão
 de conta (LGPD) sem arquivos órfãos. Tudo vai num projeto Supabase **novo e separado**.
@@ -194,4 +194,39 @@ Migração **adicional** `supabase/migrations/0007_etapa4_cartoes.sql`. Roda sob
 4. Só depois o site com a aba **Cartões** é publicado.
 
 Evidências locais: `docs/evidencia-testes-locais.txt` (622 verificações), `docs/evidencia-mutacoes-etapa4.txt` (12 de 12 mutações detectadas), `docs/evidencia-validacao-etapa4-local.txt`, `docs/evidencia-site-local.txt` (116 verificações no navegador).
+
+# Etapa 5, parte 1 — importação de extratos (OFX e CSV)
+
+Migração **adicional** `supabase/migrations/0008_etapa5_importacao_extratos.sql`. Roda sobre a 0007, não apaga nem recria nada e se recusa a rodar em qualquer outro estado. Tudo numa única transação.
+
+## Como funciona
+
+1. Em uma conta, **Importar extrato** → escolher o arquivo **OFX** (padrão que a maioria dos bancos exporta) ou **CSV** (a pessoa indica quais colunas são data, descrição e valor; nada é presumido).
+2. O **arquivo original** é guardado no Storage, na pasta do usuário, com o SHA-256 no nome. Sem o original guardado, o banco recusa a importação.
+3. **Prévia**: nada entra no saldo ainda. Cada linha recebe uma sugestão:
+   - *Novo* (marcado); *Já importado* (já entrou por outro arquivo); *Possível duplicado* (há lançamento com o mesmo valor até 3 dias de diferença — desmarcado, a pessoa decide); *Antes do saldo inicial*; *Data futura*; *Repetido no arquivo*.
+   - Categoria sugerida pelo histórico (mesma descrição, sem acento/caixa/espaços extras). Descrição e categoria editáveis.
+4. **Confirmar** cria os lançamentos (origem "importação"). **Desfazer** cancela todos os lançamentos daquela importação (nada é apagado) — recusado se algum já paga uma conta.
+5. **Conferência de saldo**: quando o arquivo traz o saldo (OFX), o histórico mostra se confere com o saldo calculado na mesma data.
+
+## Duplicidade
+
+- O mesmo arquivo (mesmo SHA-256) não entra duas vezes, a menos que a importação anterior seja desfeita.
+- Cada lançamento importado tem uma chave: o identificador do banco (FITID) quando existe; senão data + valor + descrição + nº da ocorrência no arquivo (duas compras iguais no mesmo dia continuam sendo duas). Um índice único impede a mesma chave duas vezes na conta, inclusive em importações simultâneas e em períodos sobrepostos.
+- Nada legítimo é descartado sem a pessoa ver: o que é só parecido fica para ela decidir.
+
+## O que depende de arquivo real (parte 2)
+
+- Leitor de **PDF** de cada banco e a homologação do OFX/CSV de cada banco (nenhum banco está marcado como homologado).
+- Importação de **faturas de cartão** (reconhecer a mesma compra parcelada em faturas consecutivas).
+- Os casos de divergência R$ 1.283,53 e −R$ 1.000,00 (documentos originais).
+
+## Instalação (projeto simplifica-v2, já com a 0007 homologada)
+
+1. SQL Editor → New query → cole `0008_etapa5_importacao_extratos.sql` → Run.
+2. Validação: `validacao/07_validar_etapa5_importacao_no_supabase.sql` → esperado `VALIDAÇÃO APROVADA: 49 de 49` (rollback automático; os arquivos de teste no Storage também são desfeitos).
+3. Regressão: `01` (74), `03` (63), `04` (30), `05` (77) e `06` (82).
+4. Só depois o site com **Importar extrato** é publicado.
+
+Evidências locais: `docs/evidencia-testes-locais.txt` (679 verificações no banco + 14 testes dos leitores), `docs/evidencia-mutacoes-etapa5.txt` (10 de 10 mutações detectadas), `docs/evidencia-validacao-etapa5-local.txt`, `docs/evidencia-site-local.txt` (131 verificações no navegador).
 

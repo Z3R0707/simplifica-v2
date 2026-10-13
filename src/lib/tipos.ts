@@ -42,6 +42,7 @@ export type Movimento = {
   observacao: string | null;
   cancelado_motivo: string | null;
   estorno_de: string | null;
+  origem?: string;
   versao: number;
   criado_em: string;
 };

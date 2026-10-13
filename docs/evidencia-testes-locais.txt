@@ -1,5 +1,5 @@
-Simplifica Finanças v2 — suíte completa de testes locais (etapas 1 a 4)
-Gerado em 2026-10-13T15:46Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
+Simplifica Finanças v2 — suíte completa de testes locais (etapas 1 a 5.1)
+Gerado em 2026-10-13T21:43Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 
 -- aplicando 0001_fundacao_infra.sql
 -- aplicando 0002_fundacao_cadastros.sql
@@ -8,6 +8,7 @@ Gerado em 2026-10-13T15:46Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 -- aplicando 0005_etapa2_cancelamento_parcial.sql
 -- aplicando 0006_etapa3_contas_a_pagar.sql
 -- aplicando 0007_etapa4_cartoes.sql
+-- aplicando 0008_etapa5_importacao_extratos.sql
 -- testes 05_auxiliares.sql
 -- testes 100_etapa4_cartoes.sql
   OK: fecha dia 3 / vence dia 10: compra em 02/10 vence em outubro
@@ -194,6 +195,66 @@ Gerado em 2026-10-13T15:46Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
   OK: INVARIANTE: nenhuma fatura com pago acima do total
   OK: INVARIANTE: estornos nunca passam da compra
 == 110_etapa4_concorrencia: concluído ==
+-- testes 120_etapa5_importacao.sql
+  OK: sem o arquivo original guardado, a importação é recusada
+  OK: arquivo na pasta de outro usuário é recusado
+  OK: arquivo sem lançamentos é recusado
+  OK: linha com valor zero é recusada
+  OK: prévia criada com 8 itens e o período do arquivo
+  OK: sugestões: anterior ao saldo inicial, novo, possível duplicado, novos, data futura, repetido no arquivo
+  OK: dois cafés iguais no mesmo dia são dois lançamentos (chaves diferentes)
+  OK: com identificador do banco, a chave é o identificador
+  OK: categoria sugerida pelo histórico (mesma descrição, sem acento/caixa/espaços)
+  OK: possível duplicado mostra o lançamento parecido
+  OK: a prévia não mexe no saldo
+  OK: o mesmo arquivo não entra duas vezes
+  OK: reenvio idêntico devolve a mesma prévia
+  OK: versão desatualizada recusada
+  OK: confirmada: 4 importados, 4 ignorados
+  OK: saldo = inicial + manuais + importados (R$ 5.845,00)
+  OK: lançamentos marcados como importados
+  OK: ajuste da prévia vale; a descrição original fica na observação
+  OK: conferência: saldo do arquivo em 07/10 = saldo calculado
+  OK: importação confirmada não é confirmada de novo
+  OK: arquivo sobreposto: o que já entrou é reconhecido; um 3º café igual no dia fica para você decidir
+  OK: aviso de período sobreposto
+  OK: forçar um já importado não duplica (conta como duplicado)
+  OK: a compra do supermercado existe uma vez só
+  OK: saldo soma só o que é novo
+  OK: não desfaz importação cujo lançamento paga uma conta
+  OK: desfaz a primeira importação
+  OK: lançamentos dela cancelados (nada apagado)
+  OK: saldo volta
+  OK: depois de desfeita, o mesmo arquivo pode ser importado de novo
+  OK: descartar uma prévia
+  OK: CSV: valor positivo entra, sem categoria
+  OK: importação auditada (criada, totais, confirmada, desfeita)
+  OK: gravação direta em importações negada
+  OK: gravação direta nos itens negada
+  OK: outro usuário não vê importações
+  OK: nem os itens pela consulta
+  OK: não confirma importação alheia
+  OK: não desfaz importação alheia
+  OK: não importa na conta alheia
+  OK: anon não executa nenhuma função do public
+  OK: função interna nova fechada
+  OK: INVARIANTE: nenhuma chave de importação repetida na mesma conta
+  OK: exportação inclui importações e itens
+  OK: exclusão da conta apaga importações, itens e lançamentos
+-- testes 130_etapa5_concorrencia.sql
+  OK: I1: primeira confirmação em andamento (3 lançamentos)
+  OK: I1: segunda ESPERA a primeira (mesmas chaves)
+  OK: I1: segunda não duplica nada (3 reconhecidos como duplicados)
+  OK: I1: só 3 lançamentos na conta
+  OK: I2: confirmação em andamento
+  OK: I2: descarte ESPERA a confirmação
+  OK: I2: descarte recusado (a prévia mudou: foi confirmada)
+  OK: I3: descarte em andamento
+  OK: I3: confirmação ESPERA o descarte
+  OK: I3: confirmação recusada (a prévia foi descartada)
+  OK: I3: nada da prévia descartada entrou
+  OK: INVARIANTE: nenhuma chave de importação repetida
+== 130_etapa5_concorrencia: concluído ==
 -- testes 20_correcoes_revisao.sql
   OK: conta_atualizar sem versão é recusada
   OK: conta_definir_ativa sem versão é recusada
@@ -647,8 +708,8 @@ Gerado em 2026-10-13T15:46Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
   OK: exclusão com confirmação divergente é rejeitada — HTTP 400
   OK: exclusão com confirmação e-mail do usuário B é rejeitada — HTTP 400
   OK: arquivos de A intactos após confirmações inválidas — 2 arquivo(s)
-  OK: exclusão com o e-mail correto é concluída (com uploads simultâneos) — HTTP 200 {"status":"concluida","arquivos_removidos":5}; uploads aceitos durante a corrida: 3 de 5
-  OK: todos os arquivos de A (inclusive os da corrida) foram removidos — removidos: 5; esperado ao menos 5
+  OK: exclusão com o e-mail correto é concluída (com uploads simultâneos) — HTTP 200 {"status":"concluida","arquivos_removidos":4}; uploads aceitos durante a corrida: 2 de 5
+  OK: todos os arquivos de A (inclusive os da corrida) foram removidos — removidos: 4; esperado ao menos 4
   OK: token antigo de A não consegue mais enviar arquivo — HTTP 400
   OK: A não consegue mais entrar — HTTP 400
   OK: B continua entrando normalmente — HTTP 200
@@ -656,3 +717,21 @@ Gerado em 2026-10-13T15:46Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
   OK: banco confirma: 0 arquivos e login removido
 == Página de validação: VALIDAÇÃO APROVADA — 28 verificações ==
 == RESULTADO: todos os testes passaram ==
+
+-- testes de unidade do site (dinheiro e leitores OFX/CSV)
+ok 1 - lerValor: formatos brasileiros
+ok 2 - lerValor: entradas inválidas
+ok 3 - lerValor: sem perda por ponto flutuante
+ok 4 - formatarCentavos
+ok 5 - ida e volta campo ↔ centavos
+ok 6 - datas
+ok 7 - OFX 1.x (SGML): lê conta, período, saldo e lançamentos; erros ficam visíveis
+ok 8 - OFX 2.x (XML) e OFX de cartão de crédito
+ok 9 - valor OFX não aceita separador de milhar nem casas significativas além da 2ª
+ok 10 - arquivo em Windows-1252 é lido com acentos corretos
+ok 11 - valores de CSV em formatos brasileiros e americanos
+ok 12 - datas de CSV
+ok 13 - CSV com cabeçalho, aspas e ponto e vírgula; mapeamento sugerido e linhas inválidas apontadas
+ok 14 - CSV com débito e crédito em colunas separadas, e sinal invertido
+# pass 14
+# fail 0

@@ -1,5 +1,5 @@
 // Teste de ponta a ponta do site, num Chromium real, contra o Supabase
-// simulado que executa o SQL REAL das migrações (etapas 1 a 4).
+// simulado que executa o SQL REAL das migrações (etapas 1 a 5).
 // Uso: node --experimental-strip-types tests/navegador/e2e.mjs
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync } from "node:fs";
@@ -22,7 +22,7 @@ psql(["-d", "postgres", "-c", `drop database if exists ${DB}`, "-c", `create dat
 const stub = readFileSync(RAIZ + "supabase/tests/00_stub_supabase.sql", "utf8")
   .replace(/^create role (\w+) ([^;]*);/gm, "do $$$$ begin create role $1 $2; exception when duplicate_object then null; end $$$$;");
 execFileSync("psql", [...PSQL, "-q", "-v", "ON_ERROR_STOP=1", "-d", DB], { input: stub, stdio: ["pipe", "ignore", "pipe"] });
-for (const f of ["0001_fundacao_infra.sql", "0002_fundacao_cadastros.sql", "0003_fundacao_lgpd_storage.sql", "0004_etapa2_movimentos_saldos.sql", "0005_etapa2_cancelamento_parcial.sql", "0006_etapa3_contas_a_pagar.sql", "0007_etapa4_cartoes.sql"]) {
+for (const f of ["0001_fundacao_infra.sql", "0002_fundacao_cadastros.sql", "0003_fundacao_lgpd_storage.sql", "0004_etapa2_movimentos_saldos.sql", "0005_etapa2_cancelamento_parcial.sql", "0006_etapa3_contas_a_pagar.sql", "0007_etapa4_cartoes.sql", "0008_etapa5_importacao_extratos.sql"]) {
   psql(["-d", DB, "-f", RAIZ + "supabase/migrations/" + f]);
 }
 
@@ -571,6 +571,72 @@ try {
   ok((await p.locator("tbody tr", { hasText: "Televisão" }).count()) === 0, "parcelas não viram contas a pagar separadas");
   await p.getByRole("button", { name: "Mês anterior" }).click();
 
+
+  // ============================================================ importação de extrato (Etapa 5, parte 1)
+  const hojeSP = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()).replace(/-/g, "");
+  const ofx = `OFXHEADER:100\nDATA:OFXSGML\nVERSION:102\nCHARSET:1252\n\n<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><CURDEF>BRL
+<BANKACCTFROM><BANKID>0341<ACCTID>1234-5</BANKACCTFROM><BANKTRANLIST><DTSTART>20260930<DTEND>${hojeSP}
+<STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20260930<TRNAMT>-10.00<FITID>T4<MEMO>TARIFA</STMTTRN>
+<STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20261003<TRNAMT>-45.00<FITID>T1<MEMO>PADARIA BOM PAO</STMTTRN>
+<STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20261010<TRNAMT>-100.00<FITID>T2<MEMO>DEBITO INTERNET</STMTTRN>
+<STMTTRN><TRNTYPE>CREDIT<DTPOSTED>20261011<TRNAMT>1500.00<FITID>T3<MEMO>PIX RECEBIDO MARIA</STMTTRN>
+</BANKTRANLIST><LEDGERBAL><BALAMT>3930.00<DTASOF>${hojeSP}</LEDGERBAL></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>`;
+  await p.getByRole("link", { name: "Saldos" }).first().click();
+  await p.locator(".cartao-conta").filter({ has: p.locator("strong", { hasText: /^Itaú$/ }) }).click();
+  await p.getByRole("link", { name: "Importar extrato" }).click();
+  await p.getByRole("heading", { name: "Importar extrato" }).waitFor();
+  await p.getByLabel("Arquivo do extrato (OFX ou CSV)").setInputFiles({ name: "itau-outubro.ofx", mimeType: "application/x-ofx", buffer: Buffer.from(ofx, "latin1") });
+  await p.getByRole("button", { name: "Ver prévia" }).waitFor();
+  ok((await texto(".importar-passo:has(h2)")).includes("4 lançamento(s) lido(s)"), "OFX lido: 4 lançamentos");
+  ok((await texto("main")).includes("Saldo informado no arquivo"), "OFX: saldo informado pelo banco lido");
+  await p.getByRole("button", { name: "Ver prévia" }).click();
+  await p.locator("table.previa").waitFor();
+  ok(srv.log.some((l) => l.startsWith("storage-envio:")), "arquivo original guardado no Storage antes da prévia");
+  const resumoPrevia = await texto(".totais");
+  ok(resumoPrevia.includes("2 de 4") && resumoPrevia.includes("Possível duplicado: 1") && resumoPrevia.includes("Antes do saldo inicial: 1"),
+    "prévia: 2 novos; o débito de internet lançado à mão vira possível duplicado; a tarifa é anterior ao saldo inicial", resumoPrevia);
+  const linhaPrevia = (d) => p.locator("table.previa tbody tr").filter({ has: p.locator(`input[value="${d}"]`) });
+  ok((await linhaPrevia("DEBITO INTERNET").innerText()).includes("Parecido com: Débito internet"), "possível duplicado mostra o lançamento parecido");
+  await linhaPrevia("PADARIA BOM PAO").getByLabel("Categoria").selectOption({ label: "Alimentação" });
+  await p.screenshot({ path: CAPTURAS + "16-importar-previa.png", fullPage: true });
+  await p.getByRole("button", { name: "Importar 2 lançamento(s)" }).click();
+  await p.getByRole("heading", { name: "Importação concluída" }).waitFor();
+  ok((await texto("main")).includes("2 lançamento(s) importado(s)"), "importação concluída: 2 lançamentos");
+  await esperarTexto(".lista-simples", "Saldo confere");
+  ok((await texto(".lista-simples")).includes("Saldo confere com o banco"), "conferência: saldo do arquivo confere com o saldo calculado");
+  await p.getByRole("link", { name: "Ver extrato da conta" }).click();
+  await esperarTexto(".resumo-conta .valor-destaque", "3.930,00");
+  ok((await texto(".resumo-conta .valor-destaque")) === "R$ 3.930,00", "saldo do Itaú: R$ 2.475 − 45 + 1.500 = R$ 3.930,00", await texto(".resumo-conta .valor-destaque"));
+  ok((await texto("tr:has-text('PADARIA BOM PAO')")).includes("Alimentação") && (await texto("tr:has-text('PADARIA BOM PAO')")).includes("Importado"), "lançamento importado com a categoria escolhida e a marca de importado");
+
+  // o mesmo arquivo de novo
+  await p.getByRole("link", { name: "Importar extrato" }).click();
+  await p.getByLabel("Arquivo do extrato (OFX ou CSV)").setInputFiles({ name: "itau-outubro-copia.ofx", mimeType: "application/x-ofx", buffer: Buffer.from(ofx, "latin1") });
+  await p.getByRole("button", { name: "Ver prévia" }).click();
+  await p.locator(".importar-passo .alerta-erro").waitFor();
+  ok((await texto(".importar-passo .alerta-erro")).includes("já foi importado"), "o mesmo arquivo não é importado duas vezes");
+
+  // CSV sobreposto: o mapeamento é pedido; o que já entrou não se repete
+  const csvExtrato = "Data;Histórico;Valor\n03/10/2026;PADARIA BOM PAO;-45,00\n12/10/2026;MERCADO;-30,00\n";
+  await p.getByLabel("Arquivo do extrato (OFX ou CSV)").setInputFiles({ name: "itau.csv", mimeType: "text/csv", buffer: Buffer.from(csvExtrato, "utf8") });
+  await p.getByRole("heading", { name: "Quais colunas são o quê?" }).waitFor();
+  ok((await p.getByLabel("Descrição", { exact: true }).locator("option:checked").innerText()).includes("Histórico"), "CSV: colunas sugeridas pelo cabeçalho");
+  await p.getByRole("button", { name: "Ver prévia" }).click();
+  await p.locator("table.previa").waitFor();
+  ok((await texto(".totais")).includes("1 de 2") && (await linhaPrevia("PADARIA BOM PAO").innerText()).includes("Possível duplicado"),
+    "CSV sobreposto: a padaria já importada fica de fora; só o mercado entra");
+  await p.getByRole("button", { name: "Importar 1 lançamento(s)" }).click();
+  await p.getByRole("heading", { name: "Importação concluída" }).waitFor();
+  await p.locator(".lista-simples li", { hasText: "itau.csv" }).waitFor();
+  ok((await texto(".lista-simples")).includes("período sobreposto"), "histórico avisa o período sobreposto");
+  await p.locator(".lista-simples li", { hasText: "itau.csv" }).getByRole("button", { name: "Desfazer" }).click();
+  await dialogo().getByLabel("Motivo").fill("arquivo errado");
+  await dialogo().getByRole("button", { name: "Desfazer" }).click();
+  await esperarFechar();
+  await esperarTexto(".lista-simples", "Desfeita: arquivo errado");
+  ok((await texto(".lista-simples")).includes("Desfeita: arquivo errado"), "importação desfeita fica no histórico com o motivo");
+  ok((await saldoItau()) === "R$ 3.930,00", "desfazer tira o mercado do saldo (R$ 3.930,00)", await saldoItau());
+
   // ============================================================ sessão: renovação do token
   await p.evaluate(() => {
     const s = JSON.parse(localStorage.getItem("simplifica-v2.sessao"));
@@ -586,7 +652,7 @@ try {
   await p.getByRole("link", { name: "Minha conta" }).first().click();
   const [download] = await Promise.all([p.waitForEvent("download"), p.getByRole("button", { name: "Baixar meus dados" }).click()]);
   const exportado = JSON.parse(readFileSync(await download.path(), "utf8"));
-  ok(exportado.movimentos?.length === 11 && exportado.contas?.length === 6, "exportação traz contas e lançamentos", `${exportado.movimentos?.length} mov, ${exportado.contas?.length} contas`);
+  ok(exportado.movimentos?.length === 14 && exportado.contas?.length === 6 && exportado.importacoes?.length === 2, "exportação traz contas e lançamentos", `${exportado.movimentos?.length} mov, ${exportado.contas?.length} contas`);
   ok(exportado.contas_a_pagar?.length >= 4 && exportado.pagamentos?.length === 4 && exportado.recorrencias?.length === 1, "exportação traz contas a pagar, pagamentos e recorrências",
     `${exportado.contas_a_pagar?.length} contas a pagar, ${exportado.pagamentos?.length} pagamentos, ${exportado.recorrencias?.length} recorrências`);
   ok(exportado.cartoes?.length === 1 && exportado.compras_cartao?.length === 3 && exportado.parcelas?.length === 12, "exportação traz cartões, compras e parcelas",
@@ -655,7 +721,7 @@ try {
   await p.getByRole("button", { name: "Entrar" }).click();
   await p.locator("[role=alert]").waitFor();
   ok((await texto("[role=alert]")).includes("incorretos"), "conta excluída não entra mais");
-  const resto = execFileSync("psql", [...PSQL, "-d", DB, "-tAc", `select (select count(*) from public.movimentos where user_id = '${idAna}') + (select count(*) from public.contas where user_id = '${idAna}') + (select count(*) from public.obrigacoes where user_id = '${idAna}') + (select count(*) from public.pagamentos where user_id = '${idAna}') + (select count(*) from public.recorrencias where user_id = '${idAna}') + (select count(*) from public.cartoes where user_id = '${idAna}') + (select count(*) from public.compras where user_id = '${idAna}') + (select count(*) from public.parcelas where user_id = '${idAna}') + (select count(*) from public.faturas where user_id = '${idAna}')`], { encoding: "utf8" }).trim();
+  const resto = execFileSync("psql", [...PSQL, "-d", DB, "-tAc", `select (select count(*) from public.movimentos where user_id = '${idAna}') + (select count(*) from public.contas where user_id = '${idAna}') + (select count(*) from public.obrigacoes where user_id = '${idAna}') + (select count(*) from public.pagamentos where user_id = '${idAna}') + (select count(*) from public.recorrencias where user_id = '${idAna}') + (select count(*) from public.cartoes where user_id = '${idAna}') + (select count(*) from public.compras where user_id = '${idAna}') + (select count(*) from public.parcelas where user_id = '${idAna}') + (select count(*) from public.faturas where user_id = '${idAna}') + (select count(*) from public.importacoes where user_id = '${idAna}')`], { encoding: "utf8" }).trim();
   ok(resto === "0", "contas, lançamentos e contas a pagar da conta excluída removidos do banco");
   await p2.goto(srv.base + "/#/saldos");
   await p2.reload();

@@ -36,7 +36,8 @@ export function iniciarServidor({ db, porta, dist }) {
         res.writeHead(204, { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*", "Access-Control-Allow-Methods": "*" });
         return res.end();
       }
-      const corpo = corpoTexto ? JSON.parse(corpoTexto) : {};
+      const ehJson = /json/i.test(String(req.headers["content-type"] ?? "")) || !u.pathname.startsWith("/storage/");
+      const corpo = corpoTexto && ehJson ? JSON.parse(corpoTexto) : {};
 
       // ------------------------------------------------------------ Auth
       if (u.pathname === "/auth/v1/signup") {
@@ -99,6 +100,24 @@ export function iniciarServidor({ db, porta, dist }) {
           return enviar(200, JSON.parse(saida));
         } catch (e) {
           return enviar(e.code === "42501" ? (uid ? 403 : 401) : 400, { code: e.code, message: e.message });
+        }
+      }
+
+      // ------------------------------------------------------------ Storage (envio pelo usuário)
+      const envio = /^\/storage\/v1\/object\/documentos\/(.+)$/.exec(u.pathname);
+      if (envio && req.method === "POST") {
+        const uid = uidDoToken(req.headers.authorization);
+        if (!uid) return enviar(400, { statusCode: "403", error: "Unauthorized", message: "invalid JWT" });
+        const nome = decodeURIComponent(envio[1]);
+        if (sql(db, `select count(*) from storage.objects where bucket_id = 'documentos' and name = ${lit(nome)}`) !== "0") {
+          return enviar(400, { statusCode: "409", error: "Duplicate", message: "The resource already exists" });
+        }
+        try {
+          sql(db, `${comoUsuario(uid)} insert into storage.objects (bucket_id, name, owner) values ('documentos', ${lit(nome)}, '${uid}')`);
+          log.push("storage-envio:" + nome);
+          return enviar(200, { Key: "documentos/" + nome });
+        } catch (e) {
+          return enviar(400, { statusCode: "403", error: "Unauthorized", message: "new row violates row-level security policy" });
         }
       }
 

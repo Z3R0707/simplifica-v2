@@ -8,8 +8,9 @@ Gestão financeira pessoal: Supabase (PostgreSQL, Auth, RLS, Edge Functions) + s
 src/                  site (React + TypeScript, montado com esbuild)
   lib/api.ts          cliente do Supabase (login, RPC, tabelas) via fetch
   lib/dinheiro.ts     valores em centavos (leitura e formatação pt-BR)
-  telas/              entrar, saldos, extrato, contas a pagar, cartões, contas, categorias, resumo, minha conta
-supabase/migrations/  banco, na ordem 0001 → 0007 (etapas 1 a 4)
+  lib/importadores/   leitores de extrato (OFX padrão e CSV mapeado)
+  telas/              entrar, saldos, extrato, importar extrato, contas a pagar, cartões, contas, categorias, resumo, minha conta
+supabase/migrations/  banco, na ordem 0001 → 0008 (etapas 1 a 5.1)
 supabase/functions/   Edge Functions excluir-conta e limpar-orfaos
 validacao/            roteiros de validação no projeto Supabase real
 tests/                testes do site (unidade e navegador)

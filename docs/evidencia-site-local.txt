@@ -1,5 +1,5 @@
-Simplifica Finanças v2 — teste do site num navegador real (Chromium) contra o Supabase simulado com o SQL real (0001–0007)
-Gerado em 2026-10-13T15:46Z
+Simplifica Finanças v2 — teste do site num navegador real (Chromium) contra o Supabase simulado com o SQL real (0001–0008)
+Gerado em 2026-10-13T21:44Z
 
   OK: tela de entrar abre
   OK: senha curta recusada no cadastro
@@ -102,6 +102,21 @@ Gerado em 2026-10-13T15:46Z
   OK: a fatura vira uma conta a pagar com o total da fatura
   OK: conta a pagar da fatura não é editada à mão; leva à fatura
   OK: parcelas não viram contas a pagar separadas
+  OK: OFX lido: 4 lançamentos
+  OK: OFX: saldo informado pelo banco lido
+  OK: arquivo original guardado no Storage antes da prévia
+  OK: prévia: 2 novos; o débito de internet lançado à mão vira possível duplicado; a tarifa é anterior ao saldo inicial
+  OK: possível duplicado mostra o lançamento parecido
+  OK: importação concluída: 2 lançamentos
+  OK: conferência: saldo do arquivo confere com o saldo calculado
+  OK: saldo do Itaú: R$ 2.475 − 45 + 1.500 = R$ 3.930,00
+  OK: lançamento importado com a categoria escolhida e a marca de importado
+  OK: o mesmo arquivo não é importado duas vezes
+  OK: CSV: colunas sugeridas pelo cabeçalho
+  OK: CSV sobreposto: a padaria já importada fica de fora; só o mercado entra
+  OK: histórico avisa o período sobreposto
+  OK: importação desfeita fica no histórico com o motivo
+  OK: desfazer tira o mercado do saldo (R$ 3.930,00)
   OK: sessão expirada é renovada sem pedir login
   OK: exportação traz contas e lançamentos
   OK: exportação traz contas a pagar, pagamentos e recorrências
@@ -117,4 +132,4 @@ Gerado em 2026-10-13T15:46Z
   OK: contas, lançamentos e contas a pagar da conta excluída removidos do banco
   OK: segundo usuário continua usando normalmente
   OK: nenhum erro de JavaScript no navegador
-== Site (navegador): 116 verificações aprovadas ==
+== Site (navegador): 131 verificações aprovadas ==

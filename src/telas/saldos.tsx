@@ -43,6 +43,7 @@ export function TelaSaldos() {
           <span>Saldo em</span>
           <input type="date" value={data} max="2100-12-31" onChange={(e) => e.target.value && setData(e.target.value)} />
         </label>
+        {ativas.length > 0 && <a className="botao-secundario" href="#/importar">Importar extrato</a>}
         {ativas.length > 0 && <button type="button" className="botao" onClick={() => setLancando(true)}>Novo lançamento</button>}
       </TituloPagina>
 

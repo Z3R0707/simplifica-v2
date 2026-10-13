@@ -279,3 +279,34 @@ export function novaChave(prefixo: string): string {
     : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   return `${prefixo}-${aleatorio}`;
 }
+
+/**
+ * Guarda um arquivo original no Storage (pasta do próprio usuário). Se o
+ * mesmo arquivo (mesmo caminho, que inclui o SHA-256) já estiver lá, segue.
+ */
+export async function guardarArquivo(caminho: string, dados: Blob, tipo: string): Promise<void> {
+  if (!sessao) throw new ErroApi(401, "sessao", "Sua sessão terminou. Entre novamente.");
+  if (Date.now() > sessao.expira_em - 60_000) await renovar();
+  let r: Response;
+  try {
+    r = await fetch(`${SUPABASE_URL}/storage/v1/object/documentos/${caminho}`, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${sessao!.access_token}`,
+        "Content-Type": tipo || "application/octet-stream",
+        "x-upsert": "false",
+      },
+      body: dados,
+    });
+  } catch {
+    throw new ErroApi(0, "rede", "Sem conexão com o servidor. Verifique a internet e tente de novo.");
+  }
+  if (r.ok) return;
+  const texto = await r.text();
+  if (r.status === 409 || /duplicate|already exists/i.test(texto)) return;
+  if (r.status === 403 || r.status === 401) {
+    throw new ErroApi(r.status, "storage", "O arquivo não pôde ser guardado (sem permissão). Entre novamente e tente de novo.");
+  }
+  throw new ErroApi(r.status, "storage", "Não foi possível guardar o arquivo original. Tente de novo.");
+}

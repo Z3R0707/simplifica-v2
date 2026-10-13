@@ -1,0 +1,26 @@
+Simplifica Finanças v2 — Etapa 5 parte 1 (0008): testes de mutação
+Gerado em 2026-10-13T21:41Z. Cada linha retira UMA proteção da 0008 e roda os testes 120 e 130.
+
+MUTAÇÃO [chave de importação sem índice único] / 120_etapa5_importacao: ERROR:  FALHOU: forçar um já importado não duplica (conta como duplicado) — esperado 1 1 3, obtido 2 0 3
+MUTAÇÃO [chave de importação sem índice único] / 130_etapa5_concorrencia: ERROR:  FALHOU: I1: segunda ESPERA a primeira (mesmas chaves) — esperado t, obtido f
+MUTAÇÃO [mesmo arquivo importado de novo] / 120_etapa5_importacao: ERROR:  FALHOU: o mesmo arquivo não entra duas vezes — o comando deveria ter falhado (22023)
+MUTAÇÃO [mesmo arquivo importado de novo] / 130_etapa5_concorrencia: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [sem aviso de possível duplicado] / 120_etapa5_importacao: ERROR:  FALHOU: sugestões: anterior ao saldo inicial, novo, possível duplicado, novos, data futura, repetido no arquivo — esperado antes_data_base:false novo:true possivel_duplicado:false novo:true novo:true novo:true data_futura:false repetido_no_arquivo:false, obtido antes_data_base:false novo:true novo:true novo:true novo:true novo:true data_futura:false repetido_no_arquivo:false
+MUTAÇÃO [sem aviso de possível duplicado] / 130_etapa5_concorrencia: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [item já importado sugerido como novo] / 120_etapa5_importacao: ERROR:  FALHOU: arquivo sobreposto: o que já entrou é reconhecido; um 3º café igual no dia fica para você decidir — esperado ja_importado ja_importado ja_importado possivel_duplicado novo, obtido novo possivel_duplicado possivel_duplicado possivel_duplicado novo
+MUTAÇÃO [item já importado sugerido como novo] / 130_etapa5_concorrencia: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [anterior ao saldo inicial entra marcado] / 120_etapa5_importacao: ERROR:  FALHOU: sugestões: anterior ao saldo inicial, novo, possível duplicado, novos, data futura, repetido no arquivo — esperado antes_data_base:false novo:true possivel_duplicado:false novo:true novo:true novo:true data_futura:false repetido_no_arquivo:false, obtido antes_data_base:true novo:true possivel_duplicado:false novo:true novo:true novo:true data_futura:false repetido_no_arquivo:false
+MUTAÇÃO [anterior ao saldo inicial entra marcado] / 130_etapa5_concorrencia: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [desfazer não cancela os lançamentos] / 120_etapa5_importacao: ERROR:  FALHOU: não desfaz importação cujo lançamento paga uma conta — esperado erro 22023, obtido 23514 (new row for relation "movimentos" violates check constraint "movimentos_check1")
+MUTAÇÃO [desfazer não cancela os lançamentos] / 130_etapa5_concorrencia: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [sem exigir o arquivo original guardado] / 120_etapa5_importacao: ERROR:  FALHOU: sem o arquivo original guardado, a importação é recusada — o comando deveria ter falhado (22023)
+MUTAÇÃO [sem exigir o arquivo original guardado] / 130_etapa5_concorrencia: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [arquivo em pasta alheia aceito] / 120_etapa5_importacao: ERROR:  FALHOU: arquivo na pasta de outro usuário é recusado — o comando deveria ter falhado (22023)
+MUTAÇÃO [arquivo em pasta alheia aceito] / 130_etapa5_concorrencia: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [confirmar ignora o desmarcado] / 120_etapa5_importacao: ERROR:  FALHOU: confirmada: 4 importados, 4 ignorados — esperado confirmada 4 0 4, obtido confirmada 6 0 2
+MUTAÇÃO [confirmar ignora o desmarcado] / 130_etapa5_concorrencia: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [confirmar sem trava da prévia] / 120_etapa5_importacao: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [confirmar sem trava da prévia] / 130_etapa5_concorrencia: ERROR:  FALHOU: I3: confirmação recusada (a prévia foi descartada) — esperado ERRO:22023, obtido ERRO:23514
+
+(Acrescentado o cenário I3 — descartar × confirmar na ordem inversa — que detecta a falta da trava; mutação rodada de novo, acima.)
+RESUMO: 10 de 10 mutações detectadas por pelo menos um dos arquivos 120/130.

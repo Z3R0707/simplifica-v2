@@ -330,3 +330,20 @@ input[type="radio"], input[type="checkbox"] { width: 18px; height: 18px; accent-
 @media (max-width: 760px) {
   .nav a { font-size: 0.7rem; padding: 10px 2px; }
 }
+
+/* ------------------------------------------------------------ importação (Etapa 5) */
+.importar-passo { margin-top: 18px; }
+.importar-passo h2 { margin-bottom: 6px; }
+.tabela-compacta td { padding: 6px 10px; font-size: 0.85rem; white-space: nowrap; }
+.linha-cabecalho td { font-weight: 700; color: var(--suave); }
+.lista-resultado { margin: 10px 0; padding-left: 18px; display: grid; gap: 4px; }
+.lista-erros { margin: 6px 0 0; padding-left: 18px; font-size: 0.86rem; }
+.previa-contagem { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.campo-inline { min-height: 34px !important; padding: 5px 8px !important; font-weight: 600; }
+.previa select { min-width: 150px; min-height: 36px; padding: 5px 8px; }
+.previa td:first-child { width: 36px; }
+input[type="file"] { padding: 7px; }
+@media (max-width: 640px) {
+  .previa td:first-child { grid-row: span 2; }
+  .previa td.num { text-align: right; }
+}
