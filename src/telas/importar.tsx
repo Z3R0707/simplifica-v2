@@ -7,8 +7,7 @@ import { lerCsvBruto, mapearCsv, sugerirMapa, type MapaCsv } from "../lib/import
 import { ehOfx, lerOfx } from "../lib/importadores/ofx";
 import { ehNubankCsv, lerNubankCsv } from "../lib/importadores/nubank-csv";
 import { lerItauExtratoPdf, reconheceItauExtrato } from "../lib/importadores/itau-extrato-pdf";
-import { reconheceItauFatura } from "../lib/importadores/itau-fatura-pdf";
-import { reconheceNubankFatura } from "../lib/importadores/nubank-fatura-pdf";
+import { LEITORES_FATURA } from "../lib/importadores/faturas";
 import { lerLinhasPdfNoNavegador } from "../lib/importadores/pdf";
 import { PDFJS_BASE } from "../config";
 import type { Classificacao } from "../lib/tipos";
@@ -103,7 +102,7 @@ export function TelaImportar({ contaId }: { contaId?: string }) {
           setLidoPdf(lerItauExtratoPdf(linhas));
           return setArquivo({ nome: f.name, bytes, texto: "", extensao: "pdf" });
         }
-        if (reconheceNubankFatura(linhas) || reconheceItauFatura(linhas)) {
+        if (LEITORES_FATURA.some((l) => l.reconhece(linhas))) {
           return setErroArquivo("Isto é a fatura de um cartão, não o extrato da conta. Importe pela tela do cartão: Cartões → escolha o cartão → Importar fatura.");
         }
         const topo = linhas.slice(0, 80).map((l) => l.texto.toLowerCase()).join(" ");

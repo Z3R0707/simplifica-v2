@@ -1,4 +1,4 @@
-# Simplifica Finanças v2 — Etapas 1 a 5 (parte 4)
+# Simplifica Finanças v2 — Etapas 1 a 5 (parte 5)
 
 Base do novo sistema: banco, permissões, auditoria, idempotência, versão e exclusão
 de conta (LGPD) sem arquivos órfãos. Tudo vai num projeto Supabase **novo e separado**.
@@ -291,4 +291,14 @@ Migração **adicional** `supabase/migrations/0011_etapa5_valor_parcela.sql` (so
 Instalação: SQL Editor → `0011_etapa5_valor_parcela.sql` → Run; validação `validacao/10_validar_etapa5_valor_parcela_no_supabase.sql` → `VALIDAÇÃO APROVADA: 15 de 15`; regressão 01 (74), 03 (63), 04 (30), 05 (77), 06 (82), 07 (49), 08 (26), 09 (40). A partir desta versão, os roteiros 03 a 09 aceitam a etapa deles **ou qualquer posterior** — não precisam de cópia nova a cada etapa.
 
 Evidências: `docs/evidencia-etapa5-parte4-local.txt` (roteiros, 6 de 6 mutações, atualização com dados), `docs/evidencia-testes-locais.txt` (766 verificações no banco), `docs/evidencia-site-local.txt` (153 no navegador).
+
+# Etapa 5, parte 5 — faturas de Santander, Mercado Pago, Sicredi, Sicoob e Riachuelo
+
+Migração **adicional** `supabase/migrations/0012_etapa5_leitores_faturas.sql` (sobre a 0011): cadastra a instituição **Riachuelo (Midway)** e registra os cinco leitores de fatura em PDF, feitos e conferidos com os arquivos reais. A importação usa as mesmas regras da parte 3 (prévia, já lançado, possível duplicado, antecipação, acerto de centavos, conferência com o total do banco).
+
+O que os leitores tratam: vários cartões (físico, adicional, virtual) na mesma fatura; pagamentos separados (inclusive quando a fatura os imprime sem sinal); encargos do rotativo; descrições quebradas em mais de uma linha; o ano da compra de parcelas antigas (ex.: 12/12 comprada no ano anterior); várias parcelas da mesma compra na mesma fatura (antecipação), sem confundir com compras diferentes na mesma loja. Cada leitor só aceita a fatura quando a soma bate com o total impresso pelo banco.
+
+Instalação: `0012_etapa5_leitores_faturas.sql` → Run; validação `validacao/11_validar_etapa5_leitores_faturas_no_supabase.sql` → `VALIDAÇÃO APROVADA: 16 de 16`; regressão 01 (74), 03 (63), 04 (30), 05 (77), 06 (82), 07 (49), 08 (26), 09 (40), 10 (15). Nesta versão mudaram os roteiros 01, 08 e 10.
+
+Evidências: `docs/evidencia-etapa5-parte5-local.txt` (roteiros, 15 de 15 mutações, atualização com dados), `docs/evidencia-leitores-arquivos-reais.txt`, `docs/evidencia-testes-locais.txt` (775 no banco + 42 testes dos leitores), `docs/evidencia-site-local.txt` (153 no navegador).
 

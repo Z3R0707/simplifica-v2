@@ -24,7 +24,7 @@ psql(["-d", "postgres", "-c", `drop database if exists ${DB}`, "-c", `create dat
 const stub = readFileSync(RAIZ + "supabase/tests/00_stub_supabase.sql", "utf8")
   .replace(/^create role (\w+) ([^;]*);/gm, "do $$$$ begin create role $1 $2; exception when duplicate_object then null; end $$$$;");
 execFileSync("psql", [...PSQL, "-q", "-v", "ON_ERROR_STOP=1", "-d", DB], { input: stub, stdio: ["pipe", "ignore", "pipe"] });
-for (const f of ["0001_fundacao_infra.sql", "0002_fundacao_cadastros.sql", "0003_fundacao_lgpd_storage.sql", "0004_etapa2_movimentos_saldos.sql", "0005_etapa2_cancelamento_parcial.sql", "0006_etapa3_contas_a_pagar.sql", "0007_etapa4_cartoes.sql", "0008_etapa5_importacao_extratos.sql", "0009_etapa5_leitores_bancos.sql", "0010_etapa5_importacao_faturas.sql", "0011_etapa5_valor_parcela.sql"]) {
+for (const f of ["0001_fundacao_infra.sql", "0002_fundacao_cadastros.sql", "0003_fundacao_lgpd_storage.sql", "0004_etapa2_movimentos_saldos.sql", "0005_etapa2_cancelamento_parcial.sql", "0006_etapa3_contas_a_pagar.sql", "0007_etapa4_cartoes.sql", "0008_etapa5_importacao_extratos.sql", "0009_etapa5_leitores_bancos.sql", "0010_etapa5_importacao_faturas.sql", "0011_etapa5_valor_parcela.sql", "0012_etapa5_leitores_faturas.sql"]) {
   psql(["-d", DB, "-f", RAIZ + "supabase/migrations/" + f]);
 }
 

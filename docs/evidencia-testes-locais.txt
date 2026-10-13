@@ -1,5 +1,5 @@
-Simplifica Finanças v2 — suíte completa de testes locais (etapas 1 a 5.4)
-Gerado em 2026-10-13T23:26Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu
+Simplifica Finanças v2 — suíte completa de testes locais (etapas 1 a 5.5)
+Gerado em 2026-10-13T23:51Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu
 
 -- aplicando 0001_fundacao_infra.sql
 -- aplicando 0002_fundacao_cadastros.sql
@@ -12,6 +12,7 @@ Gerado em 2026-10-13T23:26Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 -- aplicando 0009_etapa5_leitores_bancos.sql
 -- aplicando 0010_etapa5_importacao_faturas.sql
 -- aplicando 0011_etapa5_valor_parcela.sql
+-- aplicando 0012_etapa5_leitores_faturas.sql
 -- testes 05_auxiliares.sql
 -- testes 100_etapa4_cartoes.sql
   OK: fecha dia 3 / vence dia 10: compra em 02/10 vence em outubro
@@ -137,7 +138,7 @@ Gerado em 2026-10-13T23:26Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
   OK: 16 categorias padrão
   OK: limites de uso criados
   OK: criação do perfil auditada (canal cadastro)
-  OK: só Nubank e Itaú (leitores conferidos com arquivo real) constam homologados
+  OK: banco só consta como homologado com o formato conferido em arquivo real
   OK: saldo inicial em centavos (R$ 5.000,00)
   OK: duas contas independentes no mesmo banco
   OK: criação sem chave de idempotência é recusada
@@ -349,6 +350,16 @@ Gerado em 2026-10-13T23:26Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
   OK: outro usuário não altera a parcela
   OK: anônimo não altera parcela
   OK: fora desta função, o valor continua travado
+-- testes 180_etapa5_leitores_faturas.sql
+  OK: versão do esquema: 5.5 ou posterior
+  OK: instituição Riachuelo (Midway) cadastrada
+  OK: leitores de fatura conferidos com arquivo real: 7 bancos
+  OK: nenhum banco homologado sem formato conferido
+  OK: parcelas 5 e 6 da mesma compra apontam para a 4 desta fatura
+  OK: a compra fica com as 3 parcelas nesta fatura e nada nas seguintes
+  OK: fatura = total do banco
+  OK: anuidade em 12x a partir da 4ª: 9 parcelas
+  OK: compra antiga (12/12 do ano anterior) entra só com a última parcela
 -- testes 20_correcoes_revisao.sql
   OK: conta_atualizar sem versão é recusada
   OK: conta_definir_ativa sem versão é recusada
@@ -819,34 +830,42 @@ ok 3 - lerValor: sem perda por ponto flutuante
 ok 4 - formatarCentavos
 ok 5 - ida e volta campo ↔ centavos
 ok 6 - datas
-ok 7 - utilidades: valores, parcelas e ano das datas
-ok 8 - Nubank: reconhece a fatura (e não outros PDFs)
-ok 9 - Nubank: lê lançamentos, parcelas, antecipação, IOF, créditos e pagamentos
-ok 10 - Nubank: soma diferente do subtotal do banco bloqueia (lançamento faltando)
-ok 11 - Nubank: linha com data e sem valor reconhecível é erro
-ok 12 - Itaú: reconhece a fatura (e não o extrato)
-ok 13 - Itaú: lê a coluna da esquerda e depois a da direita, só a seção de lançamentos
-ok 14 - Itaú: soma diferente do total dos lançamentos atuais bloqueia
-ok 15 - Itaú: sem o total dos lançamentos não há conferência, e a leitura é recusada
-ok 16 - Itaú: 'próximas faturas' encerra os lançamentos mesmo quando o total vem depois (na outra coluna)
-ok 17 - OFX 1.x (SGML): lê conta, período, saldo e lançamentos; erros ficam visíveis
-ok 18 - OFX 2.x (XML) e OFX de cartão de crédito
-ok 19 - valor OFX não aceita separador de milhar nem casas significativas além da 2ª
-ok 20 - arquivo em Windows-1252 é lido com acentos corretos
-ok 21 - valores de CSV em formatos brasileiros e americanos
-ok 22 - datas de CSV
-ok 23 - CSV com cabeçalho, aspas e ponto e vírgula; mapeamento sugerido e linhas inválidas apontadas
-ok 24 - CSV com débito e crédito em colunas separadas, e sinal invertido
-ok 25 - extrairLinhas agrupa itens na mesma altura e ordena da esquerda para a direita
-ok 26 - Itaú: reconhece o extrato e ignora outros PDFs
-ok 27 - Itaú: lê os lançamentos e confere cada dia com o SALDO DO DIA
-ok 28 - Itaú: dia que não fecha bloqueia a leitura (lançamento faltando ou valor errado)
-ok 29 - Itaú: diferença só no dia da emissão (dia ainda aberto no banco) vira aviso, não erro
-ok 30 - Itaú: valor na coluna de saldo para um lançamento é erro; dia sem SALDO DO DIA é erro
-ok 31 - Itaú: valor fora do padrão é erro de leitura
-ok 32 - Nubank: reconhece o cabeçalho exato (com ou sem BOM)
-ok 33 - Nubank: lê valores com ponto decimal, identificador e descrição com vírgula
-ok 34 - Nubank: fora do padrão é erro (vírgula decimal, identificador inválido ou repetido, data)
-# tests 34
-# pass 34
+ok 7 - Santander: cartões, seções, parcelas antigas, antecipação e conferência pelo resumo
+ok 8 - Mercado Pago: encargos do rotativo, pagamento sem sinal, cartões e conferência pelo resumo
+ok 9 - Sicredi: data com hora, descrição em duas linhas, pagamento, crédito e conferência
+ok 10 - Sicoob: descrição e parcela em linhas separadas, estornos, pagamento e conferência pelo TOTAL
+ok 11 - Riachuelo: data com ano, valor total da compra, compras diferentes na mesma loja e conferência
+ok 12 - cada leitor reconhece só a própria fatura
+ok 13 - Riachuelo: estorno (crédito que não é pagamento) entra e é descontado na conferência
+ok 14 - utilidades: valores, parcelas e ano das datas
+ok 15 - Nubank: reconhece a fatura (e não outros PDFs)
+ok 16 - Nubank: lê lançamentos, parcelas, antecipação, IOF, créditos e pagamentos
+ok 17 - Nubank: soma diferente do subtotal do banco bloqueia (lançamento faltando)
+ok 18 - Nubank: linha com data e sem valor reconhecível é erro
+ok 19 - Itaú: reconhece a fatura (e não o extrato)
+ok 20 - Itaú: lê a coluna da esquerda e depois a da direita, só a seção de lançamentos
+ok 21 - Itaú: soma diferente do total dos lançamentos atuais bloqueia
+ok 22 - Itaú: sem o total dos lançamentos não há conferência, e a leitura é recusada
+ok 23 - Itaú: 'próximas faturas' encerra os lançamentos mesmo quando o total vem depois (na outra coluna)
+ok 24 - data da compra de parcela antiga e parcelas da mesma compra na mesma fatura
+ok 25 - OFX 1.x (SGML): lê conta, período, saldo e lançamentos; erros ficam visíveis
+ok 26 - OFX 2.x (XML) e OFX de cartão de crédito
+ok 27 - valor OFX não aceita separador de milhar nem casas significativas além da 2ª
+ok 28 - arquivo em Windows-1252 é lido com acentos corretos
+ok 29 - valores de CSV em formatos brasileiros e americanos
+ok 30 - datas de CSV
+ok 31 - CSV com cabeçalho, aspas e ponto e vírgula; mapeamento sugerido e linhas inválidas apontadas
+ok 32 - CSV com débito e crédito em colunas separadas, e sinal invertido
+ok 33 - extrairLinhas agrupa itens na mesma altura e ordena da esquerda para a direita
+ok 34 - Itaú: reconhece o extrato e ignora outros PDFs
+ok 35 - Itaú: lê os lançamentos e confere cada dia com o SALDO DO DIA
+ok 36 - Itaú: dia que não fecha bloqueia a leitura (lançamento faltando ou valor errado)
+ok 37 - Itaú: diferença só no dia da emissão (dia ainda aberto no banco) vira aviso, não erro
+ok 38 - Itaú: valor na coluna de saldo para um lançamento é erro; dia sem SALDO DO DIA é erro
+ok 39 - Itaú: valor fora do padrão é erro de leitura
+ok 40 - Nubank: reconhece o cabeçalho exato (com ou sem BOM)
+ok 41 - Nubank: lê valores com ponto decimal, identificador e descrição com vírgula
+ok 42 - Nubank: fora do padrão é erro (vírgula decimal, identificador inválido ou repetido, data)
+# tests 42
+# pass 42
 # fail 0

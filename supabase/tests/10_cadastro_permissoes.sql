@@ -14,7 +14,7 @@ select teste.igual((select nome from public.titulares where user_id = teste.id('
 select teste.igual((select count(*) from public.categorias where user_id = teste.id('ana'))::int, 16, '16 categorias padrão');
 select teste.igual((select count(*) from public.limites_uso where user_id = teste.id('ana'))::int, 1, 'limites de uso criados');
 select teste.igual((select count(*) from public.auditoria where user_id = teste.id('ana') and tabela = 'perfis' and canal = 'cadastro')::int, 1, 'criação do perfil auditada (canal cadastro)');
-select teste.igual((select count(*) from public.instituicoes where leitor_status = 'homologado' and coalesce(codigo_compe, '') not in ('260', '341'))::int, 0, 'só Nubank e Itaú (leitores conferidos com arquivo real) constam homologados');
+select teste.igual((select count(*) from public.instituicoes where leitor_status = 'homologado' and cardinality(formatos_homologados) = 0)::int, 0, 'banco só consta como homologado com o formato conferido em arquivo real');
 
 -- ================================================================= como ANA
 \o /dev/null

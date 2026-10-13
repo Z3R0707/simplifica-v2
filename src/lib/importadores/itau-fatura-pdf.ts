@@ -12,7 +12,7 @@
 // A segunda linha de cada compra (ramo e cidade) não tem data e é ignorada.
 // Parcela: sufixo "NN/NN" no estabelecimento ("MERCADOLIVRE*M 01/04").
 import type { LinhaPdf } from "./pdf.ts";
-import { conferirTotal, dataSemAno, separarParcela, subtipoEncargo, valorBr, type FaturaLida, type ItemFatura } from "./fatura-comum.ts";
+import { conferirTotal, dataCompraParcela, separarParcela, subtipoEncargo, valorBr, type FaturaLida, type ItemFatura } from "./fatura-comum.ts";
 
 const DATA = /^(\d{2})\/(\d{2})$/;
 const VALOR = /^-?[\d.]+,\d{2}$/;
@@ -75,10 +75,10 @@ export function lerItauFaturaPdf(linhas: LinhaPdf[]): FaturaLida {
     if (!md) continue; // cabeçalho da tabela, nome do portador, ramo/cidade
     n++;
     const ultima = c[c.length - 1];
-    const data = dataSemAno(Number(md[1]), Number(md[2]), f.vencimento);
+    const bruta = c.slice(1, -1).map((x) => x.texto).join(" ").replace(/\s+/g, " ").trim();
+    const data = dataCompraParcela(Number(md[1]), Number(md[2]), f.vencimento, separarParcela(bruta, "itau").atual);
     if (c.length < 3 || !VALOR.test(ultima.texto) || !data) { f.erros.push({ linha: n, motivo: `linha não reconhecida: "${texto}"` }); continue; }
     const valor = valorBr(ultima.texto)!;
-    const bruta = c.slice(1, -1).map((x) => x.texto).join(" ").replace(/\s+/g, " ").trim();
     if (secao === "pagamentos") {
       f.pagamentos.push({ data, descricao: bruta.slice(0, 200), valor_centavos: valor });
       continue;

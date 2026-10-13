@@ -34,13 +34,13 @@ begin
     raise exception 'ABORTADO: este banco não é o do Simplifica v2. Nenhuma verificação foi executada.';
   end if;
   execute $$select etapa from public.versao_esquema where sistema = 'simplifica-v2'$$ into v_res;
-  if v_res <> '5.4-valor-parcela' then
+  if v_res is null or v_res < '5.4-valor-parcela' then
     raise exception 'ABORTADO: a Etapa 5 parte 4 (0011) ainda não está instalada (etapa atual: %). Nenhuma verificação foi executada.', v_res;
   end if;
 
   for c in
     select * from (values
-    (1, 'versão do esquema: 5.4', 'pg', 'valor', $$select etapa from public.versao_esquema where sistema = 'simplifica-v2'$$, '5.4-valor-parcela'),
+    (1, 'versão do esquema: 5.4 ou posterior', 'pg', 'valor', $$select (etapa >= '5.4-valor-parcela')::text from public.versao_esquema where sistema = 'simplifica-v2'$$, 'true'),
     (2, 'função instalada e fechada para anônimo', 'pg', 'valor', $$select (has_function_privilege('authenticated', 'public.parcela_alterar_valor(uuid,bigint,text,text)', 'execute') and not has_function_privilege('anon', 'public.parcela_alterar_valor(uuid,bigint,text,text)', 'execute'))::text$$, 'true'),
     (10, 'cria usuário de teste A', 'pg', 'ok', format($f$insert into auth.users (id, email, raw_user_meta_data, aud, role) values (gen_random_uuid(), %L, '{"nome":"Validação 10"}', 'authenticated', 'authenticated') returning id::text$f$, v_email_a), 'a'),
     (11, 'cria usuário de teste B', 'pg', 'ok', format($f$insert into auth.users (id, email, raw_user_meta_data, aud, role) values (gen_random_uuid(), %L, '{}', 'authenticated', 'authenticated') returning id::text$f$, v_email_b), 'b'),

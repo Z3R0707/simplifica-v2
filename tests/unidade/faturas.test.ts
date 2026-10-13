@@ -178,3 +178,29 @@ test("Itaú: 'próximas faturas' encerra os lançamentos mesmo quando o total ve
   assert.deepEqual(f.erros, []);
   assert.deepEqual(f.itens.map((i) => i.descricao), ["ACADEMIA"]);
 });
+
+test("data da compra de parcela antiga e parcelas da mesma compra na mesma fatura", async () => {
+  const { dataCompraParcela, marcarAntecipacoesNaFatura } = await import("../../src/lib/importadores/fatura-comum.ts");
+  assert.equal(dataCompraParcela(8, 10, "2026-10-08", 12), "2025-10-08", "12/12 comprada em 08/10 é do ano anterior");
+  assert.equal(dataCompraParcela(11, 5, "2026-10-13", 5), "2026-05-11", "5/10 comprada em maio é deste ano");
+  assert.equal(dataCompraParcela(9, 3, "2026-10-14", 19), "2025-03-09", "19/21 comprada em março é do ano anterior");
+  assert.equal(dataCompraParcela(30, 12, "2026-10-14", 10), "2025-12-30");
+  assert.equal(dataCompraParcela(5, 9, "2026-10-14", null), "2026-09-05");
+  const it = (d: string, n: number, data = "2026-06-06", t = 6) => ({ data, descricao: d, valor_centavos: 5725, tipo: "compra" as const, parcela_atual: n, parcelas_total: t });
+  const itens = [it("LOJA PRESENTES", 4), it("LOJA PRESENTES", 5), it("LOJA PRESENTES", 6, "2025-06-06"), it("OUTRA", 2), it("REPETIDA", 2), it("REPETIDA", 2)];
+  marcarAntecipacoesNaFatura(itens);
+  assert.deepEqual(itens.map((i) => !!(i as { antecipada?: boolean }).antecipada), [false, true, true, false, false, false]);
+  assert.equal(itens[2].data, "2026-06-06", "antecipada recebe a data da compra da parcela do mês");
+  // mesma loja, compras diferentes (outra data ou outro valor): não é antecipação
+  const loja = [
+    { data: "2026-09-05", descricao: "LOJA SHOPPING", valor_centavos: 9332, tipo: "compra" as const, parcela_atual: 2, parcelas_total: 3 },
+    { data: "2026-09-18", descricao: "LOJA SHOPPING", valor_centavos: 8998, tipo: "compra" as const, parcela_atual: 1, parcelas_total: 3 },
+    { data: "2026-06-06", descricao: "OUTRA LOJA", valor_centavos: 5000, tipo: "compra" as const, parcela_atual: 1, parcelas_total: 3 },
+    { data: "2026-06-06", descricao: "OUTRA LOJA", valor_centavos: 7000, tipo: "compra" as const, parcela_atual: 2, parcelas_total: 3 },
+    { data: "2026-08-05", descricao: "MESMO VALOR", valor_centavos: 5000, tipo: "compra" as const, parcela_atual: 2, parcelas_total: 3 },
+    { data: "2026-08-18", descricao: "MESMO VALOR", valor_centavos: 5000, tipo: "compra" as const, parcela_atual: 1, parcelas_total: 3 },
+  ];
+  marcarAntecipacoesNaFatura(loja);
+  assert.deepEqual(loja.map((i) => !!(i as { antecipada?: boolean }).antecipada), [false, false, false, false, false, false]);
+  assert.equal(loja[0].data, "2026-09-05", "data não muda");
+});

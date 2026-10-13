@@ -1,5 +1,5 @@
-Simplifica Finanças v2 — teste do site num navegador real (Chromium) contra o Supabase simulado com o SQL real (0001–0011)
-Gerado em 2026-10-13T23:26Z
+Simplifica Finanças v2 — teste do site num navegador real (Chromium) contra o Supabase simulado com o SQL real (0001–0012)
+Gerado em 2026-10-13T23:51Z
 
   OK: tela de entrar abre
   OK: senha curta recusada no cadastro

@@ -21,7 +21,7 @@ insert into teste.ids select 'l_nu', (public.conta_criar(teste.id('l_tit'), (sel
 reset role;
 select teste.igual((select etapa >= '5.2' from public.versao_esquema where sistema = 'simplifica-v2'), true, 'versão do esquema: 5.2 ou posterior');
 select teste.igual((select string_agg(nome || ':' || leitor_status || ':' || (case codigo_compe when '341' then 'pdf-extrato' else 'csv-extrato' end = any (formatos_homologados)), ' | ' order by nome)
-                      from public.instituicoes where leitor_status <> 'nao_implementado'),
+                      from public.instituicoes where leitor_status <> 'nao_implementado' and codigo_compe in ('260', '341')),
   'Itaú:homologado:true | Nubank:homologado:true', 'homologados só Nubank (CSV da conta) e Itaú (PDF da conta)');
 \o /dev/null
 select teste.como(teste.id('leia'));

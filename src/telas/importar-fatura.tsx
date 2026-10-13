@@ -8,8 +8,7 @@ import { formatarData } from "../lib/datas";
 import { formatarCentavos } from "../lib/dinheiro";
 import { sha256 } from "../lib/importadores/comum";
 import type { FaturaLida } from "../lib/importadores/fatura-comum";
-import { lerItauFaturaPdf, reconheceItauFatura } from "../lib/importadores/itau-fatura-pdf";
-import { lerNubankFaturaPdf, reconheceNubankFatura } from "../lib/importadores/nubank-fatura-pdf";
+import { LEITORES_FATURA } from "../lib/importadores/faturas";
 import { reconheceItauExtrato } from "../lib/importadores/itau-extrato-pdf";
 import { lerLinhasPdfNoNavegador } from "../lib/importadores/pdf";
 import type { Cartao, LinhaCartao } from "../lib/tipos";
@@ -40,10 +39,9 @@ const SUGESTAO: Record<Sugestao, { nome: string; classe: string }> = {
   antecipar: { nome: "Antecipar", classe: "selo-neutro" },
 };
 const TRAVADAS: Sugestao[] = ["ja_importado", "ja_lancado"];
-const LEITORES: Record<string, string> = {
-  "nubank-fatura-pdf": "Fatura do cartão Nubank (PDF) — leitor conferido com arquivo real.",
-  "itau-fatura-pdf": "Fatura do cartão Itaú (PDF) — leitor conferido com arquivo real.",
-};
+const LEITORES: Record<string, string> = Object.fromEntries(
+  LEITORES_FATURA.map((l) => [l.id, `Fatura do cartão ${l.banco} (PDF) — leitor conferido com arquivo real.`]),
+);
 const mesAno = (iso: string) => `${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 
 type Arquivo = { nome: string; bytes: Uint8Array };
@@ -69,7 +67,7 @@ export function TelaImportarFatura({ cartaoId }: { cartaoId: string }) {
     if (!lida || !cartao) return [];
     const a: string[] = [];
     const cod = instituicoes.find((i) => i.id === cartao.instituicao_id)?.codigo_compe;
-    if (cod && Number(cod) !== Number(lida.banco)) a.push(`A fatura é do banco ${lida.banco}, mas este cartão está cadastrado em outro banco (${cod}). Confira se escolheu o cartão certo.`);
+    if (cod && lida.banco && Number(cod) !== Number(lida.banco)) a.push(`A fatura é do banco ${lida.banco}, mas este cartão está cadastrado em outro banco (${cod}). Confira se escolheu o cartão certo.`);
     if (cartao.final && lida.finais.length > 0 && !lida.finais.includes(cartao.final)) {
       a.push(`A fatura mostra os finais ${lida.finais.join(", ")}; o cadastro deste cartão diz ${cartao.final}. Confira (cartões virtuais têm outro final).`);
     }
@@ -92,12 +90,13 @@ export function TelaImportarFatura({ cartaoId }: { cartaoId: string }) {
     try {
       const linhas = await lerLinhasPdfNoNavegador(bytes, PDFJS_BASE);
       if (linhas.length === 0) return setErroArquivo("Este PDF não tem texto (parece uma imagem ou digitalização). Baixe a fatura pelo app do banco.");
-      let r: FaturaLida | null = null;
-      if (reconheceNubankFatura(linhas)) r = lerNubankFaturaPdf(linhas);
-      else if (reconheceItauFatura(linhas)) r = lerItauFaturaPdf(linhas);
-      else if (reconheceItauExtrato(linhas)) return setErroArquivo("Isto é o extrato da conta, não a fatura do cartão. Importe pela conta (Saldos → conta → Importar extrato).");
-      else return setErroArquivo("Não reconheci esta fatura. Por enquanto são lidas as faturas do Nubank e do Itaú; os outros bancos vêm a seguir.");
-      setLida(r);
+      const leitor = LEITORES_FATURA.find((l) => l.reconhece(linhas));
+      if (!leitor) {
+        return setErroArquivo(reconheceItauExtrato(linhas)
+          ? "Isto é o extrato da conta, não a fatura do cartão. Importe pela conta (Saldos → conta → Importar extrato)."
+          : `Não reconheci esta fatura. São lidas as faturas em PDF de: ${LEITORES_FATURA.map((l) => l.banco).join(", ")}.`);
+      }
+      setLida(leitor.ler(linhas));
       setArquivo({ nome: f.name, bytes });
     } catch (e) {
       const msg = String((e as Error)?.name ?? "") + String((e as Error)?.message ?? "");

@@ -44,3 +44,22 @@ resumo (quantidades e resultado da conferência), sem descrições nem valores.
    - A lista "Compras parceladas - próximas faturas" (inclusive a parte que continua na coluna
      da direita) não entra como lançamento.
    - Importação local de teste: 11 lançados; total da fatura no Simplifica = total do banco.
+
+5) Faturas em PDF de Santander, Mercado Pago, Sicredi, Sicoob e Riachuelo (Etapa 5 parte 5)
+   Cada leitor reconhece só a fatura do próprio banco (os 9 PDFs enviados foram testados contra
+   todos os leitores). Em todas, a soma dos lançamentos lidos bate ao centavo com o total que o
+   próprio banco imprime; e a importação local de teste (usuário fictício, banco descartável)
+   deixou o total da fatura no Simplifica igual ao total do banco.
+   - Santander: 15 lançamentos em 3 cartões, 2 pagamentos separados; conferência = despesas no
+     Brasil + exterior − créditos do resumo. Três parcelas da mesma compra na mesma fatura
+     reconhecidas como antecipação (entram uma vez só); anuidade parcelada com a data da cobrança;
+     parcela 12/12 de compra do ano anterior com o ano certo.
+   - Mercado Pago: 32 lançamentos em 3 cartões + 4 encargos do rotativo (juros, IOF, multa);
+     o pagamento, impresso sem sinal, é reconhecido pela descrição; conferência = consumos +
+     juros + tarifas + multas do resumo.
+   - Sicredi: 15 lançamentos em 2 cartões (físico e virtual), 1 pagamento; descrição em duas
+     linhas reunida; conferência = despesas − créditos do resumo.
+   - Sicoob: 12 lançamentos (estornos de anuidade e tarifa na movimentação da conta), 1 pagamento;
+     descrição e parcela em linhas separadas da data; conferência = TOTAL − saldo anterior − pagamentos.
+   - Riachuelo: 5 lançamentos (data com ano), 1 pagamento; duas compras diferentes na mesma loja
+     continuam separadas; conferência = despesas + encargos − créditos do resumo.

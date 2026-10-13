@@ -5,6 +5,9 @@
 // banco informa na fatura.
 import { dataIso, valorParaCentavos } from "./comum.ts";
 
+/** Data AAAA-MM-DD a partir de ano, mês e dia (null se não existir). */
+export const dataIsoDe = (a: number, m: number, d: number) => dataIso(a, m, d);
+
 export type TipoItemFatura = "compra" | "encargo" | "credito";
 
 export type ItemFatura = {
@@ -42,14 +45,55 @@ export function dataSemAno(dia: number, mes: number, vencimento: string): string
   return dataIso(mes > m ? a - 1 : a, mes, dia);
 }
 
-/** "R$ 1.234,56", "−R$ 1,08", "-R$ 4.705,32", "1.354,14", "-1.791,50" → centavos. Só o padrão brasileiro. */
+/** "R$ 1.234,56", "−R$ 1,08", "-R$ 4.705,32", "1.354,14", "-1.791,50", "+ 61,99" → centavos. Só o padrão brasileiro. */
 export function valorBr(texto: string): number | null {
-  const t = texto.replace(/−/g, "-").replace(/\s+/g, "");
+  const t = texto.replace(/−/g, "-").replace(/\s+/g, "").replace(/^\+/, "");
   const m = /^(-?)(?:R\$)?(-?)(\d{1,3}(?:\.\d{3})*,\d{2})$/.exec(t);
   if (!m) return null;
   const v = valorParaCentavos(m[3]);
   if (v === null) return null;
   return m[1] || m[2] ? -v : v;
+}
+
+/**
+ * Data da COMPRA de uma parcela, quando a fatura mostra só dia e mês: a
+ * compra é do ano em que a parcela n ainda cai até o vencimento desta
+ * fatura (ex.: "08/10 … 12/12" numa fatura de outubro é do ano anterior).
+ */
+export function dataCompraParcela(dia: number, mes: number, vencimento: string, parcela: number | null): string | null {
+  const base = dataSemAno(dia, mes, vencimento);
+  if (!base || !parcela || parcela <= 1) return base;
+  const [a, m] = base.split("-").map(Number);
+  const [va, vm] = vencimento.split("-").map(Number);
+  const mesesAteVencimento = (va - a) * 12 + (vm - m);
+  return mesesAteVencimento < parcela - 1 ? dataIso(a - 1, mes, dia) : base;
+}
+
+/**
+ * Duas ou mais parcelas da MESMA compra na mesma fatura — mesma descrição,
+ * mesmo número de parcelas, mesmo dia/mês da compra e o mesmo valor (até
+ * 2 centavos de arredondamento): a de menor número é a do mês; as outras
+ * foram antecipadas para esta fatura. Só serve para faturas que mostram a
+ * data ORIGINAL da compra (compras diferentes na mesma loja têm datas ou
+ * valores diferentes e ficam separadas).
+ */
+export function marcarAntecipacoesNaFatura(itens: ItemFatura[]): void {
+  const grupos = new Map<string, ItemFatura[]>();
+  for (const i of itens) {
+    if (i.tipo !== "compra" || !i.parcela_atual || i.antecipada) continue;
+    const k = `${i.descricao.toLowerCase().replace(/\s+/g, " ")}|${i.parcelas_total}|${i.data.slice(5)}`;
+    grupos.set(k, [...(grupos.get(k) ?? []), i]);
+  }
+  for (const g of grupos.values()) {
+    const nums = new Set(g.map((i) => i.parcela_atual));
+    if (g.length < 2 || nums.size !== g.length) continue; // números repetidos = compras diferentes
+    const vals = g.map((i) => i.valor_centavos);
+    if (Math.max(...vals) - Math.min(...vals) > 2) continue; // valores diferentes = compras diferentes
+    const menor = Math.min(...g.map((i) => i.parcela_atual!));
+    const base = g.find((i) => i.parcela_atual === menor)!;
+    // a data da compra é a da parcela do mês (a das antecipadas não diz o ano)
+    for (const i of g) if (i.parcela_atual !== menor) { i.antecipada = true; i.data = base.data; }
+  }
 }
 
 /** Separa "Descrição - Parcela 4/12" (Nubank) ou "DESCRIÇÃO 04/12" (Itaú). */

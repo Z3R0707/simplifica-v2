@@ -50,7 +50,7 @@ begin
          $$select (has_function_privilege('authenticated', 'public.exclusao_concluir(uuid,integer,integer)', 'execute') or has_function_privilege('authenticated', 'public.storage_listar_orfaos(integer)', 'execute'))::text$$, 'false'),
     (6,  'service_role executa funções do servidor', 'pg', 'valor',
          $$select (has_function_privilege('service_role', 'public.exclusao_concluir(uuid,integer,integer)', 'execute') and has_function_privilege('service_role', 'public.exclusao_listar_arquivos(uuid,integer)', 'execute'))::text$$, 'true'),
-    (7,  'só bancos com leitor conferido em arquivo real (Nubank, Itaú) constam como homologados', 'pg', 'valor', $$select count(*)::text from public.instituicoes where leitor_status = 'homologado' and coalesce(codigo_compe, '') not in ('260', '341')$$, '0'),
+    (7,  'banco só consta como homologado com o formato conferido em arquivo real', 'pg', 'valor', $$select count(*)::text from public.instituicoes where leitor_status = 'homologado' and cardinality(formatos_homologados) = 0$$, '0'),
     (8,  'gatilhos titular × conta instalados', 'pg', 'valor',
          $$select count(*)::text from pg_trigger where tgname in ('contas_exige_titular_ativo', 'titulares_arquivar_sem_contas_ativas') and not tgisinternal$$, '2'),
     (9,  'política de upload usa a trava por usuário', 'pg', 'valor',
