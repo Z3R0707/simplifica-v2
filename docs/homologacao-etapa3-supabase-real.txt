@@ -15,3 +15,12 @@ Data: 13/10/2026 (horário de Brasília)
 
 Situação: banco da Etapa 3 homologado no Supabase real.
 Pendente: publicar o site com a aba "A pagar" (após autorização) e conferir no site real.
+
+4) Site real (Netlify, após autorização do usuário em 13/10/2026)
+   Publicado o commit da Etapa 3. Conferido pelo usuário, com a própria conta:
+   - aba "A pagar" aparece; conta "Luz" R$ 100,00 cadastrada como "A vencer";
+   - pagamento parcial de R$ 40,00: "Paga em parte", "Falta R$ 60,00"; Saldos: Itaú R$ 3.000,00 → R$ 2.960,00;
+     painel "Contas a pagar até 31/10/2026: R$ 60,00";
+   - pagamentos desfeitos com motivo ficam no histórico como "Desfeito: teste";
+     saldo volta a R$ 3.000,00 e o a pagar a R$ 100,00.
+Situação: Etapa 3 homologada (banco e site reais).
