@@ -1,5 +1,5 @@
-Simplifica Finanças v2 — suíte completa de testes locais (etapas 1 a 5.3)
-Gerado em 2026-10-13T23:11Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu
+Simplifica Finanças v2 — suíte completa de testes locais (etapas 1 a 5.4)
+Gerado em 2026-10-13T23:26Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu
 
 -- aplicando 0001_fundacao_infra.sql
 -- aplicando 0002_fundacao_cadastros.sql
@@ -11,6 +11,7 @@ Gerado em 2026-10-13T23:11Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 -- aplicando 0008_etapa5_importacao_extratos.sql
 -- aplicando 0009_etapa5_leitores_bancos.sql
 -- aplicando 0010_etapa5_importacao_faturas.sql
+-- aplicando 0011_etapa5_valor_parcela.sql
 -- testes 05_auxiliares.sql
 -- testes 100_etapa4_cartoes.sql
   OK: fecha dia 3 / vence dia 10: compra em 02/10 vence em outubro
@@ -330,6 +331,24 @@ Gerado em 2026-10-13T23:11Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
   OK: F3: compra à mão espera a importação terminar
   OK: F3: depois, a compra à mão entra normalmente
   OK: F3: R$ 950 + Feira R$ 10
+-- testes 170_etapa5_valor_parcela.sql
+  OK: antes: a fatura da 2ª parcela tem R$ 75,32
+  OK: só a parcela escolhida muda
+  OK: o total da compra acompanha (R$ 301,27)
+  OK: a fatura passa a R$ 75,31
+  OK: a conta a pagar da fatura (12/2026) acompanha
+  OK: a mudança fica na auditoria, com o motivo
+  OK: repetir o mesmo pedido (mesma chave) não muda nada
+  OK: mesmo valor de novo: nada muda
+  OK: valor zero recusado
+  OK: valor negativo recusado
+  OK: parcela de estorno (crédito) não muda de valor
+  OK: fatura paga: o total não fica abaixo do que já foi pago
+  OK: fatura paga: subir o valor aumenta a conta a pagar (R$ 76,00 − R$ 10,00 de estorno)
+  OK: parcela cancelada não muda de valor
+  OK: outro usuário não altera a parcela
+  OK: anônimo não altera parcela
+  OK: fora desta função, o valor continua travado
 -- testes 20_correcoes_revisao.sql
   OK: conta_atualizar sem versão é recusada
   OK: conta_definir_ativa sem versão é recusada

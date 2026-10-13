@@ -37,13 +37,14 @@ begin
     raise exception 'ABORTADO: este banco não é o do Simplifica v2. Nenhuma verificação foi executada.';
   end if;
   execute $$select etapa from public.versao_esquema where sistema = 'simplifica-v2'$$ into v_res;
-  if v_res not in ('5.2-leitores-bancos', '5.3-importacao-faturas') then
+  -- esta etapa ou qualquer posterior (as etapas crescem em ordem: 2, 2.1, 3, 4, 5.1, 5.2…)
+  if v_res is null or v_res < '5.2-leitores-bancos' then
     raise exception 'ABORTADO: a Etapa 5 parte 2 (0009) ainda não está instalada (etapa atual: %). Nenhuma verificação foi executada.', v_res;
   end if;
 
   for c in
     select * from (values
-    (1, 'versão do esquema: 5.2 ou posterior', 'pg', 'valor', $$select (etapa in ('5.2-leitores-bancos', '5.3-importacao-faturas'))::text from public.versao_esquema where sistema = 'simplifica-v2'$$, 'true'),
+    (1, 'versão do esquema: 5.2 ou posterior', 'pg', 'valor', $$select (etapa >= '5.2-leitores-bancos')::text from public.versao_esquema where sistema = 'simplifica-v2'$$, 'true'),
     (2, 'formato aceita ofx, csv e pdf', 'pg', 'valor', $$select pg_get_constraintdef(oid) from pg_constraint where conrelid = 'public.importacoes'::regclass and conname = 'importacoes_formato_check'$$, 'CHECK ((formato = ANY (ARRAY[''ofx''::text, ''csv''::text, ''pdf''::text])))'),
     (3, 'homologados: só Nubank (CSV da conta) e Itaú (PDF da conta)', 'pg', 'valor', $$select string_agg(nome || ':' || leitor_status || ':' || (case codigo_compe when '341' then 'pdf-extrato' else 'csv-extrato' end = any (formatos_homologados)), ' | ' order by nome) from public.instituicoes where leitor_status <> 'nao_implementado'$$, 'Itaú:homologado:true | Nubank:homologado:true'),
     (4, 'anon não executa nenhuma função do public', 'pg', 'valor', $$select count(*)::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')$$, '0'),

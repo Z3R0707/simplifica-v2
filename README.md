@@ -10,7 +10,7 @@ src/                  site (React + TypeScript, montado com esbuild)
   lib/dinheiro.ts     valores em centavos (leitura e formatação pt-BR)
   lib/importadores/   leitores de extrato (OFX, CSV, CSV do Nubank, PDF do Itaú) e de fatura (PDF Nubank e Itaú)
   telas/              entrar, saldos, extrato, importar extrato e fatura, contas a pagar, cartões, contas, categorias, resumo, minha conta
-supabase/migrations/  banco, na ordem 0001 → 0010 (etapas 1 a 5.3)
+supabase/migrations/  banco, na ordem 0001 → 0011 (etapas 1 a 5.4)
 supabase/functions/   Edge Functions excluir-conta e limpar-orfaos
 validacao/            roteiros de validação no projeto Supabase real
 tests/                testes do site (unidade e navegador)

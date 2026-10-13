@@ -24,7 +24,7 @@ psql(["-d", "postgres", "-c", `drop database if exists ${DB}`, "-c", `create dat
 const stub = readFileSync(RAIZ + "supabase/tests/00_stub_supabase.sql", "utf8")
   .replace(/^create role (\w+) ([^;]*);/gm, "do $$$$ begin create role $1 $2; exception when duplicate_object then null; end $$$$;");
 execFileSync("psql", [...PSQL, "-q", "-v", "ON_ERROR_STOP=1", "-d", DB], { input: stub, stdio: ["pipe", "ignore", "pipe"] });
-for (const f of ["0001_fundacao_infra.sql", "0002_fundacao_cadastros.sql", "0003_fundacao_lgpd_storage.sql", "0004_etapa2_movimentos_saldos.sql", "0005_etapa2_cancelamento_parcial.sql", "0006_etapa3_contas_a_pagar.sql", "0007_etapa4_cartoes.sql", "0008_etapa5_importacao_extratos.sql", "0009_etapa5_leitores_bancos.sql", "0010_etapa5_importacao_faturas.sql"]) {
+for (const f of ["0001_fundacao_infra.sql", "0002_fundacao_cadastros.sql", "0003_fundacao_lgpd_storage.sql", "0004_etapa2_movimentos_saldos.sql", "0005_etapa2_cancelamento_parcial.sql", "0006_etapa3_contas_a_pagar.sql", "0007_etapa4_cartoes.sql", "0008_etapa5_importacao_extratos.sql", "0009_etapa5_leitores_bancos.sql", "0010_etapa5_importacao_faturas.sql", "0011_etapa5_valor_parcela.sql"]) {
   psql(["-d", DB, "-f", RAIZ + "supabase/migrations/" + f]);
 }
 
@@ -790,6 +790,16 @@ try {
   await esperarTexto(".fatura-topo", "376,99");
   ok((await texto(".fatura-topo")).includes("R$ 376,99"), "fatura 11/2026: R$ 350,00 + padaria + IOF = R$ 376,99", await texto(".fatura-topo"));
   ok((await texto("tbody tr:has-text('Padaria do Zé')")).includes("Alimentação"), "compra importada com a categoria escolhida");
+  // corrigir o valor de uma parcela (centavos que o banco cobrou diferente)
+  await p.locator("tbody tr", { hasText: "1/10" }).getByRole("button", { name: "Editar" }).click();
+  await dialogo().getByLabel("Valor da parcela 1/10 (R$)").waitFor();
+  ok((await dialogo().getByLabel("Valor da parcela 1/10 (R$)").inputValue()) === "100,00", "diálogo mostra o valor da parcela");
+  await dialogo().getByLabel("Valor da parcela 1/10 (R$)").fill("100,05");
+  await dialogo().getByRole("button", { name: "Salvar alterações" }).click();
+  await esperarFechar();
+  await esperarTexto(".fatura-topo", "377,04");
+  ok((await texto(".fatura-topo")).includes("R$ 377,04"), "valor da parcela corrigido: fatura passa a R$ 377,04", await texto(".fatura-topo"));
+  ok((await texto("tbody tr:has-text('1/10')")).includes("R$ 100,05"), "a parcela mostra o novo valor");
 
   // ============================================================ sessão: renovação do token
   await p.evaluate(() => {

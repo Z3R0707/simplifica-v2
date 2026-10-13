@@ -721,16 +721,28 @@ function DialogoEditarCompra({ l, aoFechar, aoConcluir }: { l: LancamentoFatura;
   const compra = compraQ.dados?.[0];
   const [descricao, setDescricao] = useState(l.descricao);
   const [categoria, setCategoria] = useState(l.categoria_id ?? "");
+  // valor da parcela antes do desconto de antecipação (o que o banco lista)
+  const valorOriginal = l.valor_centavos + l.desconto_centavos;
+  const podeMudarValor = (l.tipo === "compra" || l.tipo === "encargo") && l.status !== "cancelada";
+  const [valor, setValor] = useState(centavosParaCampo(valorOriginal));
   const opcoes = useOpcoesDespesa(l.categoria_id);
   const { chave, enviando, erro, setErro, enviar } = useEnvio("compra-editar");
+  const rotuloValor = l.parcelas_total > 1 ? `Valor da parcela ${l.numero}/${l.parcelas_total} (R$)` : "Valor (R$)";
   return (
     <Dialogo titulo="Editar lançamento do cartão" aoFechar={aoFechar}>
       <form className="formulario" onSubmit={(e) => {
         e.preventDefault();
         if (!descricao.trim()) return setErro("Escreva uma descrição.");
         if (!compra) return;
+        const novoValor = podeMudarValor ? lerValor(valor) : valorOriginal;
+        if (novoValor === null || novoValor <= 0) return setErro("Informe o valor, maior que zero.");
         void enviar(async () => {
-          await rpc("compra_atualizar", { p_id: l.compra_id, p_versao_esperada: compra.versao, p_descricao: descricao, p_categoria_id: categoria || null, p_observacao: compra.observacao, p_chave_idempotencia: chave });
+          if (descricao !== l.descricao || (categoria || null) !== (l.categoria_id ?? null)) {
+            await rpc("compra_atualizar", { p_id: l.compra_id, p_versao_esperada: compra.versao, p_descricao: descricao, p_categoria_id: categoria || null, p_observacao: compra.observacao, p_chave_idempotencia: chave });
+          }
+          if (novoValor !== valorOriginal) {
+            await rpc("parcela_alterar_valor", { p_parcela_id: l.parcela_id, p_valor_centavos: novoValor, p_motivo: "Valor da parcela corrigido pelo usuário", p_chave_idempotencia: `${chave}-valor-${novoValor}` });
+          }
           aoConcluir();
         });
       }}>
@@ -743,7 +755,15 @@ function DialogoEditarCompra({ l, aoFechar, aoConcluir }: { l: LancamentoFatura;
             </select>
           )}
         </Campo>
-        <p className="campo-ajuda">Valor, data e parcelas não mudam: se estiverem errados, cancele (“Lancei errado”) e lance de novo.</p>
+        {podeMudarValor && (
+          <Campo rotulo={rotuloValor}
+            ajuda={l.parcelas_total > 1
+              ? "Muda só esta parcela, nesta fatura (por exemplo, os centavos que o banco cobrou diferente). As outras parcelas continuam como estão; o total da compra acompanha."
+              : "Use quando o banco cobrou um valor diferente do lançado."}>
+            {(id) => <input id={id} inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} />}
+          </Campo>
+        )}
+        <p className="campo-ajuda">Data e número de parcelas não mudam: se estiverem errados, cancele (“Lancei errado”) e lance de novo.</p>
         {erro && <Alerta>{erro}</Alerta>}
         <div className="acoes">
           <button type="button" className="botao-secundario" onClick={aoFechar}>Voltar</button>

@@ -1,5 +1,5 @@
-Simplifica Finanças v2 — teste do site num navegador real (Chromium) contra o Supabase simulado com o SQL real (0001–0010)
-Gerado em 2026-10-13T23:08Z
+Simplifica Finanças v2 — teste do site num navegador real (Chromium) contra o Supabase simulado com o SQL real (0001–0011)
+Gerado em 2026-10-13T23:26Z
 
   OK: tela de entrar abre
   OK: senha curta recusada no cadastro
@@ -136,6 +136,9 @@ Gerado em 2026-10-13T23:08Z
   OK: histórico: fatura do Simplifica confere com o total do banco
   OK: fatura 11/2026: R$ 350,00 + padaria + IOF = R$ 376,99
   OK: compra importada com a categoria escolhida
+  OK: diálogo mostra o valor da parcela
+  OK: valor da parcela corrigido: fatura passa a R$ 377,04
+  OK: a parcela mostra o novo valor
   OK: sessão expirada é renovada sem pedir login
   OK: exportação traz contas e lançamentos
   OK: exportação traz contas a pagar, pagamentos e recorrências
@@ -151,4 +154,4 @@ Gerado em 2026-10-13T23:08Z
   OK: contas, lançamentos e contas a pagar da conta excluída removidos do banco
   OK: segundo usuário continua usando normalmente
   OK: nenhum erro de JavaScript no navegador
-== Site (navegador): 150 verificações aprovadas ==
+== Site (navegador): 153 verificações aprovadas ==

@@ -38,13 +38,14 @@ begin
     raise exception 'ABORTADO: este banco não é o do Simplifica v2. Nenhuma verificação foi executada.';
   end if;
   execute $$select etapa from public.versao_esquema where sistema = 'simplifica-v2'$$ into v_res;
-  if v_res <> '5.3-importacao-faturas' then
+  -- esta etapa ou qualquer posterior (as etapas crescem em ordem: 2, 2.1, 3, 4, 5.1, 5.2…)
+  if v_res is null or v_res < '5.3-importacao-faturas' then
     raise exception 'ABORTADO: a Etapa 5 parte 3 (0010) ainda não está instalada (etapa atual: %). Nenhuma verificação foi executada.', v_res;
   end if;
 
   for c in
     select * from (values
-    (1, 'versão do esquema: 5.3', 'pg', 'valor', $$select etapa from public.versao_esquema where sistema = 'simplifica-v2'$$, '5.3-importacao-faturas'),
+    (1, 'versão do esquema: 5.3 ou posterior', 'pg', 'valor', $$select (etapa >= '5.3-importacao-faturas')::text from public.versao_esquema where sistema = 'simplifica-v2'$$, 'true'),
     (2, 'tabelas novas instaladas, com RLS', 'pg', 'valor', $$select count(*)::text from pg_class where relnamespace = 'public'::regnamespace and relname in ('importacoes_fatura', 'importacao_fatura_itens') and relrowsecurity$$, '2'),
     (3, 'anon não executa nenhuma função do public', 'pg', 'valor', $$select count(*)::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')$$, '0'),
     (4, 'usuário só lê (sem gravação direta) as tabelas novas', 'pg', 'valor', $$select count(*)::text from information_schema.role_table_grants where grantee in ('authenticated', 'anon') and table_name in ('importacoes_fatura', 'importacao_fatura_itens') and privilege_type <> 'SELECT'$$, '0'),

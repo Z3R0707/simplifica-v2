@@ -1,4 +1,4 @@
-# Simplifica Finanças v2 — Etapas 1 a 5 (parte 3)
+# Simplifica Finanças v2 — Etapas 1 a 5 (parte 4)
 
 Base do novo sistema: banco, permissões, auditoria, idempotência, versão e exclusão
 de conta (LGPD) sem arquivos órfãos. Tudo vai num projeto Supabase **novo e separado**.
@@ -283,4 +283,12 @@ Se os lançamentos do cartão mudarem entre a prévia e a confirmação (outra i
 4. Só depois o site com **Importar fatura** é publicado.
 
 Evidências locais: `docs/evidencia-testes-locais.txt` (749 verificações no banco + 34 testes dos leitores), `docs/evidencia-mutacoes-etapa5-parte3.txt` (15 de 15 no banco, 13 de 13 nos leitores), `docs/evidencia-validacao-etapa5-parte3-local.txt`, `docs/evidencia-site-local.txt` (150 verificações no navegador), `docs/evidencia-leitores-arquivos-reais.txt`.
+
+# Etapa 5, parte 4 — corrigir o valor de uma parcela
+
+Migração **adicional** `supabase/migrations/0011_etapa5_valor_parcela.sql` (sobre a 0010). No cartão, **Editar** um lançamento agora tem o campo **Valor da parcela n/N**: muda só aquela parcela (ex.: o banco cobra R$ 75,31 onde estava R$ 75,32); as outras continuam como estão e o total da compra acompanha. Só compras e encargos ativos; nunca abaixo de zero nem do desconto de antecipação; numa fatura já paga, o total não pode ficar abaixo do pago. A mudança fica na auditoria.
+
+Instalação: SQL Editor → `0011_etapa5_valor_parcela.sql` → Run; validação `validacao/10_validar_etapa5_valor_parcela_no_supabase.sql` → `VALIDAÇÃO APROVADA: 15 de 15`; regressão 01 (74), 03 (63), 04 (30), 05 (77), 06 (82), 07 (49), 08 (26), 09 (40). A partir desta versão, os roteiros 03 a 09 aceitam a etapa deles **ou qualquer posterior** — não precisam de cópia nova a cada etapa.
+
+Evidências: `docs/evidencia-etapa5-parte4-local.txt` (roteiros, 6 de 6 mutações, atualização com dados), `docs/evidencia-testes-locais.txt` (766 verificações no banco), `docs/evidencia-site-local.txt` (153 no navegador).
 

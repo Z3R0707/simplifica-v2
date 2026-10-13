@@ -1,0 +1,42 @@
+Simplifica Finanças v2 — Etapa 5 parte 4 (0011): corrigir o valor de uma parcela
+Gerado em 2026-10-13T23:26Z
+
+1) Banco novo com 0001–0011: os nove roteiros de validação
+   01_validar_banco_no_supabase: VALIDAÇÃO APROVADA: 74 de 74 verificações OK.
+   03_validar_etapa2_no_supabase: VALIDAÇÃO APROVADA: 63 de 63 verificações OK.
+   04_validar_cancelamento_parcial_no_supabase: VALIDAÇÃO APROVADA: 30 de 30 verificações OK.
+   05_validar_etapa3_no_supabase: VALIDAÇÃO APROVADA: 77 de 77 verificações OK.
+   06_validar_etapa4_no_supabase: VALIDAÇÃO APROVADA: 82 de 82 verificações OK.
+   07_validar_etapa5_importacao_no_supabase: VALIDAÇÃO APROVADA: 49 de 49 verificações OK.
+   08_validar_etapa5_leitores_no_supabase: VALIDAÇÃO APROVADA: 26 de 26 verificações OK.
+   09_validar_etapa5_faturas_no_supabase: VALIDAÇÃO APROVADA: 40 de 40 verificações OK.
+   10_validar_etapa5_valor_parcela_no_supabase: VALIDAÇÃO APROVADA: 15 de 15 verificações OK.
+
+2) Testes de mutação (cada linha retira UMA regra da 0011 e roda o teste 170)
+MUTAÇÃO [crédito/estorno aceito] DETECTADA
+   170_etapa5_valor_parcela.sql: FALHOU: parcela de estorno (crédito) não muda de valor — o comando deveria ter falhado (22023)
+MUTAÇÃO [valor zero ou negativo aceito] DETECTADA
+   170_etapa5_valor_parcela.sql: FALHOU: valor zero recusado — esperado erro 22023, obtido 23514 (new row for relation "parcelas" violates check constraint "parcelas_valor_centavos_check")
+MUTAÇÃO [parcela cancelada aceita] DETECTADA
+   170_etapa5_valor_parcela.sql: FALHOU: parcela cancelada não muda de valor — o comando deveria ter falhado (22023)
+MUTAÇÃO [total da compra não acompanha] DETECTADA
+   170_etapa5_valor_parcela.sql: FALHOU: o total da compra acompanha (R$ 301,27) — esperado 30127, obtido 30128
+MUTAÇÃO [sem motivo na auditoria] DETECTADA
+   170_etapa5_valor_parcela.sql: FALHOU: a mudança fica na auditoria, com o motivo — esperado centavos do banco, obtido <NULL>
+MUTAÇÃO [parcela de outro usuário] DETECTADA
+   170_etapa5_valor_parcela.sql: FALHOU: outro usuário não altera a parcela — o comando deveria ter falhado (P0002)
+RESUMO: 6 de 6 mutações detectadas pelo teste 170.
+
+3) Atualização de um banco já em uso (0010 com dados) para a 0011
+== banco na versão anterior (0010) com dados: cartão com compra em 12x, antecipação com desconto, fatura de 10/2026 com total do banco e paga ==
+antes:
+  faturas=10/26:25000:paga,11/26:29000:aberta,12/26:10000:aberta,01/27:10000:aberta,02/27:10000:aberta,03/27:10000:aberta,04/27:10000:aberta,05/27:10000:aberta,06/27:10000:aberta,07/27:10000:aberta,08/27:0:aberta,09/27:0:aberta compras=2 parcelas=13 informado10=25000 saldo=475000 a_pagar=Fatura Nubank 10/2026:aberta,Fatura Nubank 11/2026:aberta
+== aplica 0011 ==
+COMMIT
+depois:
+  faturas=10/26:25000:paga,11/26:29000:aberta,12/26:10000:aberta,01/27:10000:aberta,02/27:10000:aberta,03/27:10000:aberta,04/27:10000:aberta,05/27:10000:aberta,06/27:10000:aberta,07/27:10000:aberta,08/27:0:aberta,09/27:0:aberta compras=2 parcelas=13 informado10=25000 saldo=475000 a_pagar=Fatura Nubank 10/2026:aberta,Fatura Nubank 11/2026:aberta
+etapa: 5.4-valor-parcela
+== reaplicar 0011 por engano é recusado sem alterar nada ==
+ABORTADO: este banco não está na Etapa 5 parte 3 (0010) do Simplifica v2. Nada foi alterado.
+depois da tentativa:
+  faturas=10/26:25000:paga,11/26:29000:aberta,12/26:10000:aberta,01/27:10000:aberta,02/27:10000:aberta,03/27:10000:aberta,04/27:10000:aberta,05/27:10000:aberta,06/27:10000:aberta,07/27:10000:aberta,08/27:0:aberta,09/27:0:aberta compras=2 parcelas=13 informado10=25000 saldo=475000 a_pagar=Fatura Nubank 10/2026:aberta,Fatura Nubank 11/2026:aberta
