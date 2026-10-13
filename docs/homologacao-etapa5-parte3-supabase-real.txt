@@ -14,7 +14,7 @@ Data: 2026-10-13 (horário de Brasília), executada pelo usuário no SQL Editor;
    06_validar_etapa4_no_supabase               → VALIDAÇÃO APROVADA: 82 de 82
    07_validar_etapa5_importacao_no_supabase    → VALIDAÇÃO APROVADA: 49 de 49
    08_validar_etapa5_leitores_no_supabase      → VALIDAÇÃO APROVADA: 26 de 26
-   01_validar_banco_no_supabase                → pendente (pedido ao usuário)
+   01_validar_banco_no_supabase                → VALIDAÇÃO APROVADA: 74 de 74
    Todos com rollback: nenhum usuário, arquivo ou dado de teste ficou gravado.
 
 4) Site
