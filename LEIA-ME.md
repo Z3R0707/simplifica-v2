@@ -1,4 +1,4 @@
-# Simplifica Finanças v2 — Etapas 1 a 5 (parte 1)
+# Simplifica Finanças v2 — Etapas 1 a 5 (parte 2)
 
 Base do novo sistema: banco, permissões, auditoria, idempotência, versão e exclusão
 de conta (LGPD) sem arquivos órfãos. Tudo vai num projeto Supabase **novo e separado**.
@@ -215,11 +215,9 @@ Migração **adicional** `supabase/migrations/0008_etapa5_importacao_extratos.sq
 - Cada lançamento importado tem uma chave: o identificador do banco (FITID) quando existe; senão data + valor + descrição + nº da ocorrência no arquivo (duas compras iguais no mesmo dia continuam sendo duas). Um índice único impede a mesma chave duas vezes na conta, inclusive em importações simultâneas e em períodos sobrepostos.
 - Nada legítimo é descartado sem a pessoa ver: o que é só parecido fica para ela decidir.
 
-## O que depende de arquivo real (parte 2)
+## O que dependia de arquivo real
 
-- Leitor de **PDF** de cada banco e a homologação do OFX/CSV de cada banco (nenhum banco está marcado como homologado).
-- Importação de **faturas de cartão** (reconhecer a mesma compra parcelada em faturas consecutivas).
-- Os casos de divergência R$ 1.283,53 e −R$ 1.000,00 (documentos originais).
+Feito na parte 2 (abaixo) para o extrato do Itaú (PDF) e do Nubank (CSV). Faturas de cartão e os demais bancos: próximas partes.
 
 ## Instalação (projeto simplifica-v2, já com a 0007 homologada)
 
@@ -229,4 +227,32 @@ Migração **adicional** `supabase/migrations/0008_etapa5_importacao_extratos.sq
 4. Só depois o site com **Importar extrato** é publicado.
 
 Evidências locais: `docs/evidencia-testes-locais.txt` (679 verificações no banco + 14 testes dos leitores), `docs/evidencia-mutacoes-etapa5.txt` (10 de 10 mutações detectadas), `docs/evidencia-validacao-etapa5-local.txt`, `docs/evidencia-site-local.txt` (131 verificações no navegador).
+
+# Etapa 5, parte 2 — leitores por banco (Itaú em PDF, Nubank em CSV)
+
+Migração **adicional** `supabase/migrations/0009_etapa5_leitores_bancos.sql`. Roda sobre a 0008, não apaga nem recria nada e se recusa a rodar em qualquer outro estado. Tudo numa única transação. Muda só duas coisas no banco: a importação passa a aceitar o formato `pdf`, e o Nubank (CSV da conta) e o Itaú (PDF da conta) passam a constar como **homologados**.
+
+Os leitores foram feitos e conferidos com os arquivos reais enviados (resumo em `docs/evidencia-leitores-arquivos-reais.txt`; os arquivos não estão no repositório).
+
+## Extrato da conta Itaú em PDF
+
+- O PDF é lido **no navegador** (pdf.js servido pelo próprio site, em `/assets/pdfjs-<versão>/`); nada sai do site além do que já saía. O original continua guardado no Storage.
+- Cada dia é conferido com a linha **SALDO DO DIA** do próprio extrato: saldo do dia anterior + lançamentos do dia = saldo do dia. Se algum dia não fechar, **nada é importado** e a tela mostra o dia e a diferença. Única exceção: o dia em que o extrato foi emitido (ainda em andamento no banco) — vira aviso.
+- O último SALDO DO DIA é o saldo informado, usado na conferência do histórico.
+- Fatura de cartão em PDF é reconhecida e explicada (importação de faturas: próxima parte). PDF sem texto (digitalizado) ou com senha recebe mensagem clara.
+
+## Extrato da conta Nubank em CSV
+
+- Reconhecido pelo cabeçalho exato `Data,Valor,Identificador,Descrição`, sem pedir as colunas.
+- Usa o **identificador** de cada lançamento do banco como chave contra duplicidade.
+- Quem já importou pelo CSV genérico: no próximo arquivo, o que já entrou aparece como **possível duplicado**, desmarcado — nada entra duas vezes.
+
+## Instalação (projeto simplifica-v2, já com a 0008 homologada)
+
+1. SQL Editor → New query → cole `0009_etapa5_leitores_bancos.sql` → Run.
+2. Validação: `validacao/08_validar_etapa5_leitores_no_supabase.sql` → esperado `VALIDAÇÃO APROVADA: 26 de 26` (rollback automático).
+3. Regressão: `01` (74), `03` (63), `04` (30), `05` (77), `06` (82) e `07` (49).
+4. Só depois o site é publicado (o build passa a depender do pacote `pdfjs-dist`, instalado pelo Netlify a partir do `package.json`).
+
+Evidências locais: `docs/evidencia-testes-locais.txt` (688 verificações no banco + 24 testes dos leitores), `docs/evidencia-mutacoes-etapa5-parte2.txt` (10 de 11; a restante é equivalente), `docs/evidencia-validacao-etapa5-parte2-local.txt`, `docs/evidencia-site-local.txt` (141 verificações no navegador), `docs/evidencia-leitores-arquivos-reais.txt`.
 

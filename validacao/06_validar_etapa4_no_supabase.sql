@@ -36,7 +36,7 @@ begin
     raise exception 'ABORTADO: este banco não é o do Simplifica v2. Nenhuma verificação foi executada.';
   end if;
   execute $$select etapa from public.versao_esquema where sistema = 'simplifica-v2'$$ into v_res;
-  if v_res not in ('4-cartoes', '5.1-importacao-extratos') then
+  if v_res not in ('4-cartoes', '5.1-importacao-extratos', '5.2-leitores-bancos') then
     raise exception 'ABORTADO: a Etapa 4 (0007) ainda não está instalada (etapa atual: %). Nenhuma verificação foi executada.', v_res;
   end if;
 

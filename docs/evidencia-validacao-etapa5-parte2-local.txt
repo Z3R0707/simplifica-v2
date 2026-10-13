@@ -1,0 +1,29 @@
+Simplifica Finanças v2 — validação da Etapa 5 parte 2 executada localmente (mesmo SQL que vai para o Supabase)
+Gerado em 2026-10-13T22:13Z
+
+1) Banco novo com 0001–0009: os sete roteiros de validação
+   01_validar_banco_no_supabase: VALIDAÇÃO APROVADA: 74 de 74 verificações OK.
+   03_validar_etapa2_no_supabase: VALIDAÇÃO APROVADA: 63 de 63 verificações OK.
+   04_validar_cancelamento_parcial_no_supabase: VALIDAÇÃO APROVADA: 30 de 30 verificações OK.
+   05_validar_etapa3_no_supabase: VALIDAÇÃO APROVADA: 77 de 77 verificações OK.
+   06_validar_etapa4_no_supabase: VALIDAÇÃO APROVADA: 82 de 82 verificações OK.
+   07_validar_etapa5_importacao_no_supabase: VALIDAÇÃO APROVADA: 49 de 49 verificações OK.
+   08_validar_etapa5_leitores_no_supabase: VALIDAÇÃO APROVADA: 26 de 26 verificações OK.
+   Depois: 0 usuários e 0 arquivos no banco (tudo desfeito).
+
+2) O roteiro 08 reprova um banco em que o Itaú não consta como homologado:
+   VALIDAÇÃO REPROVADA: 25 de 26 OK — #3 homologados: só Nubank (CSV da conta) e Itaú (PDF da conta): esperado Itaú:homologado:pdf-extrato | Nubank:homologado:csv-extrato, obtido Nubank:homologado:csv-extrato
+
+3) Atualização de um banco já em uso (0008 com dados) para a 0009
+== banco na versão anterior (0008) com dados (conta, lançamento manual, importação confirmada) ==
+antes:
+  saldo=183800 importacoes=csv:csv-mapeado:confirmada:2 movimentos=3 chaves=h:,h: homologados=0
+== aplica 0009 ==
+COMMIT
+depois:
+  saldo=183800 importacoes=csv:csv-mapeado:confirmada:2 movimentos=3 chaves=h:,h: homologados=2
+etapa: 5.2-leitores-bancos
+== reaplicar 0009 por engano é recusado sem alterar nada ==
+ABORTADO: este banco não está na Etapa 5 parte 1 (0008) do Simplifica v2. Nada foi alterado.
+depois da tentativa:
+  saldo=183800 importacoes=csv:csv-mapeado:confirmada:2 movimentos=3 chaves=h:,h: homologados=2

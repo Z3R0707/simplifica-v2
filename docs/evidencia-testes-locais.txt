@@ -1,5 +1,5 @@
-Simplifica Finanças v2 — suíte completa de testes locais (etapas 1 a 5.1)
-Gerado em 2026-10-13T21:43Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
+Simplifica Finanças v2 — suíte completa de testes locais (etapas 1 a 5.2)
+Gerado em 2026-10-13T22:13Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu
 
 -- aplicando 0001_fundacao_infra.sql
 -- aplicando 0002_fundacao_cadastros.sql
@@ -9,6 +9,7 @@ Gerado em 2026-10-13T21:43Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 -- aplicando 0006_etapa3_contas_a_pagar.sql
 -- aplicando 0007_etapa4_cartoes.sql
 -- aplicando 0008_etapa5_importacao_extratos.sql
+-- aplicando 0009_etapa5_leitores_bancos.sql
 -- testes 05_auxiliares.sql
 -- testes 100_etapa4_cartoes.sql
   OK: fecha dia 3 / vence dia 10: compra em 02/10 vence em outubro
@@ -134,7 +135,7 @@ Gerado em 2026-10-13T21:43Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
   OK: 16 categorias padrão
   OK: limites de uso criados
   OK: criação do perfil auditada (canal cadastro)
-  OK: nenhum banco começa homologado
+  OK: só Nubank e Itaú (leitores conferidos com arquivo real) constam homologados
   OK: saldo inicial em centavos (R$ 5.000,00)
   OK: duas contas independentes no mesmo banco
   OK: criação sem chave de idempotência é recusada
@@ -255,6 +256,16 @@ Gerado em 2026-10-13T21:43Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
   OK: I3: nada da prévia descartada entrou
   OK: INVARIANTE: nenhuma chave de importação repetida
 == 130_etapa5_concorrencia: concluído ==
+-- testes 140_etapa5_leitores.sql
+  OK: versão do esquema: 5.2
+  OK: homologados só Nubank (CSV da conta) e Itaú (PDF da conta)
+  OK: formato desconhecido continua recusado
+  OK: importação em PDF aceita
+  OK: dois PIX iguais no mesmo dia continuam sendo dois
+  OK: saldo do PDF (SALDO DO DIA) bate com o calculado
+  OK: o que já entrou pelo CSV genérico aparece como possível duplicado, desmarcado
+  OK: na troca de leitor nada é lançado duas vezes
+  OK: leitor do Nubank usa o identificador do banco como chave
 -- testes 20_correcoes_revisao.sql
   OK: conta_atualizar sem versão é recusada
   OK: conta_definir_ativa sem versão é recusada
@@ -718,7 +729,7 @@ Gerado em 2026-10-13T21:43Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 == Página de validação: VALIDAÇÃO APROVADA — 28 verificações ==
 == RESULTADO: todos os testes passaram ==
 
--- testes de unidade do site (dinheiro e leitores OFX/CSV)
+-- testes unitários do site (leitores OFX, CSV, CSV do Nubank, PDF do Itaú; dinheiro)
 ok 1 - lerValor: formatos brasileiros
 ok 2 - lerValor: entradas inválidas
 ok 3 - lerValor: sem perda por ponto flutuante
@@ -733,5 +744,16 @@ ok 11 - valores de CSV em formatos brasileiros e americanos
 ok 12 - datas de CSV
 ok 13 - CSV com cabeçalho, aspas e ponto e vírgula; mapeamento sugerido e linhas inválidas apontadas
 ok 14 - CSV com débito e crédito em colunas separadas, e sinal invertido
-# pass 14
+ok 15 - extrairLinhas agrupa itens na mesma altura e ordena da esquerda para a direita
+ok 16 - Itaú: reconhece o extrato e ignora outros PDFs
+ok 17 - Itaú: lê os lançamentos e confere cada dia com o SALDO DO DIA
+ok 18 - Itaú: dia que não fecha bloqueia a leitura (lançamento faltando ou valor errado)
+ok 19 - Itaú: diferença só no dia da emissão (dia ainda aberto no banco) vira aviso, não erro
+ok 20 - Itaú: valor na coluna de saldo para um lançamento é erro; dia sem SALDO DO DIA é erro
+ok 21 - Itaú: valor fora do padrão é erro de leitura
+ok 22 - Nubank: reconhece o cabeçalho exato (com ou sem BOM)
+ok 23 - Nubank: lê valores com ponto decimal, identificador e descrição com vírgula
+ok 24 - Nubank: fora do padrão é erro (vírgula decimal, identificador inválido ou repetido, data)
+# tests 24
+# pass 24
 # fail 0

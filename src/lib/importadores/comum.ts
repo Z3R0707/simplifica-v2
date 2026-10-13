@@ -12,7 +12,7 @@ export type ItemLido = {
 };
 
 export type ExtratoLido = {
-  formato: "ofx" | "csv";
+  formato: "ofx" | "csv" | "pdf";
   leitor: string;
   tipo: "extrato" | "cartao";
   banco: string | null;
@@ -24,6 +24,8 @@ export type ExtratoLido = {
   itens: ItemLido[];
   erros: { linha: number; motivo: string }[];
   avisos: string[];
+  /** Leitor próprio de um banco: qualquer erro de leitura ou de conferência impede a importação. */
+  estrito?: boolean;
 };
 
 /** Texto do arquivo: UTF-8 quando válido; senão Windows-1252 (comum em bancos brasileiros). */

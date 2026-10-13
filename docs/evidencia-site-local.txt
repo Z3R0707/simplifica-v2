@@ -1,5 +1,5 @@
-Simplifica Finanças v2 — teste do site num navegador real (Chromium) contra o Supabase simulado com o SQL real (0001–0008)
-Gerado em 2026-10-13T21:44Z
+Simplifica Finanças v2 — teste do site num navegador real (Chromium) contra o Supabase simulado com o SQL real (0001–0009)
+Gerado em 2026-10-13T22:13Z
 
   OK: tela de entrar abre
   OK: senha curta recusada no cadastro
@@ -117,6 +117,16 @@ Gerado em 2026-10-13T21:44Z
   OK: histórico avisa o período sobreposto
   OK: importação desfeita fica no histórico com o motivo
   OK: desfazer tira o mercado do saldo (R$ 3.930,00)
+  OK: PDF do Itaú: dia que não fecha com o SALDO DO DIA é apontado
+  OK: PDF do Itaú com conferência falhando não pode ser importado
+  OK: fatura em PDF é reconhecida e explicada (importação de faturas vem depois)
+  OK: PDF do Itaú lido no navegador e conferido dia a dia
+  OK: PDF do Itaú: último SALDO DO DIA vira o saldo informado
+  OK: PDF original guardado no Storage
+  OK: prévia do PDF: 3 novos
+  OK: saldo do Itaú depois do PDF: 3.930,00 − 12,34 + 250,00 − 7,00 = R$ 4.160,66
+  OK: CSV do Nubank reconhecido sem pedir as colunas
+  OK: arquivo do Nubank numa conta do Itaú gera aviso
   OK: sessão expirada é renovada sem pedir login
   OK: exportação traz contas e lançamentos
   OK: exportação traz contas a pagar, pagamentos e recorrências
@@ -132,4 +142,4 @@ Gerado em 2026-10-13T21:44Z
   OK: contas, lançamentos e contas a pagar da conta excluída removidos do banco
   OK: segundo usuário continua usando normalmente
   OK: nenhum erro de JavaScript no navegador
-== Site (navegador): 131 verificações aprovadas ==
+== Site (navegador): 141 verificações aprovadas ==

@@ -5,6 +5,10 @@ import { formatarCentavos } from "../lib/dinheiro";
 import { decodificar, sha256, type ExtratoLido } from "../lib/importadores/comum";
 import { lerCsvBruto, mapearCsv, sugerirMapa, type MapaCsv } from "../lib/importadores/csv";
 import { ehOfx, lerOfx } from "../lib/importadores/ofx";
+import { ehNubankCsv, lerNubankCsv } from "../lib/importadores/nubank-csv";
+import { lerItauExtratoPdf, reconheceItauExtrato } from "../lib/importadores/itau-extrato-pdf";
+import { lerLinhasPdfNoNavegador } from "../lib/importadores/pdf";
+import { PDFJS_BASE } from "../config";
 import type { Classificacao } from "../lib/tipos";
 import { Alerta, Campo, Carregando, Confirmar, TituloPagina, Valor, mensagemDeErro, useCadastros, useCarregar, useEnvio } from "../ui";
 
@@ -32,6 +36,12 @@ const SUGESTAO: Record<Sugestao, { nome: string; classe: string; ajuda: string }
 };
 const BLOQUEADAS: Sugestao[] = ["data_futura", "repetido_no_arquivo"];
 
+/** Leitores próprios de banco, feitos e conferidos com arquivo real. */
+const LEITORES: Record<string, string> = {
+  "itau-extrato-pdf": "Extrato da conta Itaú (PDF) — leitor conferido com arquivo real; cada dia é conferido com o SALDO DO DIA do banco.",
+  "nubank-csv-extrato": "Extrato da conta Nubank (CSV) — leitor conferido com arquivo real; usa o identificador de cada lançamento do banco.",
+};
+
 type Arquivo = { nome: string; bytes: Uint8Array; texto: string; extensao: string };
 
 export function TelaImportar({ contaId }: { contaId?: string }) {
@@ -44,6 +54,8 @@ export function TelaImportar({ contaId }: { contaId?: string }) {
   const [previa, setPrevia] = useState<{ imp: Importacao; itens: ItemPrevia[] } | null>(null);
   const [resultado, setResultado] = useState<Importacao | null>(null);
   const [erroArquivo, setErroArquivo] = useState<string | null>(null);
+  const [lidoPdf, setLidoPdf] = useState<ExtratoLido | null>(null);
+  const [lendo, setLendo] = useState(false);
   const historico = useCarregar(
     () => (conta ? rpc<LinhaImportacao[]>("importacoes_da_conta", { p_conta_id: conta }) : Promise.resolve([])),
     [conta, previa?.imp.id, resultado?.id],
@@ -52,10 +64,13 @@ export function TelaImportar({ contaId }: { contaId?: string }) {
 
   const lido: ExtratoLido | null = useMemo(() => {
     if (!arquivo) return null;
+    if (lidoPdf) return lidoPdf;
+    if (arquivo.extensao === "pdf") return null;
+    if (ehNubankCsv(arquivo.texto)) return lerNubankCsv(arquivo.texto);
     if (ehOfx(arquivo.texto)) return lerOfx(arquivo.texto);
     if (linhasCsv && mapa) return mapearCsv(linhasCsv, mapa);
     return null;
-  }, [arquivo, linhasCsv, mapa]);
+  }, [arquivo, linhasCsv, mapa, lidoPdf]);
 
   const avisoBanco = useMemo(() => {
     if (!lido?.banco || !contaEscolhida) return null;
@@ -69,13 +84,39 @@ export function TelaImportar({ contaId }: { contaId?: string }) {
     setArquivo(null);
     setLinhasCsv(null);
     setMapa(null);
+    setLidoPdf(null);
     if (!f) return;
     if (f.size > 10 * 1024 * 1024) return setErroArquivo("Arquivo grande demais (máximo 10 MB).");
     const bytes = new Uint8Array(await f.arrayBuffer());
     const texto = decodificar(bytes);
     const extensao = (f.name.split(".").pop() ?? "").toLowerCase();
     if (extensao === "pdf" || texto.startsWith("%PDF")) {
-      return setErroArquivo("PDF ainda não é lido: o leitor de PDF de cada banco só será feito com um arquivo real dele. Por enquanto use OFX ou CSV (a maioria dos bancos exporta).");
+      setLendo(true);
+      try {
+        const linhas = await lerLinhasPdfNoNavegador(bytes, PDFJS_BASE);
+        if (linhas.length === 0) {
+          return setErroArquivo("Este PDF não tem texto (parece uma imagem ou digitalização). Baixe o extrato pelo app ou internet banking do banco.");
+        }
+        if (reconheceItauExtrato(linhas)) {
+          setLidoPdf(lerItauExtratoPdf(linhas));
+          return setArquivo({ nome: f.name, bytes, texto: "", extensao: "pdf" });
+        }
+        const topo = linhas.slice(0, 80).map((l) => l.texto.toLowerCase()).join(" ");
+        if (/fatura/.test(topo) && /vencimento/.test(topo)) {
+          return setErroArquivo("Isto parece uma fatura de cartão. A importação de faturas em PDF vem na próxima parte; por enquanto lance as compras pela tela do cartão.");
+        }
+        return setErroArquivo("Não reconheci este PDF. Em PDF, por enquanto, só o extrato da conta do Itaú é lido. Para outros bancos use OFX ou CSV.");
+      } catch (e) {
+        const msg = String((e as Error)?.name ?? "") + String((e as Error)?.message ?? "");
+        return setErroArquivo(/password/i.test(msg)
+          ? "Este PDF tem senha. Baixe o extrato sem senha pelo app ou internet banking."
+          : "Não consegui abrir este PDF. Confira se o arquivo está inteiro e tente de novo.");
+      } finally {
+        setLendo(false);
+      }
+    }
+    if (ehNubankCsv(texto)) {
+      return setArquivo({ nome: f.name, bytes, texto, extensao: "csv" });
     }
     if (!ehOfx(texto)) {
       const { linhas } = lerCsvBruto(texto);
@@ -89,7 +130,7 @@ export function TelaImportar({ contaId }: { contaId?: string }) {
   }
 
   function recomecar() {
-    setArquivo(null); setLinhasCsv(null); setMapa(null); setPrevia(null); setResultado(null); setErroArquivo(null);
+    setArquivo(null); setLinhasCsv(null); setMapa(null); setLidoPdf(null); setPrevia(null); setResultado(null); setErroArquivo(null);
   }
 
   return (
@@ -107,7 +148,7 @@ export function TelaImportar({ contaId }: { contaId?: string }) {
                 </select>
               )}
             </Campo>
-            <Campo rotulo="Arquivo do extrato (OFX ou CSV)">
+            <Campo rotulo="Arquivo do extrato (OFX, CSV ou PDF)">
               {(id) => <input id={id} type="file" accept=".ofx,.csv,.txt,.pdf" onChange={(e) => void escolherArquivo(e.target.files?.[0])} />}
             </Campo>
           </div>
@@ -115,6 +156,7 @@ export function TelaImportar({ contaId }: { contaId?: string }) {
             O arquivo original fica guardado. Antes de gravar, você vê a prévia e decide o que entra. O mesmo arquivo não é importado duas vezes
             e lançamentos que já entraram por outro arquivo são reconhecidos.
           </p>
+          {lendo && <p className="texto-suave">Lendo o PDF…</p>}
           {erroArquivo && <Alerta>{erroArquivo}</Alerta>}
         </section>
       )}
@@ -228,12 +270,12 @@ function ResumoLeitura({ lido, arquivo, conta, avisoBanco, aoCriar }: {
   const { chave, enviando, erro, enviar } = useEnvio("importacao-criar");
   const entradas = lido.itens.filter((i) => i.valor_centavos > 0).reduce((s, i) => s + i.valor_centavos, 0);
   const saidas = lido.itens.filter((i) => i.valor_centavos < 0).reduce((s, i) => s + i.valor_centavos, 0);
-  const bloqueado = lido.tipo === "cartao" || lido.itens.length === 0;
+  const bloqueado = lido.tipo === "cartao" || lido.itens.length === 0 || (!!lido.estrito && lido.erros.length > 0);
   return (
     <section className="secao estreita importar-passo">
       <h2>{arquivo.nome}</h2>
       <p className="texto-suave">
-        {lido.formato === "ofx" ? "Leitor OFX padrão" : "CSV com as colunas escolhidas"} — não homologado ainda com arquivo real deste banco: confira a prévia.
+        {LEITORES[lido.leitor] ?? `${lido.formato === "ofx" ? "Leitor OFX padrão" : "CSV com as colunas escolhidas"} — não homologado ainda com arquivo real deste banco: confira a prévia.`}
       </p>
       <ul className="lista-resultado">
         <li><strong>{lido.itens.length}</strong> lançamento(s) lido(s){lido.inicio && lido.fim ? `, de ${formatarData(lido.inicio)} a ${formatarData(lido.fim)}` : ""}</li>
@@ -242,7 +284,14 @@ function ResumoLeitura({ lido, arquivo, conta, avisoBanco, aoCriar }: {
       </ul>
       {lido.avisos.map((a) => <Alerta key={a} tipo="aviso">{a}</Alerta>)}
       {avisoBanco && <Alerta tipo="aviso">{avisoBanco}</Alerta>}
-      {lido.erros.length > 0 && (
+      {lido.erros.length > 0 && lido.estrito && (
+        <Alerta>
+          A leitura não fechou com o arquivo do banco e, por segurança, nada será importado deste arquivo:
+          <ul className="lista-erros">{lido.erros.slice(0, 8).map((e) => <li key={`${e.linha}-${e.motivo}`}>{e.linha ? `linha ${e.linha}: ` : ""}{e.motivo}</li>)}</ul>
+          {lido.erros.length > 8 && <span>… e mais {lido.erros.length - 8}.</span>}
+        </Alerta>
+      )}
+      {lido.erros.length > 0 && !lido.estrito && (
         <Alerta tipo="aviso">
           {lido.erros.length} linha(s) não puderam ser lidas e ficam de fora:
           <ul className="lista-erros">{lido.erros.slice(0, 8).map((e) => <li key={`${e.linha}-${e.motivo}`}>{e.linha ? `linha ${e.linha}: ` : ""}{e.motivo}</li>)}</ul>
@@ -256,7 +305,7 @@ function ResumoLeitura({ lido, arquivo, conta, avisoBanco, aoCriar }: {
           if (!uid) throw new Error("sessão");
           const hash = await sha256(arquivo.bytes);
           const caminho = `${uid}/importacoes/${hash}.${arquivo.extensao}`;
-          await guardarArquivo(caminho, new Blob([arquivo.bytes]), arquivo.extensao === "ofx" ? "application/x-ofx" : "text/csv");
+          await guardarArquivo(caminho, new Blob([arquivo.bytes]), { ofx: "application/x-ofx", pdf: "application/pdf" }[arquivo.extensao] ?? "text/csv");
           const imp = await rpc<Importacao>("importacao_criar", {
             p_conta_id: conta, p_formato: lido.formato, p_leitor: lido.leitor, p_arquivo_nome: arquivo.nome, p_arquivo_hash: hash,
             p_arquivo_caminho: caminho, p_arquivo_tamanho: arquivo.bytes.length, p_banco_no_arquivo: lido.banco, p_conta_no_arquivo: lido.conta,

@@ -1,0 +1,18 @@
+Simplifica Finanças v2 — Etapa 5 parte 2: testes de mutação dos leitores por banco
+Gerado em 2026-10-13T22:13Z. Cada linha estraga UMA regra de um leitor e roda os testes unitários (tests/unidade).
+
+DETECTADA conferência dia a dia desligada
+DETECTADA toda diferença vira aviso
+DETECTADA coluna de saldo ignorada
+DETECTADA dia sem SALDO DO DIA aceito
+DETECTADA saldo informado do dia errado
+DETECTADA leitor Itaú não estrito
+DETECTADA identificador repetido aceito
+NÃO DETECTADA vírgula decimal aceita
+DETECTADA descrição cortada na vírgula
+DETECTADA agrupamento de linha rígido
+DETECTADA células fora de ordem
+10/11
+
+A mutação não detectada é equivalente: o CSV do Nubank é separado por vírgula, então um valor com
+vírgula decimal nunca chega inteiro à coluna de valor (vira outra coluna e a linha é recusada antes).

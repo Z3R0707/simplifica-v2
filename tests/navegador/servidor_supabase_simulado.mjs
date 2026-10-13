@@ -7,7 +7,7 @@ import { extname, join, normalize } from "node:path";
 import { criarSimulador, sql, CHAVES } from "../../supabase/tests/edge/supabase_simulado.mjs";
 import { tratar as excluirConta } from "../../supabase/functions/excluir-conta/index.ts";
 
-const TIPOS = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".txt": "text/plain" };
+const TIPOS = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".txt": "text/plain" };
 
 export function iniciarServidor({ db, porta, dist }) {
   const senhas = new Map();      // e-mail → senha

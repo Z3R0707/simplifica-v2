@@ -1,0 +1,26 @@
+Simplifica Finanças v2 — Etapa 5 parte 2: leitores conferidos com os arquivos REAIS do usuário
+Gerado em 2026-10-13
+
+Os arquivos reais NÃO estão neste repositório. Foram usados só no ambiente de
+trabalho, para conhecer o layout e conferir os leitores. Aqui fica apenas o
+resumo (quantidades e resultado da conferência), sem descrições nem valores.
+
+1) Extrato da conta Itaú em PDF (app/internet banking, "extrato conta / lançamentos")
+   Leitura no Node (pdf.js 6.2.108) e no Chromium (o mesmo pdf.js que o site serve): resultado idêntico.
+   - 54 lançamentos lidos, de 14/09/2026 a 13/10/2026; 0 erros de leitura; 0 erros de JavaScript.
+   - 11 linhas "SALDO DO DIA"; cada dia conferido com: saldo do dia anterior + lançamentos do dia.
+   - 10 dias fecham exatamente.
+   - 13/10/2026 (dia em que o extrato foi emitido, às 18:33) não fecha por R$ 0,02.
+     Nenhuma linha do PDF ficou sem leitura (conferido item a item); o próprio banco
+     ainda não listava esse movimento no dia em andamento. Regra adotada: diferença
+     no DIA DA EMISSÃO vira aviso visível; diferença em qualquer outro dia bloqueia
+     a importação inteira.
+   - Último SALDO DO DIA = saldo do cabeçalho "saldo em conta" (mesmo valor).
+   - Demais PDFs enviados (faturas Itaú, Nubank, Santander, Mercado Pago, Sicoob,
+     Sicredi, Riachuelo; extrato da conta Nubank) NÃO são reconhecidos como extrato Itaú.
+
+2) Extrato da conta Nubank em CSV (exportação do app)
+   - Cabeçalho exato "Data,Valor,Identificador,Descrição"; valores com ponto decimal; identificador UUID.
+   - 47 lançamentos lidos, de 02/10/2026 a 12/10/2026; 0 erros; 47 identificadores distintos.
+   - Mesmo número de lançamentos que a importação feita antes pelo CSV genérico (47).
+   - Os dois arquivos enviados ("extrato_nubank.csv" e "Nubank_fatura.csv") são o mesmo extrato da conta.

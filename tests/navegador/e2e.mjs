@@ -1,5 +1,7 @@
 // Teste de ponta a ponta do site, num Chromium real, contra o Supabase
 // simulado que executa o SQL REAL das migrações (etapas 1 a 5).
+// Os PDFs usados aqui são gerados na hora (pdf-lib), no layout dos bancos,
+// com dados fictícios.
 // Uso: node --experimental-strip-types tests/navegador/e2e.mjs
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync } from "node:fs";
@@ -22,7 +24,7 @@ psql(["-d", "postgres", "-c", `drop database if exists ${DB}`, "-c", `create dat
 const stub = readFileSync(RAIZ + "supabase/tests/00_stub_supabase.sql", "utf8")
   .replace(/^create role (\w+) ([^;]*);/gm, "do $$$$ begin create role $1 $2; exception when duplicate_object then null; end $$$$;");
 execFileSync("psql", [...PSQL, "-q", "-v", "ON_ERROR_STOP=1", "-d", DB], { input: stub, stdio: ["pipe", "ignore", "pipe"] });
-for (const f of ["0001_fundacao_infra.sql", "0002_fundacao_cadastros.sql", "0003_fundacao_lgpd_storage.sql", "0004_etapa2_movimentos_saldos.sql", "0005_etapa2_cancelamento_parcial.sql", "0006_etapa3_contas_a_pagar.sql", "0007_etapa4_cartoes.sql", "0008_etapa5_importacao_extratos.sql"]) {
+for (const f of ["0001_fundacao_infra.sql", "0002_fundacao_cadastros.sql", "0003_fundacao_lgpd_storage.sql", "0004_etapa2_movimentos_saldos.sql", "0005_etapa2_cancelamento_parcial.sql", "0006_etapa3_contas_a_pagar.sql", "0007_etapa4_cartoes.sql", "0008_etapa5_importacao_extratos.sql", "0009_etapa5_leitores_bancos.sql"]) {
   psql(["-d", DB, "-f", RAIZ + "supabase/migrations/" + f]);
 }
 
@@ -585,7 +587,7 @@ try {
   await p.locator(".cartao-conta").filter({ has: p.locator("strong", { hasText: /^Itaú$/ }) }).click();
   await p.getByRole("link", { name: "Importar extrato" }).click();
   await p.getByRole("heading", { name: "Importar extrato" }).waitFor();
-  await p.getByLabel("Arquivo do extrato (OFX ou CSV)").setInputFiles({ name: "itau-outubro.ofx", mimeType: "application/x-ofx", buffer: Buffer.from(ofx, "latin1") });
+  await p.getByLabel("Arquivo do extrato (OFX, CSV ou PDF)").setInputFiles({ name: "itau-outubro.ofx", mimeType: "application/x-ofx", buffer: Buffer.from(ofx, "latin1") });
   await p.getByRole("button", { name: "Ver prévia" }).waitFor();
   ok((await texto(".importar-passo:has(h2)")).includes("4 lançamento(s) lido(s)"), "OFX lido: 4 lançamentos");
   ok((await texto("main")).includes("Saldo informado no arquivo"), "OFX: saldo informado pelo banco lido");
@@ -611,14 +613,14 @@ try {
 
   // o mesmo arquivo de novo
   await p.getByRole("link", { name: "Importar extrato" }).click();
-  await p.getByLabel("Arquivo do extrato (OFX ou CSV)").setInputFiles({ name: "itau-outubro-copia.ofx", mimeType: "application/x-ofx", buffer: Buffer.from(ofx, "latin1") });
+  await p.getByLabel("Arquivo do extrato (OFX, CSV ou PDF)").setInputFiles({ name: "itau-outubro-copia.ofx", mimeType: "application/x-ofx", buffer: Buffer.from(ofx, "latin1") });
   await p.getByRole("button", { name: "Ver prévia" }).click();
   await p.locator(".importar-passo .alerta-erro").waitFor();
   ok((await texto(".importar-passo .alerta-erro")).includes("já foi importado"), "o mesmo arquivo não é importado duas vezes");
 
   // CSV sobreposto: o mapeamento é pedido; o que já entrou não se repete
   const csvExtrato = "Data;Histórico;Valor\n03/10/2026;PADARIA BOM PAO;-45,00\n12/10/2026;MERCADO;-30,00\n";
-  await p.getByLabel("Arquivo do extrato (OFX ou CSV)").setInputFiles({ name: "itau.csv", mimeType: "text/csv", buffer: Buffer.from(csvExtrato, "utf8") });
+  await p.getByLabel("Arquivo do extrato (OFX, CSV ou PDF)").setInputFiles({ name: "itau.csv", mimeType: "text/csv", buffer: Buffer.from(csvExtrato, "utf8") });
   await p.getByRole("heading", { name: "Quais colunas são o quê?" }).waitFor();
   ok((await p.getByLabel("Descrição", { exact: true }).locator("option:checked").innerText()).includes("Histórico"), "CSV: colunas sugeridas pelo cabeçalho");
   await p.getByRole("button", { name: "Ver prévia" }).click();
@@ -637,6 +639,83 @@ try {
   ok((await texto(".lista-simples")).includes("Desfeita: arquivo errado"), "importação desfeita fica no histórico com o motivo");
   ok((await saldoItau()) === "R$ 3.930,00", "desfazer tira o mercado do saldo (R$ 3.930,00)", await saldoItau());
 
+  // ============================================================ leitores por banco (Etapa 5, parte 2)
+  const { createRequire } = await import("node:module");
+  const { PDFDocument, StandardFonts } = createRequire(import.meta.url)(process.env.PDF_LIB ?? "/opt/npm-tools/node_modules/pdf-lib");
+  // extrato do Itaú no layout do app: data | lançamentos | valor (à direita em 460) | saldo (à direita em 565)
+  async function pdfItau(linhas, emitido) {
+    const doc = await PDFDocument.create();
+    const fonte = await doc.embedFont(StandardFonts.Helvetica);
+    const pg = doc.addPage([595, 842]);
+    const t = (x, y, s) => pg.drawText(s, { x, y, size: 8, font: fonte });
+    const dir = (xd, y, s) => t(xd - fonte.widthOfTextAtSize(s, 8), y, s);
+    t(232, 770, "FULANA DE TESTE"); t(446, 770, "agência: 0001"); t(507, 770, "conta: 01234-5");
+    t(31, 723, "saldo em conta");
+    t(28, 645, "extrato conta / lançamentos");
+    t(28, 630, "período de visualização: 01/10/2026 até 06/10/2026"); t(436, 628, `emitido em: ${emitido}`);
+    t(31, 597, "data"); t(96, 597, "lançamentos"); t(413, 597, "valor (R$)"); t(516, 597, "saldo (R$)");
+    let y = 572;
+    for (const [d, desc, v, saldo] of linhas) {
+      t(31, y, d); t(96, y, desc);
+      if (saldo) dir(565, y, v); else dir(460, y, v);
+      y -= 19;
+    }
+    return Buffer.from(await doc.save());
+  }
+  const LINHAS_ITAU = [
+    ["06/10/2026", "PAY CAFETERIA 06/10", "-7,00"],
+    ["06/10/2026", "SALDO DO DIA", "1.230,66", true],
+    ["05/10/2026", "PIX TRANSF CLIENTE 05/10", "250,00"],
+    ["05/10/2026", "SALDO DO DIA", "1.237,66", true],
+    ["05/10/2026", "PAG BOLETO ESCOLA", "-12,34"],
+    ["04/10/2026", "SALDO DO DIA", "1.000,00", true],
+  ];
+  const importarNoItau = async () => {
+    await p.getByRole("link", { name: "Saldos" }).first().click();
+    await p.locator(".cartao-conta").filter({ has: p.locator("strong", { hasText: /^Itaú$/ }) }).click();
+    await p.getByRole("link", { name: "Importar extrato" }).click();
+    await p.getByRole("heading", { name: "Importar extrato" }).waitFor();
+  };
+  await importarNoItau();
+  const campoArquivo = p.getByLabel("Arquivo do extrato (OFX, CSV ou PDF)");
+  // um dia que não fecha: nada é importado
+  await campoArquivo.setInputFiles({ name: "itau-torto.pdf", mimeType: "application/pdf", buffer: await pdfItau(LINHAS_ITAU.filter((l) => l[1] !== "PAG BOLETO ESCOLA"), "06/10/2026") });
+  await esperarTexto(".importar-passo:has(h2) .alerta-erro", "por segurança, nada será importado");
+  ok((await texto(".importar-passo:has(h2) .alerta-erro")).includes("dia 05/10/2026 não fecha"), "PDF do Itaú: dia que não fecha com o SALDO DO DIA é apontado", await texto(".importar-passo .alerta-erro"));
+  ok(await p.getByRole("button", { name: "Ver prévia" }).isDisabled(), "PDF do Itaú com conferência falhando não pode ser importado");
+  // fatura em PDF: ainda não
+  const fat = await PDFDocument.create();
+  const fpg = fat.addPage([595, 842]);
+  const ff = await fat.embedFont(StandardFonts.Helvetica);
+  fpg.drawText("Resumo da fatura em R$", { x: 300, y: 700, size: 9, font: ff });
+  fpg.drawText("Vencimento: 13/10/2026", { x: 300, y: 680, size: 9, font: ff });
+  await campoArquivo.setInputFiles({ name: "fatura.pdf", mimeType: "application/pdf", buffer: Buffer.from(await fat.save()) });
+  await esperarTexto(".importar-passo .alerta-erro", "fatura de cartão");
+  ok((await texto(".importar-passo .alerta-erro")).includes("parece uma fatura de cartão"), "fatura em PDF é reconhecida e explicada (importação de faturas vem depois)");
+  // PDF correto
+  await campoArquivo.setInputFiles({ name: "itau-extrato.pdf", mimeType: "application/pdf", buffer: await pdfItau(LINHAS_ITAU, "06/10/2026") });
+  await p.getByRole("button", { name: "Ver prévia" }).waitFor();
+  const resumoPdf = await texto(".importar-passo:has(h2)");
+  ok(resumoPdf.includes("3 lançamento(s) lido(s), de 05/10/2026 a 06/10/2026") && resumoPdf.includes("Extrato da conta Itaú (PDF)") && resumoPdf.includes("Conferido dia a dia"),
+    "PDF do Itaú lido no navegador e conferido dia a dia", resumoPdf);
+  ok(resumoPdf.includes("Saldo informado no arquivo em 06/10/2026") && resumoPdf.includes("1.230,66"), "PDF do Itaú: último SALDO DO DIA vira o saldo informado");
+  await p.screenshot({ path: CAPTURAS + "17-importar-pdf-itau.png", fullPage: true });
+  await p.getByRole("button", { name: "Ver prévia" }).click();
+  await p.locator("table.previa").waitFor();
+  ok(srv.log.some((l) => l.startsWith("storage-envio:") && l.endsWith(".pdf")), "PDF original guardado no Storage", srv.log.filter((l) => l.startsWith("storage")).join(" "));
+  ok((await texto(".totais")).includes("3 de 3"), "prévia do PDF: 3 novos");
+  await p.getByRole("button", { name: "Importar 3 lançamento(s)" }).click();
+  await p.getByRole("heading", { name: "Importação concluída" }).waitFor();
+  ok((await saldoItau()) === "R$ 4.160,66", "saldo do Itaú depois do PDF: 3.930,00 − 12,34 + 250,00 − 7,00 = R$ 4.160,66", await saldoItau());
+  // CSV do Nubank: reconhecido sem pedir colunas; avisa que a conta escolhida é de outro banco
+  await importarNoItau();
+  const nuCsv = "Data,Valor,Identificador,Descrição\n02/10/2026,9.00,11111111-1111-4111-8111-111111111111,Transferência recebida pelo Pix - FULANA\n";
+  await campoArquivo.setInputFiles({ name: "NU_2026.csv", mimeType: "text/csv", buffer: Buffer.from(nuCsv, "utf8") });
+  await p.getByRole("button", { name: "Ver prévia" }).waitFor();
+  ok((await p.getByRole("heading", { name: "Quais colunas são o quê?" }).count()) === 0 && (await texto(".importar-passo:has(h2)")).includes("Extrato da conta Nubank (CSV)"),
+    "CSV do Nubank reconhecido sem pedir as colunas");
+  ok((await texto(".importar-passo:has(h2)")).includes("O arquivo diz ser do banco 260"), "arquivo do Nubank numa conta do Itaú gera aviso");
+
   // ============================================================ sessão: renovação do token
   await p.evaluate(() => {
     const s = JSON.parse(localStorage.getItem("simplifica-v2.sessao"));
@@ -652,7 +731,7 @@ try {
   await p.getByRole("link", { name: "Minha conta" }).first().click();
   const [download] = await Promise.all([p.waitForEvent("download"), p.getByRole("button", { name: "Baixar meus dados" }).click()]);
   const exportado = JSON.parse(readFileSync(await download.path(), "utf8"));
-  ok(exportado.movimentos?.length === 14 && exportado.contas?.length === 6 && exportado.importacoes?.length === 2, "exportação traz contas e lançamentos", `${exportado.movimentos?.length} mov, ${exportado.contas?.length} contas`);
+  ok(exportado.movimentos?.length === 17 && exportado.contas?.length === 6 && exportado.importacoes?.length === 3, "exportação traz contas e lançamentos", `${exportado.movimentos?.length} mov, ${exportado.contas?.length} contas`);
   ok(exportado.contas_a_pagar?.length >= 4 && exportado.pagamentos?.length === 4 && exportado.recorrencias?.length === 1, "exportação traz contas a pagar, pagamentos e recorrências",
     `${exportado.contas_a_pagar?.length} contas a pagar, ${exportado.pagamentos?.length} pagamentos, ${exportado.recorrencias?.length} recorrências`);
   ok(exportado.cartoes?.length === 1 && exportado.compras_cartao?.length === 3 && exportado.parcelas?.length === 12, "exportação traz cartões, compras e parcelas",
