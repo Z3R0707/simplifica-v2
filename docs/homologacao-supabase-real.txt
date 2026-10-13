@@ -1,0 +1,36 @@
+HOMOLOGAÇÃO DA ETAPA 1 NO SUPABASE REAL — APROVADA
+Projeto: Simplifica V2 (cncxjskfvavdvaewekuu), plano Free — projeto novo, separado do sistema atual
+Data: 12/10/2026 (horário de Brasília)
+
+Instalação (caminho A — projeto vazio: 0 tabelas, 0 usuários)
+  0001_fundacao_infra.sql ............ Success
+  0002_fundacao_cadastros.sql ........ Success
+  0003_fundacao_lgpd_storage.sql ..... Success
+  Edge Function excluir-conta ........ publicada; "Verify JWT with legacy secret" DESLIGADO
+                                       (a função valida a sessão no próprio código)
+  Edge Function limpar-orfaos ........ publicada; verificação legada DESLIGADA (protegida por segredo)
+  Segredo MANUTENCAO_SEGREDO ......... cadastrado
+  Auth: e-mail habilitado, Confirm email ligado, login anônimo desligado
+  Observação: a 1ª tentativa de publicação falhou ("internal error") porque o editor
+  estava sem o arquivo index.ts; resolvido publicando com um único index.ts.
+
+Roteiro 1 — validacao/01_validar_banco_no_supabase.sql
+  "VALIDAÇÃO APROVADA: 74 de 74 verificações OK." (rollback automático)
+  Conferência posterior: usuarios 0, perfis 0, exclusoes 0, arquivos 0 → nada ficou gravado
+
+Roteiro 2 — validacao/02_validar_exclusao_no_navegador.html (16:45:57)
+  "VALIDAÇÃO APROVADA — 28 verificações"
+  Usuário excluído (A): c738b525-1fa3-4871-a293-d405e0cb8525
+  Usuário de controle (B): mantido a pedido do usuário
+  Titular × conta em paralelo: 10/10 rodadas coerentes, 0 violações
+  Exclusão com 5 uploads simultâneos: concluída; uploads aceitos durante a corrida: 0 de 5
+
+Conferência final no SQL Editor
+  arquivos_restantes 0 · login_restante 0 · status concluida · arquivos_removidos 2 ·
+  concluida_em 2026-10-12 19:45:57 UTC · orfaos_no_projeto 0
+
+Ressalva registrada
+  Na corrida real, os 5 uploads chegaram depois da solicitação e foram bloqueados; o caso
+  "upload iniciado antes da solicitação e confirmado depois" não ocorreu no ambiente real.
+  Coberto por: testes locais com transações simultâneas (40_concorrencia.sql), conferência
+  final da Edge Function e varredura de órfãos (agendamento recomendado).

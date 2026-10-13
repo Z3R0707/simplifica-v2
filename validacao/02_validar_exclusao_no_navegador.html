@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Validação da exclusão — Simplifica v2</title>
+<style>
+  :root { --fundo:#f6f7f9; --cartao:#fff; --texto:#1d2330; --suave:#5d6675; --borda:#dde1e7; --ok:#11703d; --erro:#b42318; --aviso:#8a5a00; --acento:#1f5fbf; }
+  @media (prefers-color-scheme: dark) { :root { --fundo:#14171c; --cartao:#1d2128; --texto:#e8eaee; --suave:#9aa3b2; --borda:#2f3540; --ok:#4cc38a; --erro:#ff7b72; --aviso:#e3b341; --acento:#6ea8fe; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--fundo); color:var(--texto); }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  p.sub { color: var(--suave); margin: 0 0 20px; }
+  .cartao { background:var(--cartao); border:1px solid var(--borda); border-radius:10px; padding:16px; margin-bottom:16px; }
+  .aviso { border-left: 4px solid var(--aviso); }
+  label { display:block; font-weight:600; font-size:13px; margin:12px 0 4px; }
+  input { width:100%; padding:9px 10px; border:1px solid var(--borda); border-radius:7px; background:transparent; color:inherit; font:inherit; }
+  .grade { display:grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+  @media (max-width: 560px) { .grade { grid-template-columns: 1fr; } }
+  button { margin-top:16px; padding:10px 16px; border:0; border-radius:7px; background:var(--acento); color:#fff; font:inherit; font-weight:600; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:default; }
+  button.sec { background:transparent; color:var(--acento); border:1px solid var(--borda); }
+  ol#res { list-style:none; padding:0; margin:0; }
+  ol#res li { padding:6px 0; border-bottom:1px solid var(--borda); display:flex; gap:10px; }
+  ol#res li:last-child { border-bottom:0; }
+  .s { width: 22px; flex: none; font-weight:700; }
+  .ok .s { color:var(--ok); } .falha .s { color:var(--erro); }
+  .det { color:var(--suave); font-size:13px; }
+  #resumo { font-weight:700; margin:0 0 8px; }
+  pre { white-space:pre-wrap; background:var(--fundo); border:1px solid var(--borda); border-radius:7px; padding:10px; font-size:13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Validação da exclusão de conta</h1>
+  <p class="sub">Simplifica Finanças v2 — Etapa 1. Testa no projeto Supabase real: permissões do Storage e exclusão completa, sem arquivos órfãos.</p>
+
+  <div class="cartao aviso">
+    <strong>Use apenas usuários de teste.</strong> O usuário A será <strong>excluído de verdade</strong>, com todos os dados e arquivos.
+    Crie os dois em Authentication → Users → Add user (marque “Auto Confirm User”).
+    As chaves digitadas aqui não são gravadas em lugar nenhum.
+  </div>
+
+  <form id="f" class="cartao" autocomplete="off">
+    <label for="url">URL do projeto (Settings → API)</label>
+    <input id="url" placeholder="https://xxxxxxxx.supabase.co" required>
+    <label for="chave">Chave pública (anon / publishable)</label>
+    <input id="chave" required>
+    <div class="grade">
+      <div><label for="ea">E-mail do usuário A (será excluído)</label><input id="ea" type="email" required></div>
+      <div><label for="sa">Senha do usuário A</label><input id="sa" type="password" required></div>
+      <div><label for="eb">E-mail do usuário B (controle)</label><input id="eb" type="email" required></div>
+      <div><label for="sb">Senha do usuário B</label><input id="sb" type="password" required></div>
+    </div>
+    <button id="ir" type="submit">Executar validação</button>
+  </form>
+
+  <section class="cartao" id="saida" hidden>
+    <p id="resumo"></p>
+    <ol id="res"></ol>
+    <div id="sqlfinal" hidden>
+      <p><strong>Última conferência, no SQL Editor</strong> (deve mostrar 0 arquivos e status concluida):</p>
+      <pre id="sql"></pre>
+    </div>
+    <button class="sec" id="copiar" type="button">Copiar resultado</button>
+  </section>
+</main>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const linhas = [];
+let falhas = 0;
+
+function registrar(ok, nome, detalhe) {
+  if (!ok) falhas++;
+  linhas.push(`${ok ? "OK   " : "FALHA"} ${nome}${detalhe ? " — " + detalhe : ""}`);
+  const li = document.createElement("li");
+  li.className = ok ? "ok" : "falha";
+  li.innerHTML = `<span class="s">${ok ? "✓" : "✗"}</span><span></span>`;
+  li.lastChild.textContent = nome;
+  if (detalhe) { const d = document.createElement("div"); d.className = "det"; d.textContent = detalhe; li.lastChild.appendChild(d); }
+  $("res").appendChild(li);
+}
+
+function cliente(base, chave) {
+  base = base.replace(/\/+$/, "");
+  return async function chamar(metodo, caminho, { token, corpo, texto } = {}) {
+    const h = { apikey: chave, Authorization: `Bearer ${token || chave}` };
+    let body;
+    if (texto !== undefined) { h["Content-Type"] = "text/plain"; body = texto; }
+    else if (corpo !== undefined) { h["Content-Type"] = "application/json"; body = JSON.stringify(corpo); }
+    let r;
+    try { r = await fetch(base + caminho, { method: metodo, headers: h, body }); }
+    catch (e) { return { status: 0, dados: { erro: "rede", mensagem: String(e) } }; }
+    const t = await r.text();
+    let dados = t; try { dados = t ? JSON.parse(t) : null; } catch {}
+    return { status: r.status, dados };
+  };
+}
+
+const chaveUnica = (p) => `${p}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+
+async function validar() {
+  const api = cliente($("url").value.trim(), $("chave").value.trim());
+  const ea = $("ea").value.trim(), eb = $("eb").value.trim();
+  const login = (email, senha) => api("POST", "/auth/v1/token?grant_type=password", { corpo: { email, password: senha } });
+
+  // 1. sessões
+  let r = await login(ea, $("sa").value);
+  if (r.status !== 200) { registrar(false, "login do usuário A", `HTTP ${r.status} ${JSON.stringify(r.dados)}`); return; }
+  const A = { token: r.dados.access_token, id: r.dados.user.id };
+  registrar(true, "login do usuário A");
+  r = await login(eb, $("sb").value);
+  if (r.status !== 200) { registrar(false, "login do usuário B", `HTTP ${r.status}`); return; }
+  const B = { token: r.dados.access_token, id: r.dados.user.id };
+  registrar(true, "login do usuário B");
+  if (A.id === B.id) { registrar(false, "A e B precisam ser usuários diferentes"); return; }
+
+  // 2. cadastro e regras de escrita
+  r = await api("GET", "/rest/v1/perfis?select=id,nome,versao", { token: A.token });
+  registrar(r.status === 200 && Array.isArray(r.dados) && r.dados.length === 1 && r.dados[0].id === A.id, "A vê exatamente o próprio perfil (criado no cadastro)", `HTTP ${r.status}`);
+  r = await api("GET", "/rest/v1/categorias?select=id", { token: A.token });
+  registrar(r.status === 200 && Array.isArray(r.dados) && r.dados.length >= 16, "categorias padrão disponíveis para A", `${Array.isArray(r.dados) ? r.dados.length : "?"} categorias`);
+  r = await api("POST", "/rest/v1/rpc/titular_criar", { token: A.token, corpo: { p_nome: chaveUnica("Titular teste"), p_chave_idempotencia: chaveUnica("val") } });
+  const titular = r.dados;
+  registrar(r.status === 200 && titular && titular.versao === 1, "A cria titular pela RPC (versão 1)", `HTTP ${r.status}`);
+  r = await api("POST", "/rest/v1/rpc/titular_atualizar", { token: A.token, corpo: { p_id: titular?.id, p_versao_esperada: null, p_nome: "x", p_ativo: true } });
+  registrar(r.status >= 400 && r.status < 500, "alteração sem versão esperada é recusada", `HTTP ${r.status} ${r.dados?.message ?? ""}`);
+  r = await api("PATCH", `/rest/v1/perfis?id=eq.${A.id}`, { token: A.token, corpo: { nome: "direto" } });
+  registrar(r.status === 401 || r.status === 403, "alteração direta em tabela é negada", `HTTP ${r.status}`);
+
+  // 3. Storage: pasta própria, isolamento e preservação do original
+  const caminhos = [`${A.id}/validacao/um.txt`, `${A.id}/dois.txt`];
+  for (const c of caminhos) {
+    r = await api("POST", `/storage/v1/object/documentos/${c}`, { token: A.token, texto: `arquivo de validação ${new Date().toISOString()}` });
+    registrar(r.status === 200, `A envia ${c.slice(37)} para a própria pasta`, `HTTP ${r.status}`);
+  }
+  r = await api("POST", `/storage/v1/object/documentos/${B.id}/invasao.txt`, { token: A.token, texto: "x" });
+  registrar(r.status >= 400, "A não grava na pasta de B", `HTTP ${r.status}`);
+  r = await api("POST", "/storage/v1/object/list/documentos", { token: B.token, corpo: { prefix: `${A.id}/`, limit: 100, offset: 0 } });
+  registrar(r.status === 200 && Array.isArray(r.dados) && r.dados.length === 0, "B não lista a pasta de A", `HTTP ${r.status}, ${Array.isArray(r.dados) ? r.dados.length : "?"} itens`);
+  r = await api("GET", `/storage/v1/object/authenticated/documentos/${A.id}/dois.txt`, { token: B.token });
+  registrar(r.status >= 400, "B não baixa arquivo de A", `HTTP ${r.status}`);
+  r = await api("DELETE", "/storage/v1/object/documentos", { token: A.token, corpo: { prefixes: [`${A.id}/dois.txt`] } });
+  const listaA = async () => {
+    const raiz = await api("POST", "/storage/v1/object/list/documentos", { token: A.token, corpo: { prefix: `${A.id}/`, limit: 100, offset: 0 } });
+    const sub = await api("POST", "/storage/v1/object/list/documentos", { token: A.token, corpo: { prefix: `${A.id}/validacao/`, limit: 100, offset: 0 } });
+    const nomes = [...(Array.isArray(raiz.dados) ? raiz.dados : []), ...(Array.isArray(sub.dados) ? sub.dados : [])].filter((o) => o.id).map((o) => o.name);
+    return nomes.sort();
+  };
+  let arquivos = await listaA();
+  registrar(arquivos.includes("dois.txt"), "A não consegue apagar o documento original", `${arquivos.length} arquivo(s) na pasta`);
+
+  // 3b. Concorrência: arquivar titular × criar conta, em paralelo (10 rodadas)
+  r = await api("GET", "/rest/v1/instituicoes?select=id,nome", { token: A.token });
+  const inst = Array.isArray(r.dados) ? (r.dados.find((i) => i.nome === "Nubank") ?? r.dados[0]) : null;
+  let rodadasCoerentes = 0;
+  const RODADAS = 10;
+  for (let i = 1; i <= RODADAS; i++) {
+    const t = await api("POST", "/rest/v1/rpc/titular_criar", { token: A.token, corpo: { p_nome: chaveUnica(`Corrida ${i}`), p_chave_idempotencia: chaveUnica("val-t") } });
+    if (t.status !== 200) break;
+    const [arq, conta] = await Promise.all([
+      api("POST", "/rest/v1/rpc/titular_atualizar", { token: A.token, corpo: { p_id: t.dados.id, p_versao_esperada: 1, p_nome: t.dados.nome, p_ativo: false } }),
+      api("POST", "/rest/v1/rpc/conta_criar", { token: A.token, corpo: { p_titular_id: t.dados.id, p_instituicao_id: inst?.id, p_apelido: chaveUnica(`Conta corrida ${i}`), p_tipo: "corrente",
+        p_saldo_inicial_centavos: 0, p_saldo_inicial_data: new Date().toISOString().slice(0, 10), p_agencia: null, p_numero: null,
+        p_saldo_inicial_validado: false, p_incluir_consolidado: true, p_chave_idempotencia: chaveUnica("val-c") } }),
+    ]);
+    const exatamenteUm = (arq.status === 200) !== (conta.status === 200);
+    if (exatamenteUm) rodadasCoerentes++;
+  }
+  registrar(rodadasCoerentes === RODADAS, "arquivar titular × criar conta em paralelo: sempre só um dos dois vence", `${rodadasCoerentes}/${RODADAS} rodadas coerentes`);
+  const [ct, tt] = await Promise.all([api("GET", "/rest/v1/contas?select=id,ativa,titular_id", { token: A.token }), api("GET", "/rest/v1/titulares?select=id,ativo", { token: A.token })]);
+  const arquivados = new Set((Array.isArray(tt.dados) ? tt.dados : []).filter((t) => !t.ativo).map((t) => t.id));
+  const violacoes = (Array.isArray(ct.dados) ? ct.dados : []).filter((c) => c.ativa && arquivados.has(c.titular_id)).length;
+  registrar(ct.status === 200 && tt.status === 200 && violacoes === 0, "nenhuma conta ativa ligada a titular arquivado", `${violacoes} violação(ões)`);
+
+  // 4. Exclusão: confirmações inválidas
+  const excluir = (corpo) => api("POST", "/functions/v1/excluir-conta", { token: A.token, corpo });
+  for (const [corpo, nome] of [[{}, "ausente (NULL)"], [{ confirmacao_email: null }, "NULL"], [{ confirmacao_email: "" }, "vazia"],
+                               [{ confirmacao_email: "   " }, "só espaços"], [{ confirmacao_email: "outro@teste.invalid" }, "divergente"],
+                               [{ confirmacao_email: eb }, "e-mail do usuário B"]]) {
+    r = await excluir(corpo);
+    registrar(r.status === 400, `exclusão com confirmação ${nome} é rejeitada`, `HTTP ${r.status}${r.status === 404 ? " (função excluir-conta não publicada?)" : ""}`);
+  }
+  arquivos = await listaA();
+  registrar(arquivos.length === 2, "arquivos de A intactos após confirmações inválidas", `${arquivos.length} arquivo(s)`);
+
+  // 5. Exclusão correta, disparada AO MESMO TEMPO que 5 uploads de 1 MB
+  const MB = "x".repeat(1024 * 1024);
+  const uploads = [1, 2, 3, 4, 5].map((i) =>
+    api("POST", `/storage/v1/object/documentos/${A.id}/simultaneo-${i}.bin`, { token: A.token, texto: MB }));
+  let fim = await excluir({ confirmacao_email: ` ${ea.toUpperCase()} ` });
+  const resultadosUpload = await Promise.all(uploads);
+  for (let tentativa = 1; fim.status === 503 && tentativa <= 3; tentativa++) {
+    await new Promise((ok) => setTimeout(ok, 3000));
+    fim = await excluir({ confirmacao_email: ea });
+  }
+  const aceitos = resultadosUpload.filter((u) => u.status === 200).length;
+  registrar(fim.status === 200 && fim.dados?.status === "concluida", "exclusão com o e-mail correto é concluída (com uploads simultâneos)",
+    `HTTP ${fim.status} ${JSON.stringify(fim.dados)}; uploads aceitos durante a corrida: ${aceitos} de 5`);
+  registrar((fim.dados?.arquivos_removidos ?? -1) >= 2 + aceitos, "todos os arquivos de A (inclusive os da corrida) foram removidos",
+    `removidos: ${fim.dados?.arquivos_removidos}; esperado ao menos ${2 + aceitos}`);
+  r = await api("POST", `/storage/v1/object/documentos/${A.id}/token-antigo.txt`, { token: A.token, texto: "x" });
+  registrar(r.status >= 400, "token antigo de A não consegue mais enviar arquivo", `HTTP ${r.status}`);
+  r = await login(ea, $("sa").value);
+  registrar(r.status >= 400, "A não consegue mais entrar", `HTTP ${r.status}`);
+  r = await login(eb, $("sb").value);
+  registrar(r.status === 200, "B continua entrando normalmente", `HTTP ${r.status}`);
+  if (r.status === 200) {
+    const r2 = await api("GET", "/rest/v1/perfis?select=id", { token: r.dados.access_token });
+    registrar(r2.status === 200 && r2.dados?.length === 1, "dados de B intactos", `HTTP ${r2.status}`);
+  }
+
+  $("sql").textContent =
+`select count(*) as arquivos_restantes from storage.objects where name like '${A.id}/%';
+select status, arquivos_removidos, concluida_em from public.exclusoes_conta where user_id = '${A.id}';`;
+  $("sqlfinal").hidden = false;
+  linhas.push("", "Conferência no SQL Editor:", $("sql").textContent);
+}
+
+$("f").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  if (!confirm("O usuário A será excluído definitivamente. Continuar?")) return;
+  $("ir").disabled = true; $("res").innerHTML = ""; linhas.length = 0; falhas = 0;
+  $("saida").hidden = false; $("resumo").textContent = "Executando…";
+  try { await validar(); }
+  catch (e) { registrar(false, "erro inesperado na página", String(e)); }
+  const total = linhas.filter((l) => /^(OK|FALHA)/.test(l)).length;
+  $("resumo").textContent = falhas === 0 ? `VALIDAÇÃO APROVADA — ${total} verificações` : `VALIDAÇÃO REPROVADA — ${falhas} falha(s) em ${total}`;
+  $("resumo").style.color = falhas === 0 ? "var(--ok)" : "var(--erro)";
+  linhas.unshift($("resumo").textContent, `Data: ${new Date().toLocaleString("pt-BR")}`, "");
+  $("ir").disabled = false;
+});
+$("copiar").addEventListener("click", () => navigator.clipboard.writeText(linhas.join("\n")));
+</script>
+</body>
+</html>

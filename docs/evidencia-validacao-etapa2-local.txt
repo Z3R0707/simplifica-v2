@@ -1,0 +1,13 @@
+Execução local dos scripts de validação sobre fundação + Etapa 2 (PostgreSQL 16 + simulação mínima do Supabase)
+Data: 2026-10-12 16:57 -03
+
+01_validar_banco_no_supabase.sql (regressão da Etapa 1):
+  VALIDAÇÃO APROVADA: 74 de 74 verificações OK.
+Tudo foi desfeito (rollback): nenhum usuário, arquivo ou dado de teste ficou gravado.
+
+03_validar_etapa2_no_supabase.sql:
+  VALIDAÇÃO APROVADA: 63 de 63 verificações OK.
+Tudo foi desfeito (rollback): nenhum usuário, arquivo ou dado de teste ficou gravado.
+
+03 num banco só com a Etapa 1: ABORTADO: a Etapa 2 ainda não está instalada (etapa atual: 1-fundacao-rev3)
+0004 rodado duas vezes: ABORTADO: este banco não está na Etapa 1 (revisão 3) do Simplifica v2

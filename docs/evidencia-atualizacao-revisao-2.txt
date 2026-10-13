@@ -1,0 +1,11 @@
+Teste da atualização da revisão 2 para a 3 (ATUALIZAR_DA_REVISAO_2_PARA_3.sql)
+Data: 2026-10-12 16:20 -03 — PostgreSQL 16.15 local + simulação mínima do Supabase
+
+1. Scripts 0001–0003 da revisão 2 (simplifica-v2-etapa1-rev2.zip) aplicados num banco limpo,
+   com um usuário já cadastrado.
+2. ATUALIZAR_DA_REVISAO_2_PARA_3.sql aplicado sem erro -> versao_esquema = 1-fundacao-rev3
+3. Rodar a atualização de novo -> "ABORTADO: este banco não está na revisão 2 do Simplifica v2"
+4. Todos os testes desta revisão rodados sobre o banco atualizado:
+   10_cadastro_permissoes 45 OK · 20_correcoes_revisao 34 OK · 30_exclusao_conta 36 OK ·
+   40_concorrencia 37 OK · Edge Functions 40 OK
+5. validacao/01_validar_banco_no_supabase.sql -> "VALIDAÇÃO APROVADA: 74 de 74 verificações OK"

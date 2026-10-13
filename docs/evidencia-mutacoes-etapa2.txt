@@ -1,0 +1,13 @@
+Prova de que os testes da Etapa 2 detectam defeitos (testes de mutação)
+Data: 2026-10-12 — cada mutação aplicada numa CÓPIA da migração 0004 e a suíte inteira rodada.
+
+1) Saldo contando também os movimentos do PRÓPRIO dia-base (>= em vez de >)
+   FALHOU: saldo confirmado = inicial + movimentos APÓS a data-base — esperado 580000, obtido 585000
+   (o reembolso de R$ 50 do dia-base, já incluído no saldo inicial, seria contado duas vezes)
+
+2) Saldo ignorando a data-base (contando tudo)
+   FALHOU: saldo confirmado ... — esperado 580000, obtido 575000
+   FALHOU: S6: saldo = nova base + só o posterior a ela — esperado 85100, obtido 74400
+
+3) Lançamento sem travar a conta (sem FOR SHARE)
+   FALHOU: S3: lançamento ESPERA o arquivamento — esperado t, obtido f

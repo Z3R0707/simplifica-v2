@@ -1,0 +1,15 @@
+HOMOLOGAÇÃO DA ETAPA 2 NO SUPABASE REAL — APROVADA
+Projeto: Simplifica V2 (cncxjskfvavdvaewekuu) — projeto novo, separado do sistema atual
+Data: 12/10/2026 (horário de Brasília)
+
+Instalação
+  0004_etapa2_movimentos_saldos.sql ... executado (resultado padrão aplicar_gatilhos_padrao, sem erro)
+  Confirmação de gravação: a validação abaixo só roda com versao_esquema = 2-movimentos
+
+Validação da Etapa 2 — validacao/03_validar_etapa2_no_supabase.sql
+  "VALIDAÇÃO APROVADA: 63 de 63 verificações OK." (rollback automático)
+
+Regressão da Etapa 1 — validacao/01_validar_banco_no_supabase.sql (após a 0004)
+  "VALIDAÇÃO APROVADA: 74 de 74 verificações OK." (rollback automático)
+
+Usuário real de controle mathe_h@hotmail.com: não alterado pelos roteiros.

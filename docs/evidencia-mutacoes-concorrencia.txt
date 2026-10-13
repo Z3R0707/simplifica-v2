@@ -1,0 +1,21 @@
+Prova de que os testes de concorrência detectam o defeito (testes de mutação)
+Data: 2026-10-12 — cada mutação foi aplicada numa CÓPIA das migrações e a suíte inteira rodada.
+
+1) Conclusão da exclusão SEM a trava exclusiva por usuário (não espera uploads)
+   FALHOU: U1: conclusão ESPERA o upload em andamento terminar — esperado t, obtido f
+   == RESULTADO: FALHOU ==
+
+2) Upload liberado depois da exclusão concluída (bloqueio só durante a exclusão, como na revisão 2)
+   FALHOU: U2: upload com token de usuário já excluído é recusado — esperado ERRO:42501, obtido <id>/depois.pdf
+   (a varredura de órfãos passou a encontrar 5 arquivos em vez de 4: o arquivo órfão foi de fato criado)
+   == RESULTADO: FALHOU ==
+
+3) Sem os gatilhos e sem as travas de titular (só a conferência da revisão 2 nas RPCs)
+   FALHOU: T1: criação de conta ESPERA o arquivamento — esperado t, obtido f
+   == RESULTADO: FALHOU ==
+
+4) Só os gatilhos, sem as travas nas RPCs
+   Todos os cenários T1–T5 e a invariante passaram: os gatilhos no banco bastam para
+   garantir a regra; as travas nas RPCs servem para devolver mensagens mais claras.
+   (Nesta execução a suíte só acusou falha no teste da página, por um caminho de arquivo
+   que não existe na cópia temporária — não relacionado à mutação.)

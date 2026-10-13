@@ -1,0 +1,325 @@
+Execução: 2026-10-12 16:57 -03 — PostgreSQL 16.15 local + simulação mínima do Supabase; fundação (0001–0003) + Etapa 2 (0004); transações simultâneas com conexões paralelas reais (dblink); Edge Functions em Node 22; página em Chromium (Playwright)
+
+-- aplicando 0001_fundacao_infra.sql
+-- aplicando 0002_fundacao_cadastros.sql
+-- aplicando 0003_fundacao_lgpd_storage.sql
+-- aplicando 0004_etapa2_movimentos_saldos.sql
+-- testes 05_auxiliares.sql
+-- testes 10_cadastro_permissoes.sql
+  OK: perfil criado com nome do cadastro
+  OK: titular principal criado
+  OK: sem nome: usa parte do e-mail
+  OK: 16 categorias padrão
+  OK: limites de uso criados
+  OK: criação do perfil auditada (canal cadastro)
+  OK: nenhum banco começa homologado
+  OK: saldo inicial em centavos (R$ 5.000,00)
+  OK: duas contas independentes no mesmo banco
+  OK: criação sem chave de idempotência é recusada
+  OK: subcategoria de 2º nível recusada
+  OK: subcategoria com tipo diferente do pai recusada
+  OK: titular principal não pode ser arquivado
+  OK: titular atualizado com versão esperada
+  OK: UPDATE direto em contas negado
+  OK: DELETE direto em contas negado
+  OK: INSERT direto em titulares negado
+  OK: UPDATE direto em categorias negado
+  OK: UPDATE direto em perfis negado
+  OK: auditoria não pode ser apagada pelo usuário
+  OK: tabela de idempotência inacessível
+  OK: funções internas inacessíveis ao usuário
+  OK: auditoria registra alteração com canal web
+  OK: auditoria guarda valor anterior
+  OK: storage: não grava na pasta de outro usuário
+  OK: storage: não grava fora de uma pasta de usuário
+  OK: storage: usuário não apaga o documento original
+  OK: storage: usuário não sobrescreve o documento original
+  OK: Bruno não vê contas da Ana
+  OK: Bruno vê só o próprio titular
+  OK: Bruno não vê categorias da Ana
+  OK: Bruno vê só o próprio perfil
+  OK: Bruno não vê auditoria da Ana
+  OK: Bruno não vê documentos da Ana
+  OK: RPC: Bruno não edita conta da Ana (nem com titular dela)
+  OK: RPC: Bruno não arquiva conta da Ana
+  OK: RPC: Bruno não altera titular da Ana
+  OK: RPC: Bruno não altera categoria da Ana
+  OK: RPC: Bruno não usa categoria da Ana como pai
+  OK: RPC: Bruno não cria conta com titular da Ana
+  OK: exportação do Bruno não traz dados da Ana
+  OK: chaves de idempotência são isoladas por usuário
+  OK: anônimo não lê contas
+  OK: anônimo não executa RPC
+  OK: anônimo não solicita exclusão
+== 10_cadastro_permissoes: concluído ==
+-- testes 20_correcoes_revisao.sql
+  OK: conta_atualizar sem versão é recusada
+  OK: conta_definir_ativa sem versão é recusada
+  OK: titular_atualizar sem versão é recusada
+  OK: categoria_atualizar sem versão é recusada
+  OK: perfil_atualizar sem versão é recusada
+  OK: versão zero é recusada
+  OK: nada foi alterado pelas tentativas sem versão
+  OK: alteração com versão correta aplica e incrementa
+  OK: versão antiga (outro canal alterou antes) é recusada
+  OK: arquivar com versão antiga é recusado
+  OK: valor vigente preservado após conflito
+  OK: repetição idêntica é aceita
+  OK: repetição idêntica devolve o MESMO registro
+  OK: repetição idêntica não duplica
+  OK: mesma chave com cor diferente é recusada
+  OK: mesma chave com nome diferente é recusada
+  OK: mesma chave em outra operação é recusada
+  OK: chave curta demais é recusada
+  OK: repetição devolve o resultado ORIGINAL (não o estado atual)
+  OK: resultado original mantém a versão original
+  OK: repetição não desfaz a alteração posterior
+  OK: reenvio de alteração devolve o resultado original
+  OK: reenvio de alteração não aplica duas vezes
+  OK: mesma chave de alteração com dados diferentes é recusada
+  OK: conta com apelido repetido falha
+  OK: nova chave funciona após falha
+  OK: chave do comando que falhou não ficou reservada
+  OK: chave guarda hash SHA-256 do conteúdo
+  OK: perfil começa na versão 1
+  OK: perfil: versão incrementa
+  OK: perfil: versão antiga recusada
+  OK: perfil: alteração auditada com antes e depois
+  OK: perfil: criação e alteração auditadas
+  OK: perfil não pode apontar para outro dono
+== 20_correcoes_revisao: concluído ==
+-- testes 30_exclusao_conta.sql
+  OK: confirmação NULL é rejeitada
+  OK: confirmação vazia é rejeitada
+  OK: confirmação só com espaços é rejeitada
+  OK: e-mail divergente é rejeitado
+  OK: e-mail de outro usuário é rejeitado
+  OK: nenhuma solicitação criada pelas tentativas inválidas
+  OK: dados intactos após tentativas inválidas
+  OK: e-mail correto (sem diferenciar maiúsculas/espaços) registra a solicitação
+  OK: nova solicitação reaproveita a ativa (sem duplicar)
+  OK: apenas uma solicitação ativa
+  OK: envio de arquivo bloqueado durante a exclusão
+  OK: criação de dados bloqueada durante a exclusão
+  OK: alteração de dados bloqueada durante a exclusão
+  OK: exportação ainda funciona (2 documentos)
+  OK: usuário não executa exclusao_concluir
+  OK: usuário não lista arquivos de ninguém
+  OK: usuário não lista órfãos
+  OK: lista os 3 arquivos do usuário (inclui subpasta e outro bucket)
+  OK: conclusão RECUSADA enquanto restarem arquivos
+  OK: login preservado após recusa
+  OK: dados preservados após recusa
+  OK: falha registrada para retomada
+  OK: ainda recusa com 2 arquivos restantes
+  OK: usuário pode retomar a exclusão após falha
+  OK: continua bloqueado durante a retomada
+  OK: conclusão aceita quando não resta nenhum arquivo
+  OK: login removido
+  OK: todos os dados do usuário removidos
+  OK: auditoria do usuário removida (sem recriar registros)
+  OK: nenhum arquivo órfão do usuário
+  OK: comprovante registra 3 arquivos removidos
+  OK: concluir de novo não tem efeito
+  OK: não conclui exclusão sem solicitação do próprio usuário
+  OK: dados de outros usuários intactos
+  OK: arquivos de outros usuários intactos
+  OK: varredura encontra só o arquivo órfão
+== 30_exclusao_conta: concluído ==
+-- testes 40_concorrencia.sql
+  OK: U1: upload em andamento (transação aberta, ainda invisível)
+  OK: U1: listagem do servidor ainda não enxerga o upload em andamento
+  OK: U1: conclusão ESPERA o upload em andamento terminar
+  OK: U1: após o upload confirmar, a conclusão enxerga o arquivo e RECUSA
+  OK: U1: login preservado (o arquivo ainda tem dono)
+  OK: U1: nova tentativa conclui
+  OK: U1: nenhum arquivo órfão
+  OK: U2: upload com token de usuário já excluído é recusado
+  OK: U2: nenhum arquivo órfão
+  OK: U3: upload lento em andamento
+  OK: U3: conclusão desiste após o tempo limite (sem apagar nada)
+  OK: U3: dados preservados após desistência
+  OK: U3: próxima tentativa enxerga o upload tardio e recusa
+  OK: U3: conclui depois de limpar
+  OK: U3: nenhum arquivo órfão
+  OK: U4: conclusão executada (transação ainda aberta)
+  OK: U4: upload ESPERA a conclusão terminar
+  OK: U4: upload recusado depois da conclusão
+  OK: U4: nenhum arquivo órfão
+  OK: T1: arquivamento em andamento
+  OK: T1: criação de conta ESPERA o arquivamento
+  OK: T1: criação recusada após o arquivamento
+  OK: T2: criação de conta em andamento
+  OK: T2: arquivamento ESPERA a criação da conta
+  OK: T2: arquivamento recusado (titular passou a ter conta ativa)
+  OK: T3: arquivamento em andamento
+  OK: T3: reativação ESPERA o arquivamento
+  OK: T3: reativação recusada após o arquivamento
+  OK: T3: reativação recusada com o titular já arquivado
+  OK: T4: arquivamento em andamento
+  OK: T4: alteração ESPERA o arquivamento
+  OK: T4: alteração para titular arquivado recusada
+  OK: T5: reativação em andamento
+  OK: T5: arquivamento ESPERA a reativação
+  OK: T5: arquivamento recusado (conta foi reativada)
+  OK: INVARIANTE: nenhuma conta ativa com titular arquivado
+  OK: estado final dos titulares coerente
+== 40_concorrencia: concluído ==
+-- testes 50_etapa2_saldos.sql
+  OK: consolidado do exemplo da especificação = R$ 13.250,00
+  OK: consolidado soma as 5 contas
+  OK: painel mostra cada conta separadamente
+  OK: saldo confirmado = inicial + movimentos APÓS a data-base (5.000 − 200 + 1.000 = 5.800)
+  OK: movimentos até a data-base (inclusive) ficam registrados mas fora do saldo
+  OK: saldo numa data intermediária (03/10) = 4.800
+  OK: na própria data-base o saldo é o inicial
+  OK: antes da data-base não há saldo confirmado
+  OK: movimento numa conta não afeta outra do mesmo usuário
+  OK: consolidado = soma dos saldos confirmados (13.250 + 800)
+  OK: previsto não altera o confirmado, só o projetado
+  OK: previsto com data até a data-base é recusado
+  OK: efetivo com data futura é recusado
+  OK: previsto efetivado na mesma linha
+  OK: efetivação não cria segundo movimento
+  OK: após efetivar, confirmado e projetado coincidem
+  OK: efetivar de novo é recusado
+  OK: alterar movimento sem versão é recusado
+  OK: alteração com versão aplica
+  OK: versão antiga recusada
+  OK: cancelar sem motivo é recusado
+  OK: cancelamento com motivo
+  OK: cancelar duas vezes é recusado
+  OK: movimento cancelado não pode ser alterado
+  OK: cancelado sai do saldo (5.000 − 250 − 300 = 4.450)
+  OK: cancelado continua registrado (não é apagado)
+  OK: cancelamento auditado com motivo
+  OK: extrato: saldo após o último movimento = saldo confirmado
+  OK: extrato marca o que está fora do saldo
+  OK: reenvio do mesmo lançamento devolve o mesmo movimento
+  OK: reenvio não duplica o lançamento
+  OK: mesma chave com valor diferente é recusada
+  OK: compras idênticas com chaves diferentes são mantidas
+  OK: nova data-base (05/10, R$ 4.700): só conta o que vem depois (4.700 − 300)
+  OK: saldo inicial não validado: sem saldo confirmado
+  OK: consolidado avisa conta pendente e se marca incompleto
+  OK: consolidado ignora a pendente e a conta fora do consolidado (4.400 + 3.408,20 + 2.800 + 1.200 + 750)
+  OK: conta arquivada não recebe movimento
+  OK: conta arquivada sai do consolidado
+  OK: valor zero recusado
+  OK: valor negativo recusado (o sentido vem da natureza)
+  OK: categoria de despesa não classifica receita
+  OK: receita exige categoria
+  OK: gravação direta na tabela de movimentos é negada
+  OK: resumo de outubro por categoria (inclui o reembolso do dia-base; exclui o cancelado)
+  OK: resumo filtrado por conta
+  OK: estorno (crédito classificado como despesa) reduz a despesa
+  OK: Otto não vê movimentos da Nina
+  OK: Otto não vê saldos da Nina
+  OK: Otto não vê o extrato da conta da Nina
+  OK: Otto não vê o resumo da Nina
+  OK: Otto não lança na conta da Nina
+  OK: Otto não cancela movimento da Nina
+  OK: exportação LGPD inclui os movimentos
+  OK: exclusão de conta com movimentos é concluída
+  OK: movimentos do usuário excluído removidos
+  OK: movimentos de outros usuários intactos
+== 50_etapa2_saldos: concluído ==
+-- testes 60_etapa2_concorrencia.sql
+  OK: S1: lançamento A em andamento
+  OK: S1: lançamento B não espera o A (mesma conta)
+  OK: S1: lançamento B gravado
+  OK: S1: saldo considera os dois (1.000 − 10 − 25)
+  OK: S2: segundo envio ESPERA o primeiro
+  OK: S2: segundo envio recebe o MESMO movimento
+  OK: S2: um único lançamento gravado
+  OK: S3: arquivamento em andamento
+  OK: S3: lançamento ESPERA o arquivamento
+  OK: S3: lançamento recusado na conta arquivada
+  OK: S3: nenhum movimento na conta arquivada
+  OK: S4: alteração pela web em andamento
+  OK: S4: segunda alteração ESPERA a primeira
+  OK: S4: segunda alteração recusada (versão desatualizada)
+  OK: S4: vale a primeira, sem mistura
+  OK: S5: efetivação em andamento
+  OK: S5: cancelamento ESPERA a efetivação
+  OK: S5: cancelamento recusado
+  OK: S5: efetivado conta UMA vez e sai do projetado (1.000 − 12 − 25 − 70 − 99 = 794)
+  OK: S6: nova data-base em andamento (R$ 900 em 05/10)
+  OK: S6: lançamento ESPERA a mudança da data-base
+  OK: S6: lançamento gravado depois
+  OK: S6: saldo = nova base + só o posterior a ela (900 − 99 + 50 = 851)
+== 60_etapa2_concorrencia: concluído ==
+-- testes Edge Functions (node + SQL real)
+  OK: preparação: Eva com 1.501 arquivos
+  OK: CORS: preflight respondido
+  OK: sem sessão: 401
+  OK: token inválido: 401
+  OK: corpo inválido: 400
+  OK: confirmação campo ausente (NULL): rejeitada (400)
+  OK: confirmação NULL explícito: rejeitada (400)
+  OK: confirmação vazio: rejeitada (400)
+  OK: confirmação só espaços: rejeitada (400)
+  OK: confirmação tipo errado: rejeitada (400)
+  OK: confirmação divergente: rejeitada (400)
+  OK: confirmação e-mail de outro usuário: rejeitada (400)
+  OK: nenhuma solicitação criada pelas confirmações inválidas
+  OK: nenhum arquivo tocado pelas confirmações inválidas
+  OK: arquivos intactos após confirmações inválidas
+  OK: falha do Storage no 2º lote: 503 (exclusão pendente)
+  OK: 1º lote (1.000 arquivos) removido antes da falha
+  OK: solicitação registrada como falha
+  OK: progresso parcial registrado
+  OK: login preservado (não há órfãos: dono ainda existe)
+  OK: dados preservados após falha
+  OK: 501 arquivos restantes aguardando retomada
+  OK: novos envios bloqueados enquanto a exclusão está pendente
+  OK: retomada: 200
+  OK: retomada remove os 501 restantes e conclui
+  OK: NENHUM arquivo da Eva restante (todos os buckets)
+  OK: login da Eva removido
+  OK: dados e auditoria da Eva removidos
+  OK: comprovante: concluída com 1.501 arquivos removidos
+  OK: arquivo de outro usuário intacto
+  OK: outro usuário intacto
+  OK: token antigo após exclusão: 401
+  OK: órfãos: sem segredo, 401
+  OK: órfãos: segredo errado, 401
+  OK: órfãos: segredo fraco configurado é recusado
+  OK: órfãos: simulação lista 4 (3 novos + 1 do teste SQL) sem apagar
+  OK: órfãos: simulação não apaga nada
+  OK: órfãos: execução remove os 4
+  OK: órfãos: só os órfãos foram removidos
+  OK: órfãos: arquivo de usuário existente preservado
+== Edge Functions: 40 verificações aprovadas ==
+-- teste da página de validação (Chromium + SQL real)
+  OK: login do usuário A
+  OK: login do usuário B
+  OK: A vê exatamente o próprio perfil (criado no cadastro) — HTTP 200
+  OK: categorias padrão disponíveis para A — 16 categorias
+  OK: A cria titular pela RPC (versão 1) — HTTP 200
+  OK: alteração sem versão esperada é recusada — HTTP 400 Versão esperada é obrigatória para alterar um registro
+  OK: alteração direta em tabela é negada — HTTP 403
+  OK: A envia validacao/um.txt para a própria pasta — HTTP 200
+  OK: A envia dois.txt para a própria pasta — HTTP 200
+  OK: A não grava na pasta de B — HTTP 400
+  OK: B não lista a pasta de A — HTTP 200, 0 itens
+  OK: B não baixa arquivo de A — HTTP 400
+  OK: A não consegue apagar o documento original — 2 arquivo(s) na pasta
+  OK: arquivar titular × criar conta em paralelo: sempre só um dos dois vence — 10/10 rodadas coerentes
+  OK: nenhuma conta ativa ligada a titular arquivado — 0 violação(ões)
+  OK: exclusão com confirmação ausente (NULL) é rejeitada — HTTP 400
+  OK: exclusão com confirmação NULL é rejeitada — HTTP 400
+  OK: exclusão com confirmação vazia é rejeitada — HTTP 400
+  OK: exclusão com confirmação só espaços é rejeitada — HTTP 400
+  OK: exclusão com confirmação divergente é rejeitada — HTTP 400
+  OK: exclusão com confirmação e-mail do usuário B é rejeitada — HTTP 400
+  OK: arquivos de A intactos após confirmações inválidas — 2 arquivo(s)
+  OK: exclusão com o e-mail correto é concluída (com uploads simultâneos) — HTTP 200 {"status":"concluida","arquivos_removidos":5}; uploads aceitos durante a corrida: 3 de 5
+  OK: todos os arquivos de A (inclusive os da corrida) foram removidos — removidos: 5; esperado ao menos 5
+  OK: token antigo de A não consegue mais enviar arquivo — HTTP 400
+  OK: A não consegue mais entrar — HTTP 400
+  OK: B continua entrando normalmente — HTTP 200
+  OK: dados de B intactos — HTTP 200
+  OK: banco confirma: 0 arquivos e login removido
+== Página de validação: VALIDAÇÃO APROVADA — 28 verificações ==
+== RESULTADO: todos os testes passaram ==

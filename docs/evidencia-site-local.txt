@@ -1,0 +1,65 @@
+Teste do site num Chromium real contra o Supabase simulado (SQL real das migrações 0001–0004, Edge Function excluir-conta real, política de segurança do netlify.toml aplicada)
+Data: 2026-10-13 09:40 -03 — executado 5 vezes seguidas, todas aprovadas; abaixo a última
+
+  OK: tela de entrar abre
+  OK: senha curta recusada no cadastro
+  OK: cadastro pede confirmação do e-mail
+  OK: login antes de confirmar é recusado com mensagem clara
+  OK: link de confirmação entra direto no sistema
+  OK: token removido do endereço após o link
+  OK: 5 contas cadastradas e listadas
+  OK: consolidado do exemplo da especificação = R$ 13.250,00
+  OK: painel mostra cada conta separada
+  OK: saldo = inicial + só o que vem depois da data-base (R$ 5.800,00)
+  OK: lançamentos até a data-base marcados como já incluídos
+  OK: formulário avisa que data até a data-base não altera o saldo
+  OK: previsto aparece só no saldo com previstos
+  OK: previsto não altera o saldo de hoje
+  OK: previsto efetivado entra no saldo (R$ 5.500,00)
+  OK: efetivar não duplica o lançamento
+  OK: cancelamento sem motivo é recusado
+  OK: cancelado sai do saldo (R$ 4.500,00)
+  OK: cancelado some da lista por padrão
+  OK: cancelado continua no histórico com o motivo
+  OK: edição de valor recalcula o saldo (R$ 4.450,00)
+  OK: clique duplo em Lançar grava um único lançamento
+  OK: valor inválido é recusado antes de enviar
+  OK: data futura sem marcar previsto é recusada
+  OK: consolidado reflete os lançamentos (R$ 12.690,00)
+  OK: saldo numa data passada (03/10 = R$ 13.000,00)
+  OK: data anterior ao saldo inicial avisa que as contas ficaram fora
+  OK: conta sem saldo conferido fica marcada
+  OK: conta arquivada sai do consolidado (R$ 11.940,00)
+  OK: consolidado avisa a conta com saldo a confirmar
+  OK: arquivada aparece separada
+  OK: resumo de outubro: receitas R$ 50,00 e despesas R$ 550,00 (sem o cancelado)
+  OK: resumo avisa lançamentos sem categoria
+  OK: categoria nova criada
+  OK: sessão expirada é renovada sem pedir login
+  OK: exportação traz contas e lançamentos
+  OK: segundo usuário entra e não vê as contas do primeiro
+  OK: segundo usuário não abre o extrato da conta do primeiro pelo endereço
+  OK: no celular a página não rola para o lado
+  OK: exclusão com e-mail errado é recusada
+  OK: exclusão concluída volta para a tela de entrar com aviso
+  OK: conta excluída não entra mais
+  OK: contas e lançamentos da conta excluída removidos do banco
+  OK: segundo usuário continua usando normalmente
+  OK: nenhum erro de JavaScript no navegador
+== Site (navegador): 45 verificações aprovadas ==
+
+Testes de unidade (dinheiro e datas):
+# tests 6
+# pass 6
+# fail 0
+
+Banco (suíte completa, etapas 1 e 2):
+== 10_cadastro_permissoes: concluído ==
+== 20_correcoes_revisao: concluído ==
+== 30_exclusao_conta: concluído ==
+== 40_concorrencia: concluído ==
+== 50_etapa2_saldos: concluído ==
+== 60_etapa2_concorrencia: concluído ==
+== Edge Functions: 40 verificações aprovadas ==
+== Página de validação: VALIDAÇÃO APROVADA — 28 verificações ==
+== RESULTADO: todos os testes passaram ==

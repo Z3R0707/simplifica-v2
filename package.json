@@ -1,0 +1,19 @@
+{
+  "name": "simplifica-v2",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Simplifica Finanças V2 — aplicativo web (React + TypeScript) sobre o Supabase",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --experimental-strip-types --no-warnings --test tests/unidade/*.test.ts"
+  },
+  "dependencies": {
+    "esbuild": "0.28.2",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  }
+}

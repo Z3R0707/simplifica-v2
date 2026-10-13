@@ -1,0 +1,5 @@
+Execução local do script validacao/01_validar_banco_no_supabase.sql (PostgreSQL 16 + simulação mínima do Supabase)
+Data: 2026-10-12 16:20 -03
+
+VALIDAÇÃO APROVADA: 74 de 74 verificações OK.
+Tudo foi desfeito (rollback): nenhum usuário, arquivo ou dado de teste ficou gravado.

@@ -1,0 +1,10 @@
+Teste do caminho de atualização (para quem já rodou a entrega anterior)
+Data: 2026-10-12 16:21 -03 — PostgreSQL 16.15 local + simulação mínima do Supabase
+
+1. Scripts da entrega anterior (simplifica-v2-etapa1.zip) aplicados num banco limpo.
+2. [executado na revisão 2; guarda inalterada] Com um usuário cadastrado, SOMENTE_SE_JA_RODOU_A_VERSAO_ANTERIOR.sql
+   -> "ABORTADO: existem usuários cadastrados" (nada alterado)
+3. Sem usuários -> "Limpeza concluída"
+4. 0001, 0002 e 0003 da revisão 3 aplicados sem erro.
+5. [executado na revisão 2; guarda inalterada] Rodar a limpeza de novo -> "ABORTADO: a versão nova já está instalada neste banco"
+6. validacao/01_validar_banco_no_supabase.sql (revisão 3) -> "VALIDAÇÃO APROVADA: 74 de 74 verificações OK"
