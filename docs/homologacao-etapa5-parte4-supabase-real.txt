@@ -1,0 +1,9 @@
+Simplifica Finanças v2 — homologação da Etapa 5 parte 4 (0011, valor da parcela) no Supabase real (projeto simplifica-v2)
+Data: 2026-10-13 (horário de Brasília), executada pelo usuário no SQL Editor; resultados enviados em capturas de tela.
+
+1) Migração: 0011_etapa5_valor_parcela.sql → "Success. No rows returned" (etapa 5.4-valor-parcela)
+2) Validação: 10_validar_etapa5_valor_parcela_no_supabase.sql → VALIDAÇÃO APROVADA: 15 de 15 (rollback)
+3) Regressão (roteiros 03 a 09 com a guarda "esta etapa ou posterior"):
+   03 → 63 de 63 · 04 → 30 de 30 · 05 → 77 de 77 · 06 → 82 de 82 · 07 → 49 de 49 · 08 → 26 de 26 · 09 → 40 de 40
+   01 → pendente (pedido ao usuário)
+4) Site: aguardando autorização do usuário.
