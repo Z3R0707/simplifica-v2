@@ -17,4 +17,5 @@ Data: 2026-10-13 (horário de Brasília), executada pelo usuário no SQL Editor;
    Todos com rollback: nenhum usuário, arquivo ou dado de teste ficou gravado.
 
 4) Site
-   Publicação do site com os leitores (PDF do Itaú, CSV do Nubank): aguardando autorização do usuário.
+   Publicado após autorização do usuário (13/10, 19:19). Conferido pelo usuário no site real às 19:40:
+   PDF do extrato Itaú lido e conferido; CSV do Nubank reconhecido sem pedir colunas — "deu tudo certo".
