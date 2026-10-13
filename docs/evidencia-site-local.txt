@@ -1,5 +1,5 @@
-Simplifica Finanças v2 — teste do site num navegador real (Chromium) contra o Supabase simulado com o SQL real (0001–0006)
-Gerado em 2026-10-13T15:07Z
+Simplifica Finanças v2 — teste do site num navegador real (Chromium) contra o Supabase simulado com o SQL real (0001–0007)
+Gerado em 2026-10-13T15:46Z
 
   OK: tela de entrar abre
   OK: senha curta recusada no cadastro
@@ -77,17 +77,44 @@ Gerado em 2026-10-13T15:07Z
   OK: total a pagar no mês: R$ 1.580,00 (80 da luz + 1.500 do aluguel)
   OK: cartão do Itaú mostra o que sai dele no mês
   OK: encerrar cancela os meses seguintes, sem apagar
+  OK: aba Cartões abre vazia
+  OK: cartão cadastrado com fechamento e vencimento
+  OK: compra de 02/10 mostra a fatura certa (fecha 03/10, vence 10/10)
+  OK: parcelado mostra 10x de R$ 100,00
+  OK: fatura atual mostra a parcela 1/10
+  OK: total da fatura atual = R$ 100,00
+  OK: fatura de outubro: fechada e não paga = vencida
+  OK: parcela da fatura fechada aparece como cobrada
+  OK: pagar a fatura explica que não é despesa
+  OK: pagar sugere o valor da fatura
+  OK: fatura fica paga
+  OK: parcela da fatura paga: quitada
+  OK: pagamento da fatura sai do Itaú (R$ 2.475,00)
+  OK: resumo de outubro: Alimentação = R$ 250 da conta + R$ 100 do cartão (sem somar o pagamento)
+  OK: antecipação mostra valor e desconto
+  OK: parcela antecipada guarda a fatura original
+  OK: fatura atual: R$ 100 + R$ 270 antecipados = R$ 370,00
+  OK: fatura lista as 3 parcelas antecipadas
+  OK: estorno entra como crédito na fatura aberta
+  OK: fatura atual cai para R$ 350,00
+  OK: conferência mostra a diferença com o banco sem ajustar sozinha
+  OK: exportação com as 4 colunas DATA | DESCRIÇÃO | PARCELA | VALOR
+  OK: a fatura vira uma conta a pagar com o total da fatura
+  OK: conta a pagar da fatura não é editada à mão; leva à fatura
+  OK: parcelas não viram contas a pagar separadas
   OK: sessão expirada é renovada sem pedir login
   OK: exportação traz contas e lançamentos
   OK: exportação traz contas a pagar, pagamentos e recorrências
+  OK: exportação traz cartões, compras e parcelas
   OK: segundo usuário entra e não vê as contas do primeiro
   OK: segundo usuário não abre o extrato da conta do primeiro pelo endereço
   OK: no celular a página não rola para o lado
   OK: contas a pagar no celular não rolam para o lado
+  OK: fatura do cartão no celular não rola para o lado
   OK: exclusão com e-mail errado é recusada
   OK: exclusão concluída volta para a tela de entrar com aviso
   OK: conta excluída não entra mais
   OK: contas, lançamentos e contas a pagar da conta excluída removidos do banco
   OK: segundo usuário continua usando normalmente
   OK: nenhum erro de JavaScript no navegador
-== Site (navegador): 89 verificações aprovadas ==
+== Site (navegador): 116 verificações aprovadas ==

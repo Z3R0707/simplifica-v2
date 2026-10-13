@@ -1,5 +1,5 @@
-Simplifica Finanças v2 — suíte completa de testes locais (etapas 1, 2 e 3)
-Gerado em 2026-10-13T15:06Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
+Simplifica Finanças v2 — suíte completa de testes locais (etapas 1 a 4)
+Gerado em 2026-10-13T15:46Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 
 -- aplicando 0001_fundacao_infra.sql
 -- aplicando 0002_fundacao_cadastros.sql
@@ -7,7 +7,125 @@ Gerado em 2026-10-13T15:06Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 -- aplicando 0004_etapa2_movimentos_saldos.sql
 -- aplicando 0005_etapa2_cancelamento_parcial.sql
 -- aplicando 0006_etapa3_contas_a_pagar.sql
+-- aplicando 0007_etapa4_cartoes.sql
 -- testes 05_auxiliares.sql
+-- testes 100_etapa4_cartoes.sql
+  OK: fecha dia 3 / vence dia 10: compra em 02/10 vence em outubro
+  OK: compra no dia do fechamento vai para a fatura seguinte
+  OK: fecha 25 / vence 5: compra em 24/10 vence em novembro
+  OK: fecha 25 / vence 5: compra em 25/10 vence em dezembro
+  OK: virada de ano
+  OK: fatura de novembro (vence 5) fecha em 25/10
+  OK: fatura de outubro (vence 10) fecha em 03/10
+  OK: fevereiro: fechamento fica antes do vencimento (28/02)
+  OK: reenvio do cadastro do cartão não duplica
+  OK: nome repetido recusado
+  OK: fechamento igual ao vencimento recusado
+  OK: final do cartão: 4 dígitos
+  OK: dia de fechamento até 31
+  OK: compra de 02/10 cai na fatura que fecha 03/10 e vence 10/10
+  OK: fatura vira UMA conta a pagar, paga pela conta do cartão
+  OK: a compra em si não vira conta a pagar
+  OK: compra no cartão não mexe no saldo da conta
+  OK: reenvio da compra não duplica
+  OK: parcelas 1/10 a 10/10, uma por fatura
+  OK: centavos que sobram ficam na 1ª parcela
+  OK: fatura de novembro: 100 + 33,35
+  OK: fatura mostra a parcela 3/10 (DATA | DESCRIÇÃO | PARCELA | VALOR)
+  OK: 12x de 99,90 = R$ 1.198,80
+  OK: compra em andamento: cria só da parcela 3 em diante
+  OK: parcela atual cai na fatura aberta hoje
+  OK: encargo soma, crédito abate
+  OK: crédito aparece negativo na fatura
+  OK: conta a pagar da fatura acompanha débitos e créditos
+  OK: compra com data futura recusada
+  OK: só compras podem ser parceladas
+  OK: estorno tem função própria
+  OK: no máximo 99 parcelas
+  OK: total e valor da parcela divergentes recusados
+  OK: categoria de receita recusada
+  OK: fatura não vence antes da compra
+  OK: limite usado = tudo o que falta pagar, inclusive parcelas futuras
+  OK: disponível = limite − usado
+  OK: cartão sem limite informado: disponível vazio
+  OK: fatura fechada: parcela cobrada (não quitada)
+  OK: parcela de fatura futura: a cobrar
+  OK: fatura de outubro fechada e não paga: vencida
+  OK: pagar a fatura lança "pagamento de fatura", sem categoria
+  OK: pagamento da fatura sai do saldo
+  OK: fatura fica paga
+  OK: parcela de fatura paga: quitada
+  OK: resumo: a compra conta uma vez; o pagamento da fatura não é despesa
+  OK: pagamento de fatura fora do resumo
+  OK: parcelas entram no mês do vencimento da fatura
+  OK: filtrando uma conta bancária, o cartão fica de fora
+  OK: crédito numa fatura já paga recusado (lance na seguinte)
+  OK: conta a pagar da fatura não é editada à mão
+  OK: conta a pagar da fatura não é cancelada à mão
+  OK: saída vinculada à fatura deixa de ser despesa
+  OK: e não é contada duas vezes
+  OK: reclassificação auditada
+  OK: enquanto paga a fatura, não volta a ser despesa
+  OK: desfaz o vínculo
+  OK: lançamento volta a ser despesa na categoria original
+  OK: lançamento que já paga um boleto não paga fatura (use um só para a fatura)
+  OK: lançamento de pagamento de fatura não paga boleto
+  OK: pagamento parcial adiantado: fatura de dezembro segue aberta com o restante
+  OK: cancelar compra que deixaria uma fatura abaixo do já pago é recusado
+  OK: não antecipa para fatura já fechada
+  OK: desconto não pode cobrir tudo
+  OK: antecipa 3 parcelas com R$ 30 de desconto
+  OK: reenvio da antecipação não repete
+  OK: parcelas vão para a fatura atual, guardam a fatura original e dividem o desconto
+  OK: fatura futura (04/27) perde a parcela antecipada
+  OK: fatura atual recebe R$ 270 (300 − 30 de desconto)
+  OK: histórico preservado: nenhuma parcela apagada
+  OK: projeção: conta a pagar da fatura futura diminuiu junto
+  OK: parcela já antecipada não é antecipada de novo
+  OK: parcela que já está na fatura atual não é antecipada
+  OK: desfaz a antecipação da parcela 8 (fatura atual ainda aberta)
+  OK: parcela 8 volta à fatura original, sem desconto
+  OK: estorno: crédito ligado à compra, mesma categoria
+  OK: estorno não passa do valor da compra
+  OK: estorno não é anterior à compra
+  OK: estorno não é estornado
+  OK: compra com estorno ativo não é removida inteira
+  OK: resumo: estorno reduz a despesa da categoria (200 − 50 no Santander)
+  OK: compra de setembro: 1ª parcela cobrada, demais a cobrar
+  OK: cancelar na loja: compra segue com a parcela já cobrada
+  OK: só as parcelas ainda não cobradas foram canceladas
+  OK: fatura que ficou sem valor: conta a pagar cancelada sozinha
+  OK: tudo já cobrado: cancelar na loja pede estorno
+  OK: lancei errado: remove todas as parcelas
+  OK: compra cancelada não é cancelada de novo
+  OK: compra cancelada não é editada
+  OK: descrição e categoria editáveis
+  OK: conferência: total informado pelo banco × total calculado, diferença à parte (sem ajuste automático)
+  OK: novo vencimento vai para a conta a pagar
+  OK: vencimento continua no mês da fatura
+  OK: fechamento antes do vencimento
+  OK: titular com cartão ativo não é arquivado
+  OK: cartão arquivado
+  OK: cartão arquivado não recebe compra
+  OK: gravação direta em compras negada
+  OK: gravação direta em parcelas negada
+  OK: gravação direta em faturas negada
+  OK: valor da parcela é imutável (mesmo no banco)
+  OK: outro usuário não vê cartões, faturas, compras nem parcelas
+  OK: nem pelo resumo
+  OK: nem os lançamentos da fatura
+  OK: não lança no cartão alheio
+  OK: não estorna compra alheia
+  OK: não antecipa compra alheia
+  OK: não usa titular alheio
+  OK: anon não executa compra_criar
+  OK: anon não executa nenhuma função do public
+  OK: funções internas novas fechadas
+  OK: INVARIANTE: toda fatura com valor tem conta a pagar aberta com o mesmo valor
+  OK: INVARIANTE: fatura sem valor não tem conta a pagar aberta
+  OK: INVARIANTE: estornos nunca passam do valor da compra
+  OK: exportação inclui cartões, faturas, compras e parcelas
+  OK: exclusão da conta apaga cartões, faturas, compras, parcelas, contas a pagar e lançamentos
 -- testes 10_cadastro_permissoes.sql
   OK: perfil criado com nome do cadastro
   OK: titular principal criado
@@ -55,6 +173,27 @@ Gerado em 2026-10-13T15:06Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
   OK: anônimo não executa RPC
   OK: anônimo não solicita exclusão
 == 10_cadastro_permissoes: concluído ==
+-- testes 110_etapa4_concorrencia.sql
+  OK: K1: primeira compra em andamento
+  OK: K1: segunda ESPERA a primeira (mesma fatura)
+  OK: K1: segunda também gravada
+  OK: K1: conta a pagar da fatura soma as duas (sem perder atualização)
+  OK: K2: pagamento da fatura em andamento
+  OK: K2: cancelamento ESPERA o pagamento
+  OK: K2: cancelamento recusado (a fatura ficaria abaixo do pago)
+  OK: K3: antecipação em andamento
+  OK: K3: cancelamento ESPERA a antecipação
+  OK: K3: depois, o cancelamento vale para todas as parcelas ainda não cobradas (inclusive as antecipadas)
+  OK: K4: primeiro estorno em andamento
+  OK: K4: segundo ESPERA o primeiro
+  OK: K4: segundo recusado (passaria do valor da compra)
+  OK: K5: compra 6x em andamento
+  OK: K5: compra 4x ESPERA (mesmas faturas, mesma ordem)
+  OK: K5: segunda gravada depois, sem impasse
+  OK: INVARIANTE: conta a pagar de cada fatura igual ao total da fatura
+  OK: INVARIANTE: nenhuma fatura com pago acima do total
+  OK: INVARIANTE: estornos nunca passam da compra
+== 110_etapa4_concorrencia: concluído ==
 -- testes 20_correcoes_revisao.sql
   OK: conta_atualizar sem versão é recusada
   OK: conta_definir_ativa sem versão é recusada
@@ -508,8 +647,8 @@ Gerado em 2026-10-13T15:06Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
   OK: exclusão com confirmação divergente é rejeitada — HTTP 400
   OK: exclusão com confirmação e-mail do usuário B é rejeitada — HTTP 400
   OK: arquivos de A intactos após confirmações inválidas — 2 arquivo(s)
-  OK: exclusão com o e-mail correto é concluída (com uploads simultâneos) — HTTP 200 {"status":"concluida","arquivos_removidos":6}; uploads aceitos durante a corrida: 4 de 5
-  OK: todos os arquivos de A (inclusive os da corrida) foram removidos — removidos: 6; esperado ao menos 6
+  OK: exclusão com o e-mail correto é concluída (com uploads simultâneos) — HTTP 200 {"status":"concluida","arquivos_removidos":5}; uploads aceitos durante a corrida: 3 de 5
+  OK: todos os arquivos de A (inclusive os da corrida) foram removidos — removidos: 5; esperado ao menos 5
   OK: token antigo de A não consegue mais enviar arquivo — HTTP 400
   OK: A não consegue mais entrar — HTTP 400
   OK: B continua entrando normalmente — HTTP 200

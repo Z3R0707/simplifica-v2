@@ -46,7 +46,14 @@ export function TelaContasAPagar() {
       rpc<LinhaContaAPagar[]>("contas_a_pagar", { p_inicio: inicio, p_fim: fim, p_incluir_vencidas: mes === mesAtual() }),
       listar<Recorrencia>("recorrencias"),
     ]);
-    return { linhas, recorrencias, inicio };
+    // faturas de cartão (para o link "Ver fatura") e contas com algum pagamento, mesmo desfeito
+    const [faturas, pagamentos] = await Promise.all([
+      listar<{ obrigacao_id: string | null; cartao_id: string; competencia: string }>("faturas"),
+      listar<{ obrigacao_id: string }>("pagamentos"),
+    ]);
+    const faturaDe = new Map(faturas.filter((f) => f.obrigacao_id).map((f) => [f.obrigacao_id as string, f]));
+    const comHistorico = new Set(pagamentos.map((p) => p.obrigacao_id));
+    return { linhas, recorrencias, inicio, faturaDe, comHistorico };
   }, [mes]);
 
   const linhas = dados?.linhas ?? [];
@@ -122,13 +129,14 @@ export function TelaContasAPagar() {
             <tbody>
               {visiveis.map((l) => {
                 const rec = l.recorrencia_id ? recPorId.get(l.recorrencia_id) : undefined;
+                const fat = l.origem === "fatura" ? dados?.faturaDe.get(l.obrigacao_id) : undefined;
                 return (
                   <tr key={l.obrigacao_id} className={l.situacao === "cancelada" ? "linha-cancelado" : l.status === "vencida" ? "linha-vencida" : ""}>
                     <td className="data">{formatarData(l.vencimento)}</td>
                     <td>
                       <span className="descricao">{l.descricao}</span>
                       <span className="texto-suave">
-                        {l.categoria ?? "Sem categoria"}{l.conta_prevista ? ` · pagar pelo ${l.conta_prevista}` : ""}{rec ? " · repete todo mês" : ""}
+                        {l.origem === "fatura" ? "Fatura de cartão" : l.categoria ?? "Sem categoria"}{l.conta_prevista ? ` · pagar pelo ${l.conta_prevista}` : ""}{rec ? " · repete todo mês" : ""}
                       </span>
                       <span className={`selo ${STATUS[l.status].classe}`}>{STATUS[l.status].nome}{l.status === "cancelada" && l.cancelada_motivo ? `: ${l.cancelada_motivo}` : ""}</span>
                       {l.vencimento < (dados?.inicio ?? "") && <span className="selo selo-neutro">De {nomeCurtoDoMes(l.competencia)}</span>}
@@ -147,12 +155,13 @@ export function TelaContasAPagar() {
                       {l.situacao === "aberta" && l.restante_centavos > 0 && (
                         <button type="button" className="botao-texto" disabled={!temContas} onClick={() => setAcao({ tipo: "pagar", linha: l })}>Pagar</button>
                       )}
-                      {l.pagamentos > 0 && <button type="button" className="botao-texto" onClick={() => setAcao({ tipo: "detalhes", linha: l })}>Pagamentos</button>}
-                      {l.situacao === "aberta" && <button type="button" className="botao-texto" onClick={() => setAcao({ tipo: "editar", linha: l })}>Editar</button>}
-                      {l.situacao === "aberta" && l.pagamentos === 0 && (
+                      {fat && <a className="botao-texto" href={`#/cartao/${fat.cartao_id}/${fat.competencia.slice(0, 7)}`}>Ver fatura</a>}
+                      {(l.pagamentos > 0 || dados?.comHistorico.has(l.obrigacao_id)) && <button type="button" className="botao-texto" onClick={() => setAcao({ tipo: "detalhes", linha: l })}>Pagamentos</button>}
+                      {l.situacao === "aberta" && l.origem !== "fatura" && <button type="button" className="botao-texto" onClick={() => setAcao({ tipo: "editar", linha: l })}>Editar</button>}
+                      {l.situacao === "aberta" && l.pagamentos === 0 && l.origem !== "fatura" && (
                         <button type="button" className="botao-texto botao-texto-perigo" onClick={() => setAcao({ tipo: "cancelar", linha: l })}>Cancelar</button>
                       )}
-                      {l.situacao === "cancelada" && <button type="button" className="botao-texto" onClick={() => setAcao({ tipo: "reabrir", linha: l })}>Reabrir</button>}
+                      {l.situacao === "cancelada" && l.origem !== "fatura" && <button type="button" className="botao-texto" onClick={() => setAcao({ tipo: "reabrir", linha: l })}>Reabrir</button>}
                     </td>
                   </tr>
                 );
@@ -466,7 +475,11 @@ export function DialogoPagar({ linha, aoFechar, aoConcluir }: { linha: LinhaCont
                 {(id) => <input id={id} type="date" required max={hoje()} value={data} onChange={(e) => setData(e.target.value)} />}
               </Campo>
             </div>
-            <p className="campo-ajuda">O Simplifica lança a saída nessa conta{linha.categoria ? `, na categoria ${linha.categoria}` : ""}. Não lance esta despesa de novo.</p>
+            <p className="campo-ajuda">
+              {linha.origem === "fatura"
+                ? "O Simplifica lança a saída nessa conta como pagamento de fatura. Ela mexe no saldo, mas não é despesa: as despesas são as compras do cartão."
+                : <>O Simplifica lança a saída nessa conta{linha.categoria ? `, na categoria ${linha.categoria}` : ""}. Não lance esta despesa de novo.</>}
+            </p>
           </>
         )}
 
@@ -477,6 +490,9 @@ export function DialogoPagar({ linha, aoFechar, aoConcluir }: { linha: LinhaCont
             {candidatos.erro && <Alerta>{candidatos.erro}</Alerta>}
             {candidatos.dados && candidatos.dados.length === 0 && (
               <p className="campo-ajuda">Nenhuma saída livre até 60 dias antes ou depois do vencimento. Use “Registrar o pagamento agora”.</p>
+            )}
+            {linha.origem === "fatura" && (
+              <p className="campo-ajuda">A saída escolhida passa a contar como pagamento de fatura e sai do resumo de despesas (as despesas são as compras do cartão). Se o vínculo for desfeito, ela volta a ser como era.</p>
             )}
             {candidatos.dados && candidatos.dados.length > 0 && (
               <ul className="lista-escolha">

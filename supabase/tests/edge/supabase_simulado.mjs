@@ -22,13 +22,15 @@ export function sql(db, comando) {
 function literal(v) {
   if (v === null || v === undefined) return "NULL";
   if (typeof v === "number" || typeof v === "boolean") return String(v);
-  const s = String(v);
+  // como o PostgREST: lista JSON vira array do PostgreSQL
+  const s = Array.isArray(v) ? `{${v.map((x) => (typeof x === "number" ? String(x) : `"${String(x).replace(/["\\]/g, "")}"`)).join(",")}}` : String(v);
   if (s.includes("$v$")) throw new Error("valor inválido para o simulador");
   return `$v$${s}$v$`;
 }
 
 const FUNCOES_SETOF = new Set(["exclusao_listar_arquivos", "storage_listar_orfaos", "saldos_por_conta", "saldo_consolidado", "extrato_conta", "resumo_categorias",
-  "contas_a_pagar", "pagamentos_da_obrigacao", "movimentos_para_vincular", "contas_a_pagar_por_conta"]);
+  "contas_a_pagar", "pagamentos_da_obrigacao", "movimentos_para_vincular", "contas_a_pagar_por_conta",
+  "faturas_do_cartao", "lancamentos_da_fatura", "parcelas_da_compra", "cartoes_resumo", "fatura_prevista"]);
 const STATUS_POSTGREST = { "42501": 403, "P0002": 404, "40001": 409, "23505": 409 };
 
 export function criarSimulador(db, opcoes = {}) {

@@ -34,7 +34,7 @@ export function TelaResumo() {
           </select>
         </label>
       </TituloPagina>
-      <p className="texto-suave">{nomeDoMes(mes)}. Considera só o que já aconteceu; previstos e cancelados ficam de fora.</p>
+      <p className="texto-suave">{nomeDoMes(mes)}. Considera só o que já aconteceu; previstos e cancelados ficam de fora. Compras no cartão entram no mês em que a fatura vence; o pagamento da fatura não conta como despesa.</p>
       {erro && <Alerta>{erro}</Alerta>}
       {carregando && !dados && <Carregando />}
 

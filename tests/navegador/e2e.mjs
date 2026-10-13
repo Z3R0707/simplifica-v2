@@ -1,5 +1,5 @@
 // Teste de ponta a ponta do site, num Chromium real, contra o Supabase
-// simulado que executa o SQL REAL das migrações (etapas 1, 2 e 3).
+// simulado que executa o SQL REAL das migrações (etapas 1 a 4).
 // Uso: node --experimental-strip-types tests/navegador/e2e.mjs
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync } from "node:fs";
@@ -22,7 +22,7 @@ psql(["-d", "postgres", "-c", `drop database if exists ${DB}`, "-c", `create dat
 const stub = readFileSync(RAIZ + "supabase/tests/00_stub_supabase.sql", "utf8")
   .replace(/^create role (\w+) ([^;]*);/gm, "do $$$$ begin create role $1 $2; exception when duplicate_object then null; end $$$$;");
 execFileSync("psql", [...PSQL, "-q", "-v", "ON_ERROR_STOP=1", "-d", DB], { input: stub, stdio: ["pipe", "ignore", "pipe"] });
-for (const f of ["0001_fundacao_infra.sql", "0002_fundacao_cadastros.sql", "0003_fundacao_lgpd_storage.sql", "0004_etapa2_movimentos_saldos.sql", "0005_etapa2_cancelamento_parcial.sql", "0006_etapa3_contas_a_pagar.sql"]) {
+for (const f of ["0001_fundacao_infra.sql", "0002_fundacao_cadastros.sql", "0003_fundacao_lgpd_storage.sql", "0004_etapa2_movimentos_saldos.sql", "0005_etapa2_cancelamento_parcial.sql", "0006_etapa3_contas_a_pagar.sql", "0007_etapa4_cartoes.sql"]) {
   psql(["-d", DB, "-f", RAIZ + "supabase/migrations/" + f]);
 }
 
@@ -442,6 +442,135 @@ try {
   ok((await linhaAP("Aluguel (2/6)").innerText()).includes("Cancelada: Recorrência encerrada"), "encerrar cancela os meses seguintes, sem apagar");
   await p.getByRole("button", { name: "Mês anterior" }).click();
 
+
+  // ============================================================ cartões (Etapa 4)
+  await p.getByRole("link", { name: "Cartões" }).first().click();
+  await p.getByRole("heading", { name: "Cadastre seu primeiro cartão" }).waitFor();
+  ok(true, "aba Cartões abre vazia");
+  await p.getByRole("button", { name: "Cadastrar cartão" }).click();
+  {
+    const d = dialogo();
+    await d.getByLabel("Nome do cartão").fill("Nubank Ana");
+    await d.getByLabel("Banco do cartão").selectOption({ label: "Nubank" });
+    await d.getByLabel("Dia do fechamento").fill("3");
+    await d.getByLabel("Dia do vencimento").fill("10");
+    await d.getByLabel("Limite (opcional)").fill("5.000,00");
+    await d.getByLabel("Conta que paga a fatura (opcional)").selectOption({ label: "Itaú" });
+    await d.getByRole("button", { name: "Cadastrar cartão" }).click();
+    await esperarFechar();
+  }
+  await p.locator(".cartao-conta", { hasText: "Nubank Ana" }).waitFor();
+  ok((await texto(".cartao-conta")).includes("fecha dia 3, vence dia 10"), "cartão cadastrado com fechamento e vencimento");
+
+  async function novaCompra({ data, descricao, categoria, valor, parcelas }) {
+    await p.getByRole("button", { name: "Nova compra" }).first().click();
+    const d = dialogo();
+    await d.getByLabel("Data", { exact: true }).fill(data);
+    await d.getByLabel("Descrição").fill(descricao);
+    if (categoria) await d.getByLabel("Categoria").selectOption({ label: categoria });
+    if (parcelas) {
+      await d.getByRole("radio", { name: "Parcelado" }).check();
+      await d.getByLabel("Número de parcelas").fill(String(parcelas));
+      await d.getByLabel("Valor total (R$)").fill(valor);
+    } else {
+      await d.getByLabel("Valor (R$)").fill(valor);
+    }
+    await d.locator("#fatura-escolhida").waitFor();
+    return d;
+  }
+  let d = await novaCompra({ data: "2026-10-02", descricao: "Mercado cartão", categoria: "Alimentação", valor: "100,00" });
+  await p.waitForFunction(() => document.querySelector("[role=dialog]")?.textContent?.includes("vence em 10/10/2026"), null, { timeout: 10000 }).catch(() => {});
+  ok((await d.innerText()).includes("fecha em 03/10/2026 e vence em 10/10/2026"), "compra de 02/10 mostra a fatura certa (fecha 03/10, vence 10/10)");
+  await d.getByRole("button", { name: "Lançar" }).click();
+  await esperarFechar();
+  d = await novaCompra({ data: "2026-10-05", descricao: "Televisão", categoria: "Lazer", valor: "1.000,00", parcelas: 10 });
+  ok((await d.innerText()).includes("10x de R$ 100,00"), "parcelado mostra 10x de R$ 100,00");
+  await p.screenshot({ path: CAPTURAS + "13-nova-compra.png" });
+  await d.getByRole("button", { name: "Lançar" }).click();
+  await esperarFechar();
+
+  await p.locator(".cartao-conta", { hasText: "Nubank Ana" }).click();
+  await p.locator(".fatura-topo").waitFor();
+  await p.locator("tbody tr", { hasText: "Televisão" }).waitFor();
+  ok((await texto("tbody tr:has-text('Televisão')")).includes("1/10"), "fatura atual mostra a parcela 1/10");
+  ok((await texto(".fatura-topo")).includes("R$ 100,00"), "total da fatura atual = R$ 100,00");
+  await p.getByRole("button", { name: "Fatura anterior" }).click();
+  await p.locator("tbody tr", { hasText: "Mercado cartão" }).waitFor();
+  ok((await texto(".fatura-topo")).includes("Vencida"), "fatura de outubro: fechada e não paga = vencida");
+  ok((await texto("tbody")).includes("Cobrada"), "parcela da fatura fechada aparece como cobrada");
+
+  // pagar a fatura
+  await p.getByRole("button", { name: "Pagar fatura" }).click();
+  await dialogo().getByLabel("Valor pago (R$)").waitFor();
+  ok((await dialogo().innerText()).includes("como pagamento de fatura"), "pagar a fatura explica que não é despesa");
+  ok((await dialogo().getByLabel("Valor pago (R$)").inputValue()) === "100,00", "pagar sugere o valor da fatura");
+  await dialogo().getByRole("button", { name: "Registrar pagamento" }).click();
+  await esperarFechar();
+  await esperarTexto(".fatura-topo", "Paga");
+  ok((await texto(".fatura-topo")).includes("Paga"), "fatura fica paga");
+  await esperarTexto("tbody", "Quitada");
+  ok((await texto("tbody")).includes("Quitada"), "parcela da fatura paga: quitada");
+  ok((await saldoItau()) === "R$ 2.475,00", "pagamento da fatura sai do Itaú (R$ 2.475,00)", await saldoItau());
+
+  // resumo: a compra conta uma vez, o pagamento da fatura não é despesa
+  await p.getByRole("link", { name: "Resumo" }).first().click();
+  await p.getByLabel("Mês").fill("2026-10");
+  await p.locator(".lista-barras").first().waitFor();
+  await esperarTexto(".lista-barras", "Alimentação");
+  const alim = (await p.locator(".lista-barras li", { hasText: "Alimentação" }).first().innerText()).replace(/\s+/g, " ");
+  ok(alim.includes("R$ 350,00"), "resumo de outubro: Alimentação = R$ 250 da conta + R$ 100 do cartão (sem somar o pagamento)", alim);
+
+  // antecipação das parcelas 6, 7 e 8 com desconto
+  await p.getByRole("link", { name: "Cartões" }).first().click();
+  await p.locator(".cartao-conta", { hasText: "Nubank Ana" }).click();
+  await p.locator("tbody tr", { hasText: "Televisão" }).waitFor();
+  await p.locator("tbody tr", { hasText: "Televisão" }).getByRole("button", { name: "Parcelas" }).click();
+  await dialogo().getByLabel("Parcela 6").waitFor();
+  for (const n of [6, 7, 8]) await dialogo().getByLabel(`Parcela ${n}`, { exact: true }).check();
+  await dialogo().getByLabel(/Desconto da antecipação/).fill("30,00");
+  ok((await dialogo().innerText()).includes("Antecipando R$ 300,00; paga R$ 270,00"), "antecipação mostra valor e desconto");
+  await p.screenshot({ path: CAPTURAS + "14-antecipar.png" });
+  await dialogo().getByRole("button", { name: "Antecipar" }).click();
+  await dialogo().getByText("3 parcela(s) antecipada(s)").waitFor();
+  ok((await dialogo().innerText()).includes("antecipada (era de abr de 2027)"), "parcela antecipada guarda a fatura original");
+  await dialogo().getByRole("button", { name: "Fechar" }).last().click();
+  await esperarFechar();
+  await esperarTexto(".fatura-topo", "370,00");
+  ok((await texto(".fatura-topo")).includes("R$ 370,00"), "fatura atual: R$ 100 + R$ 270 antecipados = R$ 370,00");
+  ok((await p.getByText(/Antecipada \(era da fatura de/).count()) === 3, "fatura lista as 3 parcelas antecipadas");
+
+  // estorno e conferência com o banco
+  await p.getByRole("button", { name: "Fatura anterior" }).click();
+  await p.locator("tbody tr", { hasText: "Mercado cartão" }).getByRole("button", { name: "Estornar" }).click();
+  await dialogo().getByLabel("Valor estornado (R$)").fill("20,00");
+  await dialogo().getByRole("button", { name: "Lançar estorno" }).click();
+  await esperarFechar();
+  await p.getByRole("button", { name: "Próxima fatura" }).click();
+  await p.locator("tbody tr", { hasText: "Estorno: Mercado cartão" }).waitFor();
+  ok((await texto("tbody tr:has-text('Estorno: Mercado cartão')")).includes("−R$ 20,00"), "estorno entra como crédito na fatura aberta");
+  await esperarTexto(".fatura-topo", "350,00");
+  ok((await texto(".fatura-topo")).includes("R$ 350,00"), "fatura atual cai para R$ 350,00");
+  await p.getByRole("button", { name: "Datas e total do banco" }).click();
+  await dialogo().getByLabel(/Total da fatura segundo o banco/).fill("360,00");
+  await dialogo().getByRole("button", { name: "Salvar" }).click();
+  await esperarFechar();
+  await esperarTexto(".alerta-aviso", "diferença");
+  ok((await texto(".alerta-aviso")).includes("+R$ 10,00") && (await texto(".alerta-aviso")).includes("não é ajustada sozinha"), "conferência mostra a diferença com o banco sem ajustar sozinha");
+  await p.screenshot({ path: CAPTURAS + "12-fatura.png", fullPage: true });
+  const [csv] = await Promise.all([p.waitForEvent("download"), p.getByRole("button", { name: "Exportar (CSV)" }).click()]);
+  const conteudoCsv = readFileSync(await csv.path(), "utf8");
+  ok(conteudoCsv.includes("DATA;DESCRIÇÃO;PARCELA;VALOR") && conteudoCsv.includes(";1/10;100,00") && conteudoCsv.includes("-20,00"), "exportação com as 4 colunas DATA | DESCRIÇÃO | PARCELA | VALOR");
+
+  // contas a pagar: a fatura aparece uma vez, sem editar à mão
+  await p.getByRole("link", { name: "A pagar" }).first().click();
+  await p.getByRole("button", { name: "Próximo mês" }).click();
+  await p.locator("tbody tr", { hasText: "Fatura Nubank Ana 11/2026" }).waitFor();
+  const linhaFat = p.locator("tbody tr", { hasText: "Fatura Nubank Ana 11/2026" });
+  ok((await linhaFat.innerText()).includes("R$ 350,00"), "a fatura vira uma conta a pagar com o total da fatura");
+  ok((await linhaFat.getByRole("button", { name: "Editar" }).count()) === 0 && (await linhaFat.getByRole("link", { name: "Ver fatura" }).count()) === 1, "conta a pagar da fatura não é editada à mão; leva à fatura");
+  ok((await p.locator("tbody tr", { hasText: "Televisão" }).count()) === 0, "parcelas não viram contas a pagar separadas");
+  await p.getByRole("button", { name: "Mês anterior" }).click();
+
   // ============================================================ sessão: renovação do token
   await p.evaluate(() => {
     const s = JSON.parse(localStorage.getItem("simplifica-v2.sessao"));
@@ -457,9 +586,11 @@ try {
   await p.getByRole("link", { name: "Minha conta" }).first().click();
   const [download] = await Promise.all([p.waitForEvent("download"), p.getByRole("button", { name: "Baixar meus dados" }).click()]);
   const exportado = JSON.parse(readFileSync(await download.path(), "utf8"));
-  ok(exportado.movimentos?.length === 10 && exportado.contas?.length === 6, "exportação traz contas e lançamentos", `${exportado.movimentos?.length} mov, ${exportado.contas?.length} contas`);
-  ok(exportado.contas_a_pagar?.length === 4 && exportado.pagamentos?.length === 3 && exportado.recorrencias?.length === 1, "exportação traz contas a pagar, pagamentos e recorrências",
+  ok(exportado.movimentos?.length === 11 && exportado.contas?.length === 6, "exportação traz contas e lançamentos", `${exportado.movimentos?.length} mov, ${exportado.contas?.length} contas`);
+  ok(exportado.contas_a_pagar?.length >= 4 && exportado.pagamentos?.length === 4 && exportado.recorrencias?.length === 1, "exportação traz contas a pagar, pagamentos e recorrências",
     `${exportado.contas_a_pagar?.length} contas a pagar, ${exportado.pagamentos?.length} pagamentos, ${exportado.recorrencias?.length} recorrências`);
+  ok(exportado.cartoes?.length === 1 && exportado.compras_cartao?.length === 3 && exportado.parcelas?.length === 12, "exportação traz cartões, compras e parcelas",
+    `${exportado.cartoes?.length} cartões, ${exportado.compras_cartao?.length} compras, ${exportado.parcelas?.length} parcelas`);
 
   // ============================================================ isolamento: outro usuário
   const ctx2 = await navegador.newContext({ viewport: { width: 390, height: 844 }, locale: "pt-BR", timezoneId: "America/Sao_Paulo" });
@@ -503,6 +634,11 @@ try {
   await p3.locator("tbody tr").first().waitFor();
   ok(await p3.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "contas a pagar no celular não rolam para o lado");
   await p3.screenshot({ path: CAPTURAS + "11-celular-contas-a-pagar.png", fullPage: true });
+  await p3.getByRole("link", { name: "Cartões" }).click();
+  await p3.locator(".cartao-conta").first().click();
+  await p3.locator("tbody tr").first().waitFor();
+  ok(await p3.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "fatura do cartão no celular não rola para o lado");
+  await p3.screenshot({ path: CAPTURAS + "15-celular-fatura.png", fullPage: true });
   await ctx3.close();
 
   // ============================================================ exclusão de conta (Ana)
@@ -519,7 +655,7 @@ try {
   await p.getByRole("button", { name: "Entrar" }).click();
   await p.locator("[role=alert]").waitFor();
   ok((await texto("[role=alert]")).includes("incorretos"), "conta excluída não entra mais");
-  const resto = execFileSync("psql", [...PSQL, "-d", DB, "-tAc", `select (select count(*) from public.movimentos where user_id = '${idAna}') + (select count(*) from public.contas where user_id = '${idAna}') + (select count(*) from public.obrigacoes where user_id = '${idAna}') + (select count(*) from public.pagamentos where user_id = '${idAna}') + (select count(*) from public.recorrencias where user_id = '${idAna}')`], { encoding: "utf8" }).trim();
+  const resto = execFileSync("psql", [...PSQL, "-d", DB, "-tAc", `select (select count(*) from public.movimentos where user_id = '${idAna}') + (select count(*) from public.contas where user_id = '${idAna}') + (select count(*) from public.obrigacoes where user_id = '${idAna}') + (select count(*) from public.pagamentos where user_id = '${idAna}') + (select count(*) from public.recorrencias where user_id = '${idAna}') + (select count(*) from public.cartoes where user_id = '${idAna}') + (select count(*) from public.compras where user_id = '${idAna}') + (select count(*) from public.parcelas where user_id = '${idAna}') + (select count(*) from public.faturas where user_id = '${idAna}')`], { encoding: "utf8" }).trim();
   ok(resto === "0", "contas, lançamentos e contas a pagar da conta excluída removidos do banco");
   await p2.goto(srv.base + "/#/saldos");
   await p2.reload();

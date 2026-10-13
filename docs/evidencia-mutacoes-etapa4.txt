@@ -1,0 +1,30 @@
+Simplifica Finanças v2 — Etapa 4 (0007): testes de mutação
+Gerado em 2026-10-13T15:35Z. Cada linha retira UMA proteção da 0007 e roda os testes 100 e 110.
+
+MUTAÇÃO [sem trava da fatura (total perde atualização)] / 100_etapa4_cartoes: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [sem trava da fatura (total perde atualização)] / 110_etapa4_concorrencia: ERROR:  FALHOU: K1: conta a pagar da fatura soma as duas (sem perder atualização) — esperado 23333, obtido 22222
+MUTAÇÃO [fatura sem valor mantém conta a pagar aberta] / 100_etapa4_cartoes: ERROR:  FALHOU: fatura que ficou sem valor: conta a pagar cancelada sozinha — esperado cancelada Fatura sem valor a pagar, obtido <NULL>
+MUTAÇÃO [fatura sem valor mantém conta a pagar aberta] / 110_etapa4_concorrencia: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [pagamento de fatura lançado como despesa] / 100_etapa4_cartoes: ERROR:  Fatura de cartão só é paga por lançamento marcado como pagamento de fatura
+MUTAÇÃO [pagamento de fatura lançado como despesa] / 110_etapa4_concorrencia: ERROR:  FALHOU: K2: pagamento da fatura em andamento — esperado 36, obtido 10
+MUTAÇÃO [estorno sem limite] / 100_etapa4_cartoes: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [estorno sem limite] / 110_etapa4_concorrencia: ERROR:  FALHOU: K4: segundo recusado (passaria do valor da compra) — esperado ERRO:22023, obtido 4102764c-e374-4f24-a7d0-126aebf9b987
+MUTAÇÃO [estorno sem trava da compra] / 100_etapa4_cartoes: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [estorno sem trava da compra] / 110_etapa4_concorrencia: ERROR:  FALHOU: K4: segundo recusado (passaria do valor da compra) — esperado ERRO:22023, obtido b9664372-165d-4e00-a8ae-f443f3872cd3
+MUTAÇÃO [antecipa para fatura fechada] / 100_etapa4_cartoes: ERROR:  FALHOU: não antecipa para fatura já fechada — o comando deveria ter falhado (22023)
+MUTAÇÃO [antecipa para fatura fechada] / 110_etapa4_concorrencia: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [cancelar na loja apaga parcelas cobradas] / 100_etapa4_cartoes: ERROR:  FALHOU: cancelar na loja: compra segue com a parcela já cobrada — esperado ativa, obtido cancelada
+MUTAÇÃO [cancelar na loja apaga parcelas cobradas] / 110_etapa4_concorrencia: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [conta a pagar da fatura editável à mão] / 100_etapa4_cartoes: ERROR:  FALHOU: conta a pagar da fatura não é editada à mão — o comando deveria ter falhado (22023)
+MUTAÇÃO [conta a pagar da fatura editável à mão] / 110_etapa4_concorrencia: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [resumo conta pagamento de fatura como despesa] / 100_etapa4_cartoes: ERROR:  FALHOU: pagamento de fatura fora do resumo — esperado 0, obtido 1
+MUTAÇÃO [resumo conta pagamento de fatura como despesa] / 110_etapa4_concorrencia: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [lançamento troca de classificação enquanto paga fatura] / 100_etapa4_cartoes: ERROR:  FALHOU: enquanto paga a fatura, não volta a ser despesa — o comando deveria ter falhado (22023)
+MUTAÇÃO [lançamento troca de classificação enquanto paga fatura] / 110_etapa4_concorrencia: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [parcela com valor alterável] / 100_etapa4_cartoes: ERROR:  FALHOU: valor da parcela é imutável (mesmo no banco) — o comando deveria ter falhado (22023)
+MUTAÇÃO [parcela com valor alterável] / 110_etapa4_concorrencia: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [pagamento de fatura paga boleto] / 100_etapa4_cartoes: ERROR:  FALHOU: lançamento de pagamento de fatura não paga boleto — o comando deveria ter falhado (22023)
+MUTAÇÃO [pagamento de fatura paga boleto] / 110_etapa4_concorrencia: (nenhuma falha — NÃO detectada)
+
+(O teste do boleto foi reforçado — antes ele falhava por outro motivo — e a mutação foi rodada de novo, acima.)
+RESUMO: 12 de 12 mutações detectadas por pelo menos um dos arquivos 100/110.

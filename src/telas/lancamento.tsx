@@ -16,16 +16,18 @@ type Props = {
 // sentido só é livre em "Sem categoria". Despesa desfeita: cancela-se o
 // lançamento original. "Estorno" e "Devolução de receita" só aparecem ao
 // editar um lançamento antigo que já esteja assim (ex.: vindo de importação).
-type TipoTela = "despesa" | "receita" | "estorno" | "devolucao_receita" | "sem_categoria";
+type TipoTela = "despesa" | "receita" | "estorno" | "devolucao_receita" | "sem_categoria" | "pagamento_fatura";
 const MAPA_TIPO: Record<Exclude<TipoTela, "sem_categoria">, { classificacao: Classificacao; natureza: "debito" | "credito" }> = {
   despesa: { classificacao: "despesa", natureza: "debito" },
   receita: { classificacao: "receita", natureza: "credito" },
   estorno: { classificacao: "despesa", natureza: "credito" },
   devolucao_receita: { classificacao: "receita", natureza: "debito" },
+  pagamento_fatura: { classificacao: "pagamento_fatura", natureza: "debito" },
 };
 function tipoDoMovimento(m?: Movimento): TipoTela {
   if (!m) return "despesa";
   if (m.classificacao === "nao_classificado") return "sem_categoria";
+  if (m.classificacao === "pagamento_fatura") return "pagamento_fatura";
   if (m.classificacao === "despesa") return m.natureza === "credito" ? "estorno" : "despesa";
   return m.natureza === "debito" ? "devolucao_receita" : "receita";
 }
@@ -49,7 +51,7 @@ export function DialogoLancamento({ contaId, movimento, aoFechar, aoConcluir }: 
 
   const contaEscolhida = contas.find((c) => c.id === conta);
   const opcoesCategoria = useMemo(() => {
-    if (classificacao === "nao_classificado") return [];
+    if (classificacao === "nao_classificado" || classificacao === "pagamento_fatura") return [];
     const doTipo = categorias.filter((c) => c.tipo === classificacao && (c.ativa || c.id === movimento?.categoria_id));
     const pais = doTipo.filter((c) => !c.pai_id);
     return pais.flatMap((p) => [
@@ -71,7 +73,7 @@ export function DialogoLancamento({ contaId, movimento, aoFechar, aoConcluir }: 
     if (centavos === null || centavos <= 0) return setErro("Informe um valor maior que zero, por exemplo 125,90."), null;
     if (!dataValida(data)) return setErro("Informe uma data válida."), null;
     if (!descricao.trim()) return setErro("Escreva uma descrição."), null;
-    if (classificacao !== "nao_classificado" && !categoria) return setErro("Escolha a categoria."), null;
+    if (classificacao !== "nao_classificado" && classificacao !== "pagamento_fatura" && !categoria) return setErro("Escolha a categoria."), null;
     if (!editando && situacao === "efetivo" && data > hoje()) {
       return setErro("Para uma data futura, marque como previsto."), null;
     }
@@ -88,7 +90,7 @@ export function DialogoLancamento({ contaId, movimento, aoFechar, aoConcluir }: 
         const ok = validar();
         if (!ok) return;
         void enviar(async () => {
-          const categoriaId = classificacao === "nao_classificado" ? null : categoria;
+          const categoriaId = classificacao === "nao_classificado" || classificacao === "pagamento_fatura" ? null : categoria;
           if (movimento) {
             await rpc("movimento_atualizar", {
               p_id: movimento.id, p_versao_esperada: movimento.versao, p_natureza: natureza,
@@ -126,21 +128,25 @@ export function DialogoLancamento({ contaId, movimento, aoFechar, aoConcluir }: 
 
         <fieldset className="campo opcoes">
           <legend>Tipo</legend>
-          <label><input type="radio" name="tipo" checked={tipo === "despesa"} onChange={() => trocarTipo("despesa")} /> Despesa</label>
-          <label><input type="radio" name="tipo" checked={tipo === "receita"} onChange={() => trocarTipo("receita")} /> Receita</label>
+          {tipo !== "pagamento_fatura" && <label><input type="radio" name="tipo" checked={tipo === "despesa"} onChange={() => trocarTipo("despesa")} /> Despesa</label>}
+          {tipo !== "pagamento_fatura" && <label><input type="radio" name="tipo" checked={tipo === "receita"} onChange={() => trocarTipo("receita")} /> Receita</label>}
           {tipo === "estorno" && (
             <label><input type="radio" name="tipo" checked onChange={() => trocarTipo("estorno")} /> Estorno de despesa</label>
+          )}
+          {tipo === "pagamento_fatura" && (
+            <label><input type="radio" name="tipo" checked onChange={() => trocarTipo("pagamento_fatura")} /> Pagamento de fatura</label>
           )}
           {tipo === "devolucao_receita" && (
             <label><input type="radio" name="tipo" checked onChange={() => trocarTipo("devolucao_receita")} /> Devolução de receita</label>
           )}
-          <label><input type="radio" name="tipo" checked={tipo === "sem_categoria"} onChange={() => trocarTipo("sem_categoria")} /> Sem categoria</label>
+          {tipo !== "pagamento_fatura" && <label><input type="radio" name="tipo" checked={tipo === "sem_categoria"} onChange={() => trocarTipo("sem_categoria")} /> Sem categoria</label>}
           <p className="campo-ajuda">
             {tipo === "despesa" && "Dinheiro que saiu da conta."}
             {tipo === "receita" && "Dinheiro que entrou na conta."}
             {tipo === "estorno" && "Dinheiro que voltou para a conta por uma despesa desfeita (compra cancelada, reembolso). Entra na conta e reduz o total gasto na categoria."}
             {tipo === "devolucao_receita" && "Dinheiro que saiu da conta por uma receita devolvida. Reduz o total recebido na categoria."}
             {tipo === "sem_categoria" && "Escolha abaixo se o dinheiro entrou ou saiu. Não entra no resumo por categoria."}
+            {tipo === "pagamento_fatura" && "Saída que paga fatura de cartão. Mexe no saldo, mas não é despesa: as despesas são as compras do cartão."}
           </p>
         </fieldset>
 
@@ -165,7 +171,7 @@ export function DialogoLancamento({ contaId, movimento, aoFechar, aoConcluir }: 
           {(id) => <input id={id} required maxLength={200} value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: Supermercado" />}
         </Campo>
 
-        {classificacao !== "nao_classificado" && (
+        {classificacao !== "nao_classificado" && classificacao !== "pagamento_fatura" && (
           <Campo rotulo="Categoria">
             {(id) => (
               <select id={id} required value={categoria} onChange={(e) => setCategoria(e.target.value)}>

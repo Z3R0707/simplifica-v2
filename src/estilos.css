@@ -315,3 +315,18 @@ input[type="radio"], input[type="checkbox"] { width: 18px; height: 18px; accent-
 @media (max-width: 640px) {
   .contas-pagar td.num { text-align: left; }
 }
+
+/* ------------------------------------------------------------ cartões (Etapa 4) */
+.cartao-credito .limite { display: grid; gap: 4px; margin-top: 6px; max-width: 320px; }
+.cartao-credito .limite .barra-trilho { display: block; margin: 0; }
+.cartao-credito .limite .barra { display: block; }
+.fatura td.parcela { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--suave); }
+.fatura-acoes { margin: -6px 0 14px; }
+.fatura-topo .valor-destaque { margin-bottom: 2px; }
+@media (max-width: 640px) {
+  .fatura td.parcela { grid-column: 2; text-align: right; font-size: 0.86rem; }
+  .fatura td.parcela:empty { display: none; }
+}
+@media (max-width: 760px) {
+  .nav a { font-size: 0.7rem; padding: 10px 2px; }
+}

@@ -91,7 +91,7 @@ export function TelaExtrato({ contaId }: { contaId: string }) {
                     <td className="data">{formatarData(l.data_movimento)}</td>
                     <td>
                       <span className="descricao">{l.descricao}</span>
-                      <span className="texto-suave">{l.categoria ?? "Sem categoria"}</span>
+                      <span className="texto-suave">{l.classificacao === "pagamento_fatura" ? "Pagamento de fatura" : l.categoria ?? "Sem categoria"}</span>
                       {l.situacao === "previsto" && <span className="selo selo-previsto">Previsto</span>}
                       {l.situacao === "cancelado" && <span className="selo">Cancelado{mov?.cancelado_motivo ? `: ${mov.cancelado_motivo}` : ""}</span>}
                       {l.situacao === "efetivo" && !l.conta_no_saldo && <span className="selo selo-neutro">Já incluído no saldo inicial</span>}

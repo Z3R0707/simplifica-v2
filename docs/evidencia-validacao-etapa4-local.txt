@@ -1,0 +1,23 @@
+Simplifica Finanças v2 — validação da Etapa 4 executada localmente (mesmo SQL que vai para o Supabase)
+Gerado em 2026-10-13T15:47Z
+
+1) Banco novo com 0001–0007: os cinco roteiros de validação
+   01_validar_banco_no_supabase: VALIDAÇÃO APROVADA: 74 de 74 verificações OK
+   03_validar_etapa2_no_supabase: VALIDAÇÃO APROVADA: 63 de 63 verificações OK
+   04_validar_cancelamento_parcial_no_supabase: VALIDAÇÃO APROVADA: 30 de 30 verificações OK
+   05_validar_etapa3_no_supabase: VALIDAÇÃO APROVADA: 77 de 77 verificações OK
+   06_validar_etapa4_no_supabase: VALIDAÇÃO APROVADA: 82 de 82 verificações OK
+   Depois: 0 usuários no banco (tudo desfeito).
+
+2) O roteiro 06 reprova um banco com uma proteção retirada (mutação 'estorno sem limite'):
+   VALIDAÇÃO REPROVADA: 81 de 82 OK — #72 estorno não passa do valor da compra: deveria falhar com 22023, mas executou
+
+3) Atualização de um banco já em uso (0006 com dados) para a 0007
+== banco na versão anterior (0006) com dados de um usuário (lançamentos, cancelamento parcial, conta a pagar paga em parte, recorrência) ==
+antes:  saldo=289000 resumo_out=Alimentação:7000,Não classificado:-4000 a_pagar=Aluguel:150000:vencida,Luz:6000:parcial
+== aplica 0007 ==
+COMMIT
+depois: saldo=289000 resumo_out=Alimentação:7000,Não classificado:-4000 a_pagar=Aluguel:150000:vencida,Luz:6000:parcial
+etapa: 4-cartoes
+== reaplicar 0007 por engano é recusado sem alterar nada ==
+ABORTADO: este banco não está na Etapa 3 (0006) do Simplifica v2. Nada foi alterado.

@@ -1,4 +1,4 @@
-# Simplifica Finanças v2 — Etapas 1, 2 e 3
+# Simplifica Finanças v2 — Etapas 1 a 4
 
 Base do novo sistema: banco, permissões, auditoria, idempotência, versão e exclusão
 de conta (LGPD) sem arquivos órfãos. Tudo vai num projeto Supabase **novo e separado**.
@@ -164,4 +164,34 @@ No site: aba **A pagar** (mês, totais, filtros, pagar, histórico de pagamentos
 4. Só depois disso o site com a aba **A pagar** é publicado (envio para `main` no GitHub → Netlify).
 
 Evidências locais: `docs/evidencia-testes-locais.txt` (487 verificações), `docs/evidencia-mutacoes-etapa3.txt` (10 de 10 mutações detectadas), `docs/evidencia-validacao-etapa3-local.txt`, `docs/evidencia-site-local.txt` (89 verificações no navegador).
+
+# Etapa 4 — cartões, faturas, parcelas, antecipações e estornos
+
+Migração **adicional** `supabase/migrations/0007_etapa4_cartoes.sql`. Roda sobre a 0006, não apaga nem recria nada e se recusa a rodar em qualquer outro estado. Tudo numa única transação.
+
+## Regras
+
+- **Cartão**: dia de fechamento, dia de vencimento, limite (opcional) e a conta que costuma pagar a fatura.
+- **Regra de fechamento** (decisão a confirmar): compra feita **antes** do dia do fechamento entra na fatura que fecha naquele mês; **no dia do fechamento ou depois**, na seguinte. Quando o banco lançar diferente, a fatura pode ser escolhida na própria compra.
+- **Fatura**: uma por cartão e mês de vencimento. O total é sempre a soma das parcelas (débitos − créditos); nunca é digitado. Datas de uma fatura podem ser ajustadas (feriado) sem mover lançamentos.
+- **Lançamentos do cartão**: compra à vista ou parcelada (até 99x, informando o total ou o valor da parcela; centavos que sobram vão para a 1ª parcela), encargo (juros, IOF, tarifa, anuidade, multa, outro), crédito e estorno (ligado à compra, nunca acima do valor dela).
+- **Compra já em andamento**: dá para registrar a partir da parcela atual (ex.: 3/10); as anteriores não são lançadas.
+- **Estados da parcela**: a cobrar → cobrada (a fatura fechou) → quitada (a fatura foi paga por inteiro). Antecipada é marcada à parte.
+- **Antecipação**: as parcelas escolhidas vão para a fatura aberta, com desconto opcional dividido entre elas; a fatura original fica guardada e as faturas futuras (e as contas a pagar delas) diminuem. Pode ser desfeita enquanto a fatura não fechar.
+- **Cancelar**: "lancei errado" remove todas as parcelas; "compra cancelada na loja" remove só as ainda não cobradas (as cobradas voltam por estorno). Nada é apagado.
+- **Contas a pagar**: cada fatura com valor vira **uma** conta a pagar que acompanha o total sozinha; compras e parcelas não viram contas a pagar (nada somado duas vezes). Fatura sem valor tem a conta a pagar cancelada sozinha. A conta a pagar da fatura não é editada à mão.
+- **Pagar a fatura** lança a saída como **pagamento de fatura**: mexe no saldo, mas não é despesa. Uma saída já lançada como despesa, ao ser vinculada à fatura, passa a pagamento de fatura (e volta se o vínculo for desfeito).
+- **Resumo por categoria** (decisão a confirmar): compras do cartão entram no mês do **vencimento da fatura**.
+- **Limite usado** = tudo o que falta pagar no cartão, inclusive parcelas futuras.
+- **Conferência com o banco**: o total informado pelo banco fica guardado à parte; a diferença aparece, mas nunca é ajustada sozinha.
+- Operações simultâneas ficam em fila (travas: compra → faturas em ordem de vencimento → conta a pagar → lançamento).
+
+## Instalação (projeto simplifica-v2, já com a 0006 homologada)
+
+1. SQL Editor → New query → cole `0007_etapa4_cartoes.sql` → Run.
+2. Validação: `validacao/06_validar_etapa4_no_supabase.sql` → esperado `VALIDAÇÃO APROVADA: 82 de 82`, com rollback automático.
+3. Regressão: `01` (74), `03` (63), `04` (30) e `05` (77).
+4. Só depois o site com a aba **Cartões** é publicado.
+
+Evidências locais: `docs/evidencia-testes-locais.txt` (622 verificações), `docs/evidencia-mutacoes-etapa4.txt` (12 de 12 mutações detectadas), `docs/evidencia-validacao-etapa4-local.txt`, `docs/evidencia-site-local.txt` (116 verificações no navegador).
 

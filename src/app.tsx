@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { aoMudarSessao, sessaoAtual, tratarLinkDoEmail, type Sessao } from "./lib/api";
 import { Carregando, ProvedorCadastros, useCadastros } from "./ui";
 import { TelaCriarConta, TelaEntrar, TelaEsqueciSenha, TelaNovaSenha } from "./telas/acesso";
+import { TelaCartao, TelaCartoes } from "./telas/cartoes";
 import { TelaCategorias } from "./telas/categorias";
 import { TelaContas } from "./telas/contas";
 import { TelaContasAPagar } from "./telas/contas-a-pagar";
@@ -24,6 +25,7 @@ function irPara(rota: string, substituir = false) {
 const NAVEGACAO = [
   { rota: "/saldos", nome: "Saldos" },
   { rota: "/a-pagar", nome: "A pagar" },
+  { rota: "/cartoes", nome: "Cartões" },
   { rota: "/contas", nome: "Contas" },
   { rota: "/resumo", nome: "Resumo" },
   { rota: "/categorias", nome: "Categorias" },
@@ -82,12 +84,15 @@ export function App() {
 
 function Casca({ rota, aoExcluir }: { rota: string; aoExcluir: () => void }) {
   const { carregando, erro, perfil } = useCadastros();
-  const ativo = (r: string) => rota === r || (r === "/saldos" && rota.startsWith("/conta/"));
+  const ativo = (r: string) => rota === r || (r === "/saldos" && rota.startsWith("/conta/")) || (r === "/cartoes" && rota.startsWith("/cartao/"));
   useEffect(() => { window.scrollTo(0, 0); }, [rota]);
 
   let tela: React.ReactNode;
   const conta = /^\/conta\/([0-9a-f-]{36})$/.exec(rota);
+  const cartao = /^\/cartao\/([0-9a-f-]{36})(?:\/(\d{4}-\d{2}))?$/.exec(rota);
   if (conta) tela = <TelaExtrato key={conta[1]} contaId={conta[1]} />;
+  else if (cartao) tela = <TelaCartao key={rota} cartaoId={cartao[1]} mesInicial={cartao[2]} />;
+  else if (rota === "/cartoes") tela = <TelaCartoes />;
   else if (rota === "/contas") tela = <TelaContas />;
   else if (rota === "/a-pagar") tela = <TelaContasAPagar />;
   else if (rota === "/resumo") tela = <TelaResumo />;
