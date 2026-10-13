@@ -19,10 +19,10 @@ insert into teste.ids select 'l_nu', (public.conta_criar(teste.id('l_tit'), (sel
 
 -- ------------------------------------------------------------ esquema
 reset role;
-select teste.igual((select etapa from public.versao_esquema where sistema = 'simplifica-v2'), '5.2-leitores-bancos', 'versão do esquema: 5.2');
-select teste.igual((select string_agg(nome || ':' || leitor_status || ':' || array_to_string(formatos_homologados, ','), ' | ' order by nome)
+select teste.igual((select etapa >= '5.2' from public.versao_esquema where sistema = 'simplifica-v2'), true, 'versão do esquema: 5.2 ou posterior');
+select teste.igual((select string_agg(nome || ':' || leitor_status || ':' || (case codigo_compe when '341' then 'pdf-extrato' else 'csv-extrato' end = any (formatos_homologados)), ' | ' order by nome)
                       from public.instituicoes where leitor_status <> 'nao_implementado'),
-  'Itaú:homologado:pdf-extrato | Nubank:homologado:csv-extrato', 'homologados só Nubank (CSV da conta) e Itaú (PDF da conta)');
+  'Itaú:homologado:true | Nubank:homologado:true', 'homologados só Nubank (CSV da conta) e Itaú (PDF da conta)');
 \o /dev/null
 select teste.como(teste.id('leia'));
 \o

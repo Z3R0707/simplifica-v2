@@ -24,7 +24,7 @@ psql(["-d", "postgres", "-c", `drop database if exists ${DB}`, "-c", `create dat
 const stub = readFileSync(RAIZ + "supabase/tests/00_stub_supabase.sql", "utf8")
   .replace(/^create role (\w+) ([^;]*);/gm, "do $$$$ begin create role $1 $2; exception when duplicate_object then null; end $$$$;");
 execFileSync("psql", [...PSQL, "-q", "-v", "ON_ERROR_STOP=1", "-d", DB], { input: stub, stdio: ["pipe", "ignore", "pipe"] });
-for (const f of ["0001_fundacao_infra.sql", "0002_fundacao_cadastros.sql", "0003_fundacao_lgpd_storage.sql", "0004_etapa2_movimentos_saldos.sql", "0005_etapa2_cancelamento_parcial.sql", "0006_etapa3_contas_a_pagar.sql", "0007_etapa4_cartoes.sql", "0008_etapa5_importacao_extratos.sql", "0009_etapa5_leitores_bancos.sql"]) {
+for (const f of ["0001_fundacao_infra.sql", "0002_fundacao_cadastros.sql", "0003_fundacao_lgpd_storage.sql", "0004_etapa2_movimentos_saldos.sql", "0005_etapa2_cancelamento_parcial.sql", "0006_etapa3_contas_a_pagar.sql", "0007_etapa4_cartoes.sql", "0008_etapa5_importacao_extratos.sql", "0009_etapa5_leitores_bancos.sql", "0010_etapa5_importacao_faturas.sql"]) {
   psql(["-d", DB, "-f", RAIZ + "supabase/migrations/" + f]);
 }
 
@@ -716,6 +716,81 @@ try {
     "CSV do Nubank reconhecido sem pedir as colunas");
   ok((await texto(".importar-passo:has(h2)")).includes("O arquivo diz ser do banco 260"), "arquivo do Nubank numa conta do Itaú gera aviso");
 
+  // ============================================================ importação de fatura (Etapa 5, parte 3)
+  // fatura 11/2026 do "Nubank Ana" no layout do Nubank, com dados fictícios: a TV 1/10 e as 6, 7 e 8 já
+  // antecipadas (com o desconto) estão no Simplifica; o estorno também; a padaria e o IOF são novos.
+  async function pdfNubankFatura(linhas, subtotal) {
+    const doc = await PDFDocument.create();
+    const fonte = await doc.embedFont(StandardFonts.Helvetica);
+    const t = (pg, x, y, s) => pg.drawText(s, { x, y, size: 8, font: fonte });
+    const dir = (pg, xd, y, s) => t(pg, xd - fonte.widthOfTextAtSize(s, 8), y, s);
+    const capa = doc.addPage([595, 842]);
+    t(capa, 138, 648, "Olá, Ana.");
+    t(capa, 138, 438, "Data de vencimento: 10 NOV 2026");
+    t(capa, 138, 415, "Período vigente: 03 OUT a 03 NOV");
+    const pg = doc.addPage([595, 842]);
+    t(pg, 327, 782, "FATURA 10 NOV 2026"); t(pg, 440, 782, "EMISSÃO E ENVIO 03 NOV 2026");
+    t(pg, 50, 734, "TRANSAÇÕES"); t(pg, 130, 734, "DE 03 OUT A 03 NOV");
+    t(pg, 119, 666, "Ana Teste"); dir(pg, 535, 666, subtotal);
+    let y = 640;
+    for (const [d, desc, v, cartao] of linhas) {
+      t(pg, 123, y, d);
+      if (cartao) { t(pg, 172, y, "•••• 4321"); t(pg, 214, y, desc); } else t(pg, 185, y, desc);
+      dir(pg, 535, y, v);
+      y -= 22;
+    }
+    return Buffer.from(await doc.save());
+  }
+  const LINHAS_FATURA = [
+    ["05 OUT", "Televisão - Parcela 1/10", "R$ 100,00", true],
+    ["06 OUT", "Padaria do Zé", "R$ 25,00", true],
+    ["06 OUT", 'IOF de "Assinatura"', "R$ 1,99", false],
+    ["13 OUT", "Desconto Antecipação Televisão", "-R$ 30,00", false],
+    ["13 OUT", "Antecipada - Televisão - Parcela 8/10", "R$ 100,00", true],
+    ["13 OUT", "Antecipada - Televisão - Parcela 7/10", "R$ 100,00", true],
+    ["13 OUT", "Antecipada - Televisão - Parcela 6/10", "R$ 100,00", true],
+    ["13 OUT", "Estorno Mercado cartão", "-R$ 20,00", false],
+  ];
+  await p.getByRole("link", { name: "Cartões" }).first().click();
+  await p.locator(".cartao-conta", { hasText: "Nubank Ana" }).click();
+  await p.getByRole("link", { name: "Importar fatura" }).click();
+  await p.getByRole("heading", { name: "Importar fatura" }).waitFor();
+  const campoFatura = p.getByLabel("Fatura do cartão (PDF)");
+  // fatura que não fecha com o total do banco: nada é importado
+  await campoFatura.setInputFiles({ name: "fatura-torta.pdf", mimeType: "application/pdf", buffer: await pdfNubankFatura(LINHAS_FATURA.slice(1), "R$ 376,99") });
+  await esperarTexto(".importar-passo:has(h2) .alerta-erro", "não bate");
+  ok((await texto(".importar-passo:has(h2) .alerta-erro")).includes("não bate") && await p.getByRole("button", { name: "Ver prévia" }).isDisabled(),
+    "fatura cuja soma não bate com o total do banco é recusada");
+  // extrato no lugar da fatura
+  await campoFatura.setInputFiles({ name: "itau-extrato.pdf", mimeType: "application/pdf", buffer: await pdfItau(LINHAS_ITAU, "06/10/2026") });
+  await esperarTexto(".importar-passo .alerta-erro", "extrato da conta");
+  ok((await texto(".importar-passo .alerta-erro")).includes("extrato da conta, não a fatura"), "extrato escolhido na tela de fatura é explicado");
+  // fatura correta
+  await campoFatura.setInputFiles({ name: "Nubank_2026-11-10.pdf", mimeType: "application/pdf", buffer: await pdfNubankFatura(LINHAS_FATURA, "R$ 376,99") });
+  await p.getByRole("button", { name: "Ver prévia" }).waitFor();
+  const resumoFat = await texto(".importar-passo:has(h2)");
+  ok(resumoFat.includes("Fatura de 11/2026") && resumoFat.includes("8 lançamento(s)") && resumoFat.includes("Conferido: a soma dos 8 lançamentos"),
+    "fatura do Nubank lida no navegador e conferida com o total do banco", resumoFat);
+  await p.getByRole("button", { name: "Ver prévia" }).click();
+  await p.locator("table.previa").waitFor();
+  const contFat = await texto(".totais");
+  ok(contFat.includes("Já lançado: 5") && contFat.includes("Possível duplicado: 1") && contFat.includes("Novo: 2") && contFat.includes("2 de 8"),
+    "prévia: TV 1/10, as 3 antecipadas e o desconto já estavam; o estorno é possível duplicado; padaria e IOF são novos", contFat);
+  const linhaFatura = (d) => p.locator("table.previa tbody tr").filter({ has: p.locator(`input[value='${d}']`) });
+  ok((await linhaFatura("Televisão").first().innerText()).includes("já lançada"), "parcela já lançada é mostrada com a compra do Simplifica");
+  await linhaFatura("Padaria do Zé").getByLabel("Categoria").selectOption({ label: "Alimentação" });
+  await p.screenshot({ path: CAPTURAS + "18-importar-fatura-previa.png", fullPage: true });
+  await p.getByRole("button", { name: "Importar fatura" }).click();
+  await p.getByRole("heading", { name: "Fatura importada" }).waitFor();
+  const resFat = await texto("main");
+  ok(resFat.includes("2 lançamento(s) novo(s)") && resFat.includes("5 já estavam no cartão"), "importação: 2 novos, 5 já existentes", resFat);
+  await esperarTexto(".lista-simples", "confere com o banco");
+  ok((await texto(".lista-simples")).includes("Fatura confere com o banco (R$ 376,99)"), "histórico: fatura do Simplifica confere com o total do banco");
+  await p.getByRole("link", { name: "Ver a fatura" }).click();
+  await esperarTexto(".fatura-topo", "376,99");
+  ok((await texto(".fatura-topo")).includes("R$ 376,99"), "fatura 11/2026: R$ 350,00 + padaria + IOF = R$ 376,99", await texto(".fatura-topo"));
+  ok((await texto("tbody tr:has-text('Padaria do Zé')")).includes("Alimentação"), "compra importada com a categoria escolhida");
+
   // ============================================================ sessão: renovação do token
   await p.evaluate(() => {
     const s = JSON.parse(localStorage.getItem("simplifica-v2.sessao"));
@@ -734,7 +809,7 @@ try {
   ok(exportado.movimentos?.length === 17 && exportado.contas?.length === 6 && exportado.importacoes?.length === 3, "exportação traz contas e lançamentos", `${exportado.movimentos?.length} mov, ${exportado.contas?.length} contas`);
   ok(exportado.contas_a_pagar?.length >= 4 && exportado.pagamentos?.length === 4 && exportado.recorrencias?.length === 1, "exportação traz contas a pagar, pagamentos e recorrências",
     `${exportado.contas_a_pagar?.length} contas a pagar, ${exportado.pagamentos?.length} pagamentos, ${exportado.recorrencias?.length} recorrências`);
-  ok(exportado.cartoes?.length === 1 && exportado.compras_cartao?.length === 3 && exportado.parcelas?.length === 12, "exportação traz cartões, compras e parcelas",
+  ok(exportado.cartoes?.length === 1 && exportado.compras_cartao?.length === 5 && exportado.parcelas?.length === 14 && exportado.importacoes_fatura?.length === 1, "exportação traz cartões, compras e parcelas",
     `${exportado.cartoes?.length} cartões, ${exportado.compras_cartao?.length} compras, ${exportado.parcelas?.length} parcelas`);
 
   // ============================================================ isolamento: outro usuário

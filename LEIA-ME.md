@@ -1,4 +1,4 @@
-# Simplifica Finanças v2 — Etapas 1 a 5 (parte 2)
+# Simplifica Finanças v2 — Etapas 1 a 5 (parte 3)
 
 Base do novo sistema: banco, permissões, auditoria, idempotência, versão e exclusão
 de conta (LGPD) sem arquivos órfãos. Tudo vai num projeto Supabase **novo e separado**.
@@ -255,4 +255,32 @@ Os leitores foram feitos e conferidos com os arquivos reais enviados (resumo em 
 4. Só depois o site é publicado (o build passa a depender do pacote `pdfjs-dist`, instalado pelo Netlify a partir do `package.json`).
 
 Evidências locais: `docs/evidencia-testes-locais.txt` (688 verificações no banco + 24 testes dos leitores), `docs/evidencia-mutacoes-etapa5-parte2.txt` (10 de 11; a restante é equivalente), `docs/evidencia-validacao-etapa5-parte2-local.txt`, `docs/evidencia-site-local.txt` (141 verificações no navegador), `docs/evidencia-leitores-arquivos-reais.txt`.
+
+# Etapa 5, parte 3 — importação de faturas de cartão (Nubank e Itaú, PDF)
+
+Migração **adicional** `supabase/migrations/0010_etapa5_importacao_faturas.sql`. Roda sobre a 0009, não apaga nem recria nada e se recusa a rodar em qualquer outro estado. Tudo numa única transação.
+
+## Como funciona
+
+1. **Cartões → cartão → Importar fatura** → escolher o PDF da fatura. A leitura acontece no navegador e só é aceita se a soma dos lançamentos lidos bater com o total que o próprio banco imprime na fatura (Nubank: transações do portador; Itaú: "Total dos lançamentos atuais"). O banco de dados confere a soma de novo.
+2. O PDF original fica guardado no Storage. A mesma fatura (mesmo arquivo) não entra duas vezes.
+3. **Prévia** (nada muda ainda). Cada lançamento é comparado com o que já está no cartão:
+   - *Já lançado*: a parcela n de uma compra em N vezes já está nesta fatura (mesmo valor, até R$ 0,99 de diferença de arredondamento — o valor do banco prevalece); ou o desconto de uma antecipação feita no Simplifica.
+   - *Já importado*: entrou por outra importação desta fatura.
+   - *Possível duplicado* (desmarcado): compra à vista parecida (mesmo valor, até 3 dias), ou a parcela está em outra fatura próxima.
+   - *Antecipar*: parcela antecipada que estava numa fatura futura (ou que nasce nesta mesma importação).
+   - *Novo*: compra criada a partir da parcela que aparece (ex.: 4/12 cria da 4ª à 12ª), encargo (IOF, juros…) ou crédito (estorno, desconto).
+4. **Confirmar** cria as compras, antecipa as parcelas, acerta os centavos pelo valor do banco e grava na fatura as datas reais (fechamento e vencimento) e o total do banco, para a conferência. Pagamentos que aparecem na fatura não viram compras.
+5. **Desfazer** cancela as compras criadas (nada é apagado), devolve as parcelas antecipadas e os centavos, e volta as datas da fatura.
+
+Se os lançamentos do cartão mudarem entre a prévia e a confirmação (outra importação, um lançamento à mão), a confirmação é recusada e a prévia precisa ser refeita — assim nada entra em dobro.
+
+## Instalação (projeto simplifica-v2, já com a 0009 homologada)
+
+1. SQL Editor → New query → cole `0010_etapa5_importacao_faturas.sql` → Run.
+2. Validação: `validacao/09_validar_etapa5_faturas_no_supabase.sql` → esperado `VALIDAÇÃO APROVADA: 40 de 40` (rollback automático).
+3. Regressão (roteiros atualizados para aceitar a etapa 5.3): `01` (74), `03` (63), `04` (30), `05` (77), `06` (82), `07` (49) e `08` (26).
+4. Só depois o site com **Importar fatura** é publicado.
+
+Evidências locais: `docs/evidencia-testes-locais.txt` (749 verificações no banco + 34 testes dos leitores), `docs/evidencia-mutacoes-etapa5-parte3.txt` (15 de 15 no banco, 13 de 13 nos leitores), `docs/evidencia-validacao-etapa5-parte3-local.txt`, `docs/evidencia-site-local.txt` (150 verificações no navegador), `docs/evidencia-leitores-arquivos-reais.txt`.
 

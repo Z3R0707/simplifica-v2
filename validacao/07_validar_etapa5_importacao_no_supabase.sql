@@ -36,7 +36,7 @@ begin
     raise exception 'ABORTADO: este banco não é o do Simplifica v2. Nenhuma verificação foi executada.';
   end if;
   execute $$select etapa from public.versao_esquema where sistema = 'simplifica-v2'$$ into v_res;
-  if v_res not in ('5.1-importacao-extratos', '5.2-leitores-bancos') then
+  if v_res not in ('5.1-importacao-extratos', '5.2-leitores-bancos', '5.3-importacao-faturas') then
     raise exception 'ABORTADO: a Etapa 5 parte 1 (0008) ainda não está instalada (etapa atual: %). Nenhuma verificação foi executada.', v_res;
   end if;
 
@@ -47,7 +47,7 @@ begin
     (3, 'índice único da chave de importação instalado', 'pg', 'valor', $$select count(*)::text from pg_indexes where schemaname = 'public' and indexname in ('movimentos_chave_importacao_unica', 'importacoes_arquivo_unico') and indexdef like 'CREATE UNIQUE%'$$, '2'),
     (4, 'anon não executa nenhuma função do public', 'pg', 'valor', $$select count(*)::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and has_function_privilege('anon', p.oid, 'execute')$$, '0'),
     (5, 'usuário só lê (sem gravação direta) as tabelas novas', 'pg', 'valor', $$select count(*)::text from information_schema.role_table_grants where grantee in ('authenticated', 'anon') and table_name in ('importacoes', 'importacao_itens') and privilege_type <> 'SELECT'$$, '0'),
-    (6, 'exclusão de conta inclui importações (na ordem certa)', 'pg', 'valor', $$select (position('delete from public.importacao_itens' in d) > 0 and position('delete from public.importacao_itens' in d) < position('delete from public.movimentos' in d) and position('delete from public.movimentos' in d) < position('delete from public.importacoes' in d))::text from (select pg_get_functiondef('public.exclusao_concluir(uuid,integer,integer)'::regprocedure) d) x$$, 'true'),
+    (6, 'exclusão de conta inclui importações (na ordem certa)', 'pg', 'valor', $$select (position('delete from public.importacao_itens' in d) > 0 and position('delete from public.importacao_itens' in d) < position('delete from public.movimentos' in d) and position('delete from public.movimentos' in d) < position('delete from public.importacoes ' in d))::text from (select pg_get_functiondef('public.exclusao_concluir(uuid,integer,integer)'::regprocedure) d) x$$, 'true'),
     (10, 'cria usuário de teste A', 'pg', 'ok', format($f$insert into auth.users (id, email, raw_user_meta_data, aud, role) values (gen_random_uuid(), %L, '{"nome":"Validação A"}', 'authenticated', 'authenticated') returning id::text$f$, v_email_a), 'a'),
     (11, 'cria usuário de teste B', 'pg', 'ok', format($f$insert into auth.users (id, email, raw_user_meta_data, aud, role) values (gen_random_uuid(), %L, '{}', 'authenticated', 'authenticated') returning id::text$f$, v_email_b), 'b'),
     (12, 'A guarda o 1º arquivo original no Storage', 'A', 'ok', $$insert into storage.objects (bucket_id, name) values ('documentos', current_setting('val.a') || '/importacoes/' || repeat('a', 64) || '.ofx') returning name$$, null),

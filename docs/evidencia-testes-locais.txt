@@ -1,5 +1,5 @@
-Simplifica Finanças v2 — suíte completa de testes locais (etapas 1 a 5.2)
-Gerado em 2026-10-13T22:13Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu
+Simplifica Finanças v2 — suíte completa de testes locais (etapas 1 a 5.3)
+Gerado em 2026-10-13T23:11Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu
 
 -- aplicando 0001_fundacao_infra.sql
 -- aplicando 0002_fundacao_cadastros.sql
@@ -10,6 +10,7 @@ Gerado em 2026-10-13T22:13Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 -- aplicando 0007_etapa4_cartoes.sql
 -- aplicando 0008_etapa5_importacao_extratos.sql
 -- aplicando 0009_etapa5_leitores_bancos.sql
+-- aplicando 0010_etapa5_importacao_faturas.sql
 -- testes 05_auxiliares.sql
 -- testes 100_etapa4_cartoes.sql
   OK: fecha dia 3 / vence dia 10: compra em 02/10 vence em outubro
@@ -257,7 +258,7 @@ Gerado em 2026-10-13T22:13Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
   OK: INVARIANTE: nenhuma chave de importação repetida
 == 130_etapa5_concorrencia: concluído ==
 -- testes 140_etapa5_leitores.sql
-  OK: versão do esquema: 5.2
+  OK: versão do esquema: 5.2 ou posterior
   OK: homologados só Nubank (CSV da conta) e Itaú (PDF da conta)
   OK: formato desconhecido continua recusado
   OK: importação em PDF aceita
@@ -266,6 +267,69 @@ Gerado em 2026-10-13T22:13Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
   OK: o que já entrou pelo CSV genérico aparece como possível duplicado, desmarcado
   OK: na troca de leitor nada é lançado duas vezes
   OK: leitor do Nubank usa o identificador do banco como chave
+-- testes 150_etapa5_faturas.sql
+  OK: antes: fatura 10/2026 tem TV 4/10, Brinquedos 2/3, Celular 1/2 e a padaria (R$ 468,96)
+  OK: antes: fatura 11/2026 tem TV 5/10, Brinquedos 3/3 e Celular 2/2 (R$ 450,01)
+  OK: soma dos lançamentos diferente do total do banco: recusada
+  OK: sem o PDF original guardado: recusada
+  OK: compra com valor negativo é recusada
+  OK: sugestões: nova a partir da 4ª; já lançadas (com ajuste de centavos); duplicado; padaria repetida é outra compra; antecipações; crédito e IOF
+  OK: antecipação da Drogaria aponta para a compra que nasce nesta importação
+  OK: categoria sugerida pelo histórico (Padaria → Alimentação)
+  OK: antecipação mostra de qual fatura a parcela sai
+  OK: a prévia não muda nada
+  OK: a mesma fatura não entra duas vezes
+  OK: compra lançada depois da prévia: confirmação recusada (refazer a prévia)
+  OK: mesmo cancelada depois, a prévia continua velha (o estado mudou)
+  OK: versão desatualizada recusada
+  OK: confirmada: 6 lançados, 3 já existiam, 3 antecipados, 3 ajustes de centavos, 1 ignorado (o duplicado)
+  OK: fatura 10/2026 = total do banco (R$ 911,19)
+  OK: fatura recebe as datas reais e o total do banco (conferência)
+  OK: fatura 11/2026: TV 5/10 + Brinquedos 3/3 + Loja Nova 5/12 (Celular 2/2 antecipado) = R$ 520,01
+  OK: Drogaria: 1ª parcela criada, 2ª e 3ª antecipadas para esta fatura com o valor do banco
+  OK: total da compra acompanha o ajuste de centavos (R$ 261,49)
+  OK: Loja Nova: compra criada da 4ª à 12ª parcela, com a categoria escolhida
+  OK: Brinquedos: só a parcela desta fatura recebe o valor do banco
+  OK: IOF entra como encargo
+  OK: duas padarias: a lançada à mão e a segunda da fatura
+  OK: Celular 2/2 marcado como antecipado, guardando a fatura original
+  OK: importação confirmada não é confirmada de novo
+  OK: baixada de novo: tudo reconhecido (a padaria deixada de fora continua como possível duplicado da lançada à mão)
+  OK: confirmar a cópia marcando tudo: nada já lançado se repete; só entra a padaria duvidosa que a pessoa marcou
+  OK: desfazer a cópia tira só o que ela lançou
+  OK: Tom não vê importações de fatura da Rosa
+  OK: Tom não desfaz importação da Rosa
+  OK: Tom não importa no cartão da Rosa
+  OK: fora da importação, o valor da parcela continua sem poder mudar
+  OK: desfeita: fatura 10/2026 volta a R$ 468,96
+  OK: desfeita: fatura 11/2026 volta a R$ 450,01 (Celular volta e Loja Nova sai)
+  OK: desfeita: o ajuste de centavos volta
+  OK: desfeita: o total informado volta ao que era (vazio)
+  OK: desfeita: compras criadas pela importação ficam canceladas (nada é apagado)
+  OK: não desfaz duas vezes
+  OK: depois de desfeita, a mesma fatura pode ser importada de novo e fecha com o banco
+  OK: cartão cadastrado para vencer dia 8: a fatura de 10/2026 nasce com as datas do cadastro
+  OK: ao confirmar, a fatura passa a ter as datas reais do banco (03/10 e 13/10)
+  OK: a conta a pagar da fatura acompanha o vencimento real
+  OK: desfeita: as datas voltam às do cadastro
+  OK: antecipação com desconto já feita no Simplifica: parcelas e a linha de desconto reconhecidas; parcela lançada noutra fatura vira possível duplicado
+  OK: possível duplicado mostra em que fatura a parcela está
+  OK: o desconto não entra duas vezes e a bicicleta (deixada de fora) não duplica: fatura = R$ 295,00
+  OK: exportação inclui as importações de fatura e seus itens
+  OK: exclusão da conta apaga importações de fatura, itens e compras
+-- testes 160_etapa5_faturas_concorrencia.sql
+  OK: F1: primeira confirmação em andamento (2 lançamentos)
+  OK: F1: segunda ESPERA a primeira (cartão travado)
+  OK: F1: segunda é recusada (prévia ficou velha): nada lançado em dobro
+  OK: F1: só uma vez — Loja em 3x (R$ 900) + Mercado (R$ 50)
+  OK: F2: primeira confirmação em andamento
+  OK: F2: segunda espera
+  OK: F2: segunda é recusada (já confirmada)
+  OK: F2: nada em dobro
+  OK: F3: fatura de novembro reconhece a parcela 2/3 já criada
+  OK: F3: compra à mão espera a importação terminar
+  OK: F3: depois, a compra à mão entra normalmente
+  OK: F3: R$ 950 + Feira R$ 10
 -- testes 20_correcoes_revisao.sql
   OK: conta_atualizar sem versão é recusada
   OK: conta_definir_ativa sem versão é recusada
@@ -719,8 +783,8 @@ Gerado em 2026-10-13T22:13Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
   OK: exclusão com confirmação divergente é rejeitada — HTTP 400
   OK: exclusão com confirmação e-mail do usuário B é rejeitada — HTTP 400
   OK: arquivos de A intactos após confirmações inválidas — 2 arquivo(s)
-  OK: exclusão com o e-mail correto é concluída (com uploads simultâneos) — HTTP 200 {"status":"concluida","arquivos_removidos":4}; uploads aceitos durante a corrida: 2 de 5
-  OK: todos os arquivos de A (inclusive os da corrida) foram removidos — removidos: 4; esperado ao menos 4
+  OK: exclusão com o e-mail correto é concluída (com uploads simultâneos) — HTTP 200 {"status":"concluida","arquivos_removidos":5}; uploads aceitos durante a corrida: 3 de 5
+  OK: todos os arquivos de A (inclusive os da corrida) foram removidos — removidos: 5; esperado ao menos 5
   OK: token antigo de A não consegue mais enviar arquivo — HTTP 400
   OK: A não consegue mais entrar — HTTP 400
   OK: B continua entrando normalmente — HTTP 200
@@ -729,31 +793,41 @@ Gerado em 2026-10-13T22:13Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 == Página de validação: VALIDAÇÃO APROVADA — 28 verificações ==
 == RESULTADO: todos os testes passaram ==
 
--- testes unitários do site (leitores OFX, CSV, CSV do Nubank, PDF do Itaú; dinheiro)
+-- testes unitários do site (leitores de extrato e de fatura; dinheiro)
 ok 1 - lerValor: formatos brasileiros
 ok 2 - lerValor: entradas inválidas
 ok 3 - lerValor: sem perda por ponto flutuante
 ok 4 - formatarCentavos
 ok 5 - ida e volta campo ↔ centavos
 ok 6 - datas
-ok 7 - OFX 1.x (SGML): lê conta, período, saldo e lançamentos; erros ficam visíveis
-ok 8 - OFX 2.x (XML) e OFX de cartão de crédito
-ok 9 - valor OFX não aceita separador de milhar nem casas significativas além da 2ª
-ok 10 - arquivo em Windows-1252 é lido com acentos corretos
-ok 11 - valores de CSV em formatos brasileiros e americanos
-ok 12 - datas de CSV
-ok 13 - CSV com cabeçalho, aspas e ponto e vírgula; mapeamento sugerido e linhas inválidas apontadas
-ok 14 - CSV com débito e crédito em colunas separadas, e sinal invertido
-ok 15 - extrairLinhas agrupa itens na mesma altura e ordena da esquerda para a direita
-ok 16 - Itaú: reconhece o extrato e ignora outros PDFs
-ok 17 - Itaú: lê os lançamentos e confere cada dia com o SALDO DO DIA
-ok 18 - Itaú: dia que não fecha bloqueia a leitura (lançamento faltando ou valor errado)
-ok 19 - Itaú: diferença só no dia da emissão (dia ainda aberto no banco) vira aviso, não erro
-ok 20 - Itaú: valor na coluna de saldo para um lançamento é erro; dia sem SALDO DO DIA é erro
-ok 21 - Itaú: valor fora do padrão é erro de leitura
-ok 22 - Nubank: reconhece o cabeçalho exato (com ou sem BOM)
-ok 23 - Nubank: lê valores com ponto decimal, identificador e descrição com vírgula
-ok 24 - Nubank: fora do padrão é erro (vírgula decimal, identificador inválido ou repetido, data)
-# tests 24
-# pass 24
+ok 7 - utilidades: valores, parcelas e ano das datas
+ok 8 - Nubank: reconhece a fatura (e não outros PDFs)
+ok 9 - Nubank: lê lançamentos, parcelas, antecipação, IOF, créditos e pagamentos
+ok 10 - Nubank: soma diferente do subtotal do banco bloqueia (lançamento faltando)
+ok 11 - Nubank: linha com data e sem valor reconhecível é erro
+ok 12 - Itaú: reconhece a fatura (e não o extrato)
+ok 13 - Itaú: lê a coluna da esquerda e depois a da direita, só a seção de lançamentos
+ok 14 - Itaú: soma diferente do total dos lançamentos atuais bloqueia
+ok 15 - Itaú: sem o total dos lançamentos não há conferência, e a leitura é recusada
+ok 16 - Itaú: 'próximas faturas' encerra os lançamentos mesmo quando o total vem depois (na outra coluna)
+ok 17 - OFX 1.x (SGML): lê conta, período, saldo e lançamentos; erros ficam visíveis
+ok 18 - OFX 2.x (XML) e OFX de cartão de crédito
+ok 19 - valor OFX não aceita separador de milhar nem casas significativas além da 2ª
+ok 20 - arquivo em Windows-1252 é lido com acentos corretos
+ok 21 - valores de CSV em formatos brasileiros e americanos
+ok 22 - datas de CSV
+ok 23 - CSV com cabeçalho, aspas e ponto e vírgula; mapeamento sugerido e linhas inválidas apontadas
+ok 24 - CSV com débito e crédito em colunas separadas, e sinal invertido
+ok 25 - extrairLinhas agrupa itens na mesma altura e ordena da esquerda para a direita
+ok 26 - Itaú: reconhece o extrato e ignora outros PDFs
+ok 27 - Itaú: lê os lançamentos e confere cada dia com o SALDO DO DIA
+ok 28 - Itaú: dia que não fecha bloqueia a leitura (lançamento faltando ou valor errado)
+ok 29 - Itaú: diferença só no dia da emissão (dia ainda aberto no banco) vira aviso, não erro
+ok 30 - Itaú: valor na coluna de saldo para um lançamento é erro; dia sem SALDO DO DIA é erro
+ok 31 - Itaú: valor fora do padrão é erro de leitura
+ok 32 - Nubank: reconhece o cabeçalho exato (com ou sem BOM)
+ok 33 - Nubank: lê valores com ponto decimal, identificador e descrição com vírgula
+ok 34 - Nubank: fora do padrão é erro (vírgula decimal, identificador inválido ou repetido, data)
+# tests 34
+# pass 34
 # fail 0

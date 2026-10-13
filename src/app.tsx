@@ -8,6 +8,7 @@ import { TelaContas } from "./telas/contas";
 import { TelaContasAPagar } from "./telas/contas-a-pagar";
 import { TelaExtrato } from "./telas/extrato";
 import { TelaImportar } from "./telas/importar";
+import { TelaImportarFatura } from "./telas/importar-fatura";
 import { TelaMinhaConta } from "./telas/minha-conta";
 import { TelaResumo } from "./telas/resumo";
 import { TelaSaldos } from "./telas/saldos";
@@ -85,7 +86,7 @@ export function App() {
 
 function Casca({ rota, aoExcluir }: { rota: string; aoExcluir: () => void }) {
   const { carregando, erro, perfil } = useCadastros();
-  const ativo = (r: string) => rota === r || (r === "/saldos" && (rota.startsWith("/conta/") || rota.startsWith("/importar"))) || (r === "/cartoes" && rota.startsWith("/cartao/"));
+  const ativo = (r: string) => rota === r || (r === "/saldos" && (rota.startsWith("/conta/") || /^\/importar(\/|$)/.test(rota))) || (r === "/cartoes" && (rota.startsWith("/cartao/") || rota.startsWith("/importar-fatura/")));
   useEffect(() => { window.scrollTo(0, 0); }, [rota]);
 
   let tela: React.ReactNode;
@@ -95,6 +96,7 @@ function Casca({ rota, aoExcluir }: { rota: string; aoExcluir: () => void }) {
   else if (cartao) tela = <TelaCartao key={rota} cartaoId={cartao[1]} mesInicial={cartao[2]} />;
   else if (rota === "/cartoes") tela = <TelaCartoes />;
   else if (/^\/importar(\/[0-9a-f-]{36})?$/.test(rota)) tela = <TelaImportar key={rota} contaId={rota.split("/")[2]} />;
+  else if (/^\/importar-fatura\/[0-9a-f-]{36}$/.test(rota)) tela = <TelaImportarFatura key={rota} cartaoId={rota.split("/")[2]} />;
   else if (rota === "/contas") tela = <TelaContas />;
   else if (rota === "/a-pagar") tela = <TelaContasAPagar />;
   else if (rota === "/resumo") tela = <TelaResumo />;

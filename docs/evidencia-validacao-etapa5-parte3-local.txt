@@ -1,0 +1,30 @@
+Simplifica Finanças v2 — validação da Etapa 5 parte 3 executada localmente (mesmo SQL que vai para o Supabase)
+Gerado em 2026-10-13T23:05Z
+
+1) Banco novo com 0001–0010: os oito roteiros de validação
+   01_validar_banco_no_supabase: VALIDAÇÃO APROVADA: 74 de 74 verificações OK.
+   03_validar_etapa2_no_supabase: VALIDAÇÃO APROVADA: 63 de 63 verificações OK.
+   04_validar_cancelamento_parcial_no_supabase: VALIDAÇÃO APROVADA: 30 de 30 verificações OK.
+   05_validar_etapa3_no_supabase: VALIDAÇÃO APROVADA: 77 de 77 verificações OK.
+   06_validar_etapa4_no_supabase: VALIDAÇÃO APROVADA: 82 de 82 verificações OK.
+   07_validar_etapa5_importacao_no_supabase: VALIDAÇÃO APROVADA: 49 de 49 verificações OK.
+   08_validar_etapa5_leitores_no_supabase: VALIDAÇÃO APROVADA: 26 de 26 verificações OK.
+   09_validar_etapa5_faturas_no_supabase: VALIDAÇÃO APROVADA: 40 de 40 verificações OK.
+   Depois: 0 usuários e 0 arquivos no banco (tudo desfeito).
+
+2) O roteiro 09 reprova um banco em que o acerto de centavos foi retirado (mutação 'sem tolerância de centavos'):
+   VALIDAÇÃO REPROVADA: 34 de 40 OK, 6 falha(s): #32 sugestões: nova da 4ª; já lançadas (centavos −2); duplicado; padaria repetida; antecipações; desconto; IOF: esperado novo:true ja_lancado:false ja_lancado:false:-2 possivel_duplicado:false novo:true novo:true antecipar:true antecipar:true novo:true novo:true, obtido novo:true ja_lancado:false novo:true possivel_duplicado:false novo:true novo:true antecipar:true antecipar:true novo:true novo:true #35 confirma: 5 lançados, 2 já existiam, 2 antecipados, 3 acertos de centavos, 1 de fora: esperado confirmada 5 2 2 3 1, obtido confirmada 6 1 2 2 1 
+
+3) Atualização de um banco já em uso (0009 com dados) para a 0010
+== banco na versão anterior (0009) com dados: cartão com compra em 12x, antecipação com desconto, fatura de 10/2026 com total do banco e paga ==
+antes:
+  faturas=10/26:25000:paga,11/26:29000:aberta,12/26:10000:aberta,01/27:10000:aberta,02/27:10000:aberta,03/27:10000:aberta,04/27:10000:aberta,05/27:10000:aberta,06/27:10000:aberta,07/27:10000:aberta,08/27:0:aberta,09/27:0:aberta compras=2 parcelas=13 informado10=25000 saldo=475000 a_pagar=Fatura Nubank 10/2026:aberta,Fatura Nubank 11/2026:aberta
+== aplica 0010 ==
+COMMIT
+depois:
+  faturas=10/26:25000:paga,11/26:29000:aberta,12/26:10000:aberta,01/27:10000:aberta,02/27:10000:aberta,03/27:10000:aberta,04/27:10000:aberta,05/27:10000:aberta,06/27:10000:aberta,07/27:10000:aberta,08/27:0:aberta,09/27:0:aberta compras=2 parcelas=13 informado10=25000 saldo=475000 a_pagar=Fatura Nubank 10/2026:aberta,Fatura Nubank 11/2026:aberta
+etapa: 5.3-importacao-faturas
+== reaplicar 0010 por engano é recusado sem alterar nada ==
+ABORTADO: este banco não está na Etapa 5 parte 2 (0009) do Simplifica v2. Nada foi alterado.
+depois da tentativa:
+  faturas=10/26:25000:paga,11/26:29000:aberta,12/26:10000:aberta,01/27:10000:aberta,02/27:10000:aberta,03/27:10000:aberta,04/27:10000:aberta,05/27:10000:aberta,06/27:10000:aberta,07/27:10000:aberta,08/27:0:aberta,09/27:0:aberta compras=2 parcelas=13 informado10=25000 saldo=475000 a_pagar=Fatura Nubank 10/2026:aberta,Fatura Nubank 11/2026:aberta

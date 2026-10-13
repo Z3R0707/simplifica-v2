@@ -176,6 +176,7 @@ export function TelaCartao({ cartaoId, mesInicial }: { cartaoId: string; mesInic
             <button type="button" className="botao-secundario botao-icone" aria-label="Próxima fatura" onClick={() => setMes(somarMeses(mesVisto, 1))}>›</button>
           </div>
         )}
+        {resumo?.ativo && <a className="botao-secundario" href={`#/importar-fatura/${cartaoId}`}>Importar fatura</a>}
         {resumo?.ativo && <button type="button" className="botao" onClick={() => setAcao({ tipo: "compra" })}>Nova compra</button>}
       </TituloPagina>
       {(cartaoQ.erro || faturaQ.erro) && <Alerta>{cartaoQ.erro ?? faturaQ.erro}</Alerta>}

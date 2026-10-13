@@ -1,7 +1,7 @@
 // Leitor do EXTRATO DA CONTA do Nubank em CSV (exportação do app).
 // Feito e conferido com arquivo real. Layout exato:
 //   Data,Valor,Identificador,Descrição
-//   02/10/2026,-196.00,6ac005b6-…,Transferência enviada pelo Pix - …
+//   01/01/2026,-10.00,11111111-…,Transferência enviada pelo Pix - …
 // Data dd/mm/aaaa; valor com ponto decimal e sinal (saída negativa);
 // identificador único do banco por lançamento (usado contra duplicidade).
 // A descrição é a última coluna: se tiver vírgula, as partes são reunidas.

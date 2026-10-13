@@ -1,0 +1,68 @@
+Simplifica Finanças v2 — Etapa 5 parte 3 (0010): testes de mutação
+Gerado em 2026-10-13T23:11Z.
+
+1) Banco: cada linha retira UMA proteção da 0010 e roda os testes 150 e 160.
+
+MUTAÇÃO [soma dos itens não conferida] DETECTADA
+   150_etapa5_faturas.sql: FALHOU: soma dos lançamentos diferente do total do banco: recusada — o comando deveria ter falhado (22023)
+   160_etapa5_faturas_concorrencia.sql: (nenhuma falha)
+MUTAÇÃO [prévia velha aceita (sem carimbo)] DETECTADA
+   150_etapa5_faturas.sql: FALHOU: compra lançada depois da prévia: confirmação recusada (refazer a prévia) — o comando deveria ter falhado (40001)
+   160_etapa5_faturas_concorrencia.sql: FALHOU: F1: segunda é recusada (prévia ficou velha): nada lançado em dobro — esperado ERRO:40001, obtido 1
+MUTAÇÃO [confirmar sem travar o cartão] DETECTADA
+   150_etapa5_faturas.sql: (nenhuma falha)
+   160_etapa5_faturas_concorrencia.sql: FALHOU: F3: compra à mão espera a importação terminar — esperado t, obtido f
+MUTAÇÃO [sem tolerância de centavos] DETECTADA
+   150_etapa5_faturas.sql: FALHOU: sugestões: nova a partir da 4ª; já lançadas (com ajuste de centavos); duplicado; padaria repetida é outra compra; antecipações; crédito e IOF — esperado novo:true ja_lancado:false ja_lancado:f
+   160_etapa5_faturas_concorrencia.sql: (nenhuma falha)
+MUTAÇÃO [sem reconhecer item já importado (chave)] DETECTADA
+   150_etapa5_faturas.sql: FALHOU: baixada de novo: tudo reconhecido (a padaria deixada de fora continua como possível duplicado da lançada à mão) — esperado ja_lancado ja_lancado ja_lancado possivel_duplicado ja_importado ja_l
+   160_etapa5_faturas_concorrencia.sql: (nenhuma falha)
+MUTAÇÃO [desconto de antecipação não reconhecido] DETECTADA
+   150_etapa5_faturas.sql: FALHOU: antecipação com desconto já feita no Simplifica: parcelas e a linha de desconto reconhecidas; parcela lançada noutra fatura vira possível duplicado — esperado ja_lancado ja_lancado ja_lancado 
+   160_etapa5_faturas_concorrencia.sql: (nenhuma falha)
+MUTAÇÃO [valor de parcela livre fora da importação] DETECTADA
+   150_etapa5_faturas.sql: FALHOU: fora da importação, o valor da parcela continua sem poder mudar — o comando deveria ter falhado (22023)
+   160_etapa5_faturas_concorrencia.sql: (nenhuma falha)
+MUTAÇÃO [desfazer não devolve os centavos] DETECTADA
+   150_etapa5_faturas.sql: FALHOU: desfeita: fatura 10/2026 volta a R$ 468,96 — esperado 46896, obtido 46894
+   160_etapa5_faturas_concorrencia.sql: (nenhuma falha)
+MUTAÇÃO [desfazer não devolve as antecipações] DETECTADA
+   150_etapa5_faturas.sql: FALHOU: desfeita: fatura 10/2026 volta a R$ 468,96 — esperado 46896, obtido 51896
+   160_etapa5_faturas_concorrencia.sql: (nenhuma falha)
+MUTAÇÃO [confirmar não antecipa] DETECTADA
+   150_etapa5_faturas.sql: FALHOU: fatura 10/2026 = total do banco (R$ 911,19) — esperado 91119, obtido 68687
+   160_etapa5_faturas_concorrencia.sql: (nenhuma falha)
+MUTAÇÃO [confirmar não acerta os centavos de parcela já lançada] DETECTADA
+   150_etapa5_faturas.sql: FALHOU: confirmada: 6 lançados, 3 já existiam, 3 antecipados, 3 ajustes de centavos, 1 ignorado (o duplicado) — esperado confirmada 6 3 3 3 1, obtido confirmada 6 3 3 2 1
+   160_etapa5_faturas_concorrencia.sql: (nenhuma falha)
+MUTAÇÃO [desmarcado entra mesmo assim] DETECTADA
+   150_etapa5_faturas.sql: FALHOU: confirmada: 6 lançados, 3 já existiam, 3 antecipados, 3 ajustes de centavos, 1 ignorado (o duplicado) — esperado confirmada 6 3 3 3 1, obtido confirmada 7 3 3 3 0
+   160_etapa5_faturas_concorrencia.sql: (nenhuma falha)
+MUTAÇÃO [parcela de outra fatura vira nova (sem possível duplicado)] DETECTADA
+   150_etapa5_faturas.sql: FALHOU: antecipação com desconto já feita no Simplifica: parcelas e a linha de desconto reconhecidas; parcela lançada noutra fatura vira possível duplicado — esperado ja_lancado ja_lancado ja_lancado 
+   160_etapa5_faturas_concorrencia.sql: (nenhuma falha)
+MUTAÇÃO [fatura não recebe datas e total do banco] DETECTADA
+   150_etapa5_faturas.sql: FALHOU: ao confirmar, a fatura passa a ter as datas reais do banco (03/10 e 13/10) — esperado 2026-10-03 2026-10-13 1800, obtido 2026-10-03 2026-10-08 1800
+   160_etapa5_faturas_concorrencia.sql: (nenhuma falha)
+MUTAÇÃO [compra à vista parecida não vira possível duplicado] DETECTADA
+   150_etapa5_faturas.sql: FALHOU: sugestões: nova a partir da 4ª; já lançadas (com ajuste de centavos); duplicado; padaria repetida é outra compra; antecipações; crédito e IOF — esperado novo:true ja_lancado:false ja_lancado:f
+   160_etapa5_faturas_concorrencia.sql: (nenhuma falha)
+RESUMO: 15 de 15 mutações detectadas pelos testes 150/160.
+
+2) Leitores de fatura: cada linha estraga UMA regra de um leitor e roda os testes unitários (todos passando antes de cada mutação).
+
+DETECTADA Nubank: pagamentos entram como lançamentos
+DETECTADA Nubank: subtotal dos portadores ignorado
+DETECTADA Nubank: antecipação não marcada
+DETECTADA Nubank: desconto de antecipação não marcado
+DETECTADA Nubank: final do cartão fica na descrição
+DETECTADA Nubank: total a pagar da simulação de parcelamento
+DETECTADA Itaú: colunas não separadas
+DETECTADA Itaú: próximas faturas entram como lançamentos
+DETECTADA Itaú: letras da margem atrapalham a seção
+DETECTADA Itaú: IOF vira compra
+DETECTADA Comum: soma não conferida
+DETECTADA Comum: ano de dezembro numa fatura de janeiro
+DETECTADA Comum: parcela maior que o total aceita
+13/13

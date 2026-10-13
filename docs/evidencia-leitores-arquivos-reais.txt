@@ -1,4 +1,4 @@
-Simplifica Finanças v2 — Etapa 5 parte 2: leitores conferidos com os arquivos REAIS do usuário
+Simplifica Finanças v2 — Etapa 5 partes 2 e 3: leitores conferidos com os arquivos REAIS do usuário
 Gerado em 2026-10-13
 
 Os arquivos reais NÃO estão neste repositório. Foram usados só no ambiente de
@@ -24,3 +24,23 @@ resumo (quantidades e resultado da conferência), sem descrições nem valores.
    - 47 lançamentos lidos, de 02/10/2026 a 12/10/2026; 0 erros; 47 identificadores distintos.
    - Mesmo número de lançamentos que a importação feita antes pelo CSV genérico (47).
    - Os dois arquivos enviados ("extrato_nubank.csv" e "Nubank_fatura.csv") são o mesmo extrato da conta.
+
+3) Fatura do cartão Nubank em PDF (Etapa 5 parte 3)
+   Leitura no Node e no Chromium (mesmo pdf.js do site): resultado idêntico, 0 erros de JavaScript.
+   - 46 lançamentos (2 finais de cartão), 4 linhas de pagamento separadas (não viram compras).
+   - Soma dos lançamentos = subtotal de transações do portador = compras + IOF + outros
+     lançamentos do resumo da fatura (confere ao centavo).
+   - Reconhecidos: 8 compras parceladas (3 começando na 1ª parcela), 3 parcelas antecipadas
+     com 2 linhas de desconto de antecipação, 1 IOF, 1 lançamento sem final de cartão (NuPay).
+   - Importação local de teste (usuário fictício, banco descartável): 43 lançados, 3 antecipados
+     (2 com acerto de centavos); total da fatura no Simplifica = total do banco.
+   - Previsão das próximas faturas a poucos centavos da previsão do banco: a diferença é o
+     arredondamento que o banco põe na 1ª parcela; é acertada ao importar a fatura seguinte.
+
+4) Fatura do cartão Itaú em PDF (Etapa 5 parte 3)
+   - Layout em duas colunas; 11 lançamentos (4 parcelados, um deles na 5ª de 10 parcelas,
+     com a data original da compra), 1 pagamento separado.
+   - Soma dos lançamentos = "Total dos lançamentos atuais" (confere ao centavo).
+   - A lista "Compras parceladas - próximas faturas" (inclusive a parte que continua na coluna
+     da direita) não entra como lançamento.
+   - Importação local de teste: 11 lançados; total da fatura no Simplifica = total do banco.

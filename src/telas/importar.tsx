@@ -7,6 +7,8 @@ import { lerCsvBruto, mapearCsv, sugerirMapa, type MapaCsv } from "../lib/import
 import { ehOfx, lerOfx } from "../lib/importadores/ofx";
 import { ehNubankCsv, lerNubankCsv } from "../lib/importadores/nubank-csv";
 import { lerItauExtratoPdf, reconheceItauExtrato } from "../lib/importadores/itau-extrato-pdf";
+import { reconheceItauFatura } from "../lib/importadores/itau-fatura-pdf";
+import { reconheceNubankFatura } from "../lib/importadores/nubank-fatura-pdf";
 import { lerLinhasPdfNoNavegador } from "../lib/importadores/pdf";
 import { PDFJS_BASE } from "../config";
 import type { Classificacao } from "../lib/tipos";
@@ -101,9 +103,12 @@ export function TelaImportar({ contaId }: { contaId?: string }) {
           setLidoPdf(lerItauExtratoPdf(linhas));
           return setArquivo({ nome: f.name, bytes, texto: "", extensao: "pdf" });
         }
+        if (reconheceNubankFatura(linhas) || reconheceItauFatura(linhas)) {
+          return setErroArquivo("Isto é a fatura de um cartão, não o extrato da conta. Importe pela tela do cartão: Cartões → escolha o cartão → Importar fatura.");
+        }
         const topo = linhas.slice(0, 80).map((l) => l.texto.toLowerCase()).join(" ");
         if (/fatura/.test(topo) && /vencimento/.test(topo)) {
-          return setErroArquivo("Isto parece uma fatura de cartão. A importação de faturas em PDF vem na próxima parte; por enquanto lance as compras pela tela do cartão.");
+          return setErroArquivo("Isto parece uma fatura de cartão de um banco cuja fatura ainda não é lida. Por enquanto lance as compras pela tela do cartão.");
         }
         return setErroArquivo("Não reconheci este PDF. Em PDF, por enquanto, só o extrato da conta do Itaú é lido. Para outros bancos use OFX ou CSV.");
       } catch (e) {

@@ -1,5 +1,5 @@
-Simplifica Finanças v2 — teste do site num navegador real (Chromium) contra o Supabase simulado com o SQL real (0001–0009)
-Gerado em 2026-10-13T22:13Z
+Simplifica Finanças v2 — teste do site num navegador real (Chromium) contra o Supabase simulado com o SQL real (0001–0010)
+Gerado em 2026-10-13T23:08Z
 
   OK: tela de entrar abre
   OK: senha curta recusada no cadastro
@@ -127,6 +127,15 @@ Gerado em 2026-10-13T22:13Z
   OK: saldo do Itaú depois do PDF: 3.930,00 − 12,34 + 250,00 − 7,00 = R$ 4.160,66
   OK: CSV do Nubank reconhecido sem pedir as colunas
   OK: arquivo do Nubank numa conta do Itaú gera aviso
+  OK: fatura cuja soma não bate com o total do banco é recusada
+  OK: extrato escolhido na tela de fatura é explicado
+  OK: fatura do Nubank lida no navegador e conferida com o total do banco
+  OK: prévia: TV 1/10, as 3 antecipadas e o desconto já estavam; o estorno é possível duplicado; padaria e IOF são novos
+  OK: parcela já lançada é mostrada com a compra do Simplifica
+  OK: importação: 2 novos, 5 já existentes
+  OK: histórico: fatura do Simplifica confere com o total do banco
+  OK: fatura 11/2026: R$ 350,00 + padaria + IOF = R$ 376,99
+  OK: compra importada com a categoria escolhida
   OK: sessão expirada é renovada sem pedir login
   OK: exportação traz contas e lançamentos
   OK: exportação traz contas a pagar, pagamentos e recorrências
@@ -142,4 +151,4 @@ Gerado em 2026-10-13T22:13Z
   OK: contas, lançamentos e contas a pagar da conta excluída removidos do banco
   OK: segundo usuário continua usando normalmente
   OK: nenhum erro de JavaScript no navegador
-== Site (navegador): 141 verificações aprovadas ==
+== Site (navegador): 150 verificações aprovadas ==
