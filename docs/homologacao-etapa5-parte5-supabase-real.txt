@@ -1,0 +1,8 @@
+Simplifica Finanças v2 — homologação da Etapa 5 parte 5 (0012, faturas de Santander, Mercado Pago, Sicredi, Sicoob e Riachuelo) no Supabase real (projeto simplifica-v2)
+Data: 2026-10-13 (horário de Brasília), executada pelo usuário no SQL Editor; resultados enviados em capturas de tela.
+
+1) Migração: 0012_etapa5_leitores_faturas.sql → "Success. No rows returned" (etapa 5.5-leitores-faturas)
+2) Validação: 11_validar_etapa5_leitores_faturas_no_supabase.sql → VALIDAÇÃO APROVADA: 16 de 16 (rollback)
+3) Regressão: 01 → 74 de 74 · 03 → 63 de 63 · 04 → 30 de 30 · 05 → 77 de 77 · 06 → 82 de 82 · 07 → 49 de 49 · 08 → 26 de 26 · 09 → 40 de 40 · 10 → 15 de 15
+   Todos com rollback: nenhum usuário, arquivo ou dado de teste ficou gravado.
+4) Site: aguardando autorização do usuário.
