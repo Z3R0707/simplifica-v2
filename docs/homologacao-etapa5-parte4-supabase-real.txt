@@ -5,5 +5,5 @@ Data: 2026-10-13 (horário de Brasília), executada pelo usuário no SQL Editor;
 2) Validação: 10_validar_etapa5_valor_parcela_no_supabase.sql → VALIDAÇÃO APROVADA: 15 de 15 (rollback)
 3) Regressão (roteiros 03 a 09 com a guarda "esta etapa ou posterior"):
    03 → 63 de 63 · 04 → 30 de 30 · 05 → 77 de 77 · 06 → 82 de 82 · 07 → 49 de 49 · 08 → 26 de 26 · 09 → 40 de 40
-   01 → pendente (pedido ao usuário)
+   01 → 74 de 74
 4) Site: aguardando autorização do usuário.
