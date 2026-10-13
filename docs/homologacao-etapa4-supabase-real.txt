@@ -16,3 +16,13 @@ Data: 13/10/2026 (horário de Brasília)
 
 Situação: banco da Etapa 4 homologado no Supabase real.
 Pendente: confirmação das regras (fechamento; resumo pelo vencimento da fatura), publicar o site com a aba "Cartões" (após autorização) e conferir no site real.
+
+4) Site real (Netlify, após autorização do usuário em 13/10/2026)
+   Publicado o commit da Etapa 4. Conferido pelo usuário, com a própria conta:
+   - cartão Nubank (fecha 7, vence 8, limite R$ 8.000); compras de 13/10 caem na fatura que fecha 07/11 e vence 08/11
+     (compra depois do fechamento de outubro → fatura seguinte);
+   - parcelas 1/3 (R$ 100) e 1/2 (R$ 150): fatura de novembro R$ 250,00; limite em uso R$ 600 (inclui parcelas futuras),
+     disponível R$ 7.400,00;
+   - A pagar: "Fatura Nubank 11/2026" aparece UMA vez, R$ 250,00, com "Ver fatura" e sem edição manual;
+     as parcelas não viram contas a pagar separadas.
+Situação: Etapa 4 homologada (banco e site reais).
