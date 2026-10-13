@@ -12,19 +12,32 @@ type Props = {
   aoConcluir: () => void;
 };
 
-const SENTIDO_PADRAO: Record<Classificacao, "debito" | "credito"> = {
-  despesa: "debito",
-  receita: "credito",
-  nao_classificado: "debito",
+// Tipo escolhido na tela. Despesa sempre sai e receita sempre entra; o
+// sentido só é livre em "Sem categoria". Estorno (despesa que volta) é uma
+// escolha explícita, para não acontecer por engano.
+type TipoTela = "despesa" | "receita" | "estorno" | "devolucao_receita" | "sem_categoria";
+const MAPA_TIPO: Record<Exclude<TipoTela, "sem_categoria">, { classificacao: Classificacao; natureza: "debito" | "credito" }> = {
+  despesa: { classificacao: "despesa", natureza: "debito" },
+  receita: { classificacao: "receita", natureza: "credito" },
+  estorno: { classificacao: "despesa", natureza: "credito" },
+  devolucao_receita: { classificacao: "receita", natureza: "debito" },
 };
+function tipoDoMovimento(m?: Movimento): TipoTela {
+  if (!m) return "despesa";
+  if (m.classificacao === "nao_classificado") return "sem_categoria";
+  if (m.classificacao === "despesa") return m.natureza === "credito" ? "estorno" : "despesa";
+  return m.natureza === "debito" ? "devolucao_receita" : "receita";
+}
 
 export function DialogoLancamento({ contaId, movimento, aoFechar, aoConcluir }: Props) {
   const { contas, categorias } = useCadastros();
   const editando = Boolean(movimento);
   const contasAtivas = contas.filter((c) => c.ativa || c.id === movimento?.conta_id);
   const [conta, setConta] = useState(movimento?.conta_id ?? contaId ?? contasAtivas[0]?.id ?? "");
-  const [classificacao, setClassificacao] = useState<Classificacao>(movimento?.classificacao ?? "despesa");
-  const [natureza, setNatureza] = useState<"debito" | "credito">(movimento?.natureza ?? "debito");
+  const [tipo, setTipo] = useState<TipoTela>(tipoDoMovimento(movimento));
+  const [naturezaLivre, setNaturezaLivre] = useState<"debito" | "credito">(movimento?.natureza ?? "debito");
+  const classificacao: Classificacao = tipo === "sem_categoria" ? "nao_classificado" : MAPA_TIPO[tipo].classificacao;
+  const natureza: "debito" | "credito" = tipo === "sem_categoria" ? naturezaLivre : MAPA_TIPO[tipo].natureza;
   const [valor, setValor] = useState(movimento ? centavosParaCampo(movimento.valor_centavos) : "");
   const [data, setData] = useState(movimento?.data_movimento ?? hoje());
   const [situacao, setSituacao] = useState<"efetivo" | "previsto">(movimento?.situacao === "previsto" ? "previsto" : "efetivo");
@@ -44,10 +57,11 @@ export function DialogoLancamento({ contaId, movimento, aoFechar, aoConcluir }: 
     ]);
   }, [categorias, classificacao, movimento?.categoria_id]);
 
-  function trocarClassificacao(c: Classificacao) {
-    setClassificacao(c);
-    setNatureza(SENTIDO_PADRAO[c]);
-    setCategoria("");
+  function trocarTipo(t: TipoTela) {
+    const antes = tipo === "sem_categoria" ? "nao_classificado" : MAPA_TIPO[tipo].classificacao;
+    const depois = t === "sem_categoria" ? "nao_classificado" : MAPA_TIPO[t].classificacao;
+    setTipo(t);
+    if (antes !== depois) setCategoria("");
   }
 
   function validar(): { centavos: number } | null {
@@ -111,25 +125,32 @@ export function DialogoLancamento({ contaId, movimento, aoFechar, aoConcluir }: 
 
         <fieldset className="campo opcoes">
           <legend>Tipo</legend>
-          <label><input type="radio" name="classificacao" checked={classificacao === "despesa"} onChange={() => trocarClassificacao("despesa")} /> Despesa</label>
-          <label><input type="radio" name="classificacao" checked={classificacao === "receita"} onChange={() => trocarClassificacao("receita")} /> Receita</label>
-          <label><input type="radio" name="classificacao" checked={classificacao === "nao_classificado"} onChange={() => trocarClassificacao("nao_classificado")} /> Sem categoria</label>
+          <label><input type="radio" name="tipo" checked={tipo === "despesa"} onChange={() => trocarTipo("despesa")} /> Despesa</label>
+          <label><input type="radio" name="tipo" checked={tipo === "receita"} onChange={() => trocarTipo("receita")} /> Receita</label>
+          <label><input type="radio" name="tipo" checked={tipo === "estorno"} onChange={() => trocarTipo("estorno")} /> Estorno de despesa</label>
+          {tipo === "devolucao_receita" && (
+            <label><input type="radio" name="tipo" checked onChange={() => trocarTipo("devolucao_receita")} /> Devolução de receita</label>
+          )}
+          <label><input type="radio" name="tipo" checked={tipo === "sem_categoria"} onChange={() => trocarTipo("sem_categoria")} /> Sem categoria</label>
+          <p className="campo-ajuda">
+            {tipo === "despesa" && "Dinheiro que saiu da conta."}
+            {tipo === "receita" && "Dinheiro que entrou na conta."}
+            {tipo === "estorno" && "Dinheiro que voltou para a conta por uma despesa desfeita (compra cancelada, reembolso). Entra na conta e reduz o total gasto na categoria."}
+            {tipo === "devolucao_receita" && "Dinheiro que saiu da conta por uma receita devolvida. Reduz o total recebido na categoria."}
+            {tipo === "sem_categoria" && "Escolha abaixo se o dinheiro entrou ou saiu. Não entra no resumo por categoria."}
+          </p>
         </fieldset>
 
-        <fieldset className="campo opcoes">
-          <legend>Na conta, o dinheiro</legend>
-          <label><input type="radio" name="natureza" checked={natureza === "debito"} onChange={() => setNatureza("debito")} /> Saiu</label>
-          <label><input type="radio" name="natureza" checked={natureza === "credito"} onChange={() => setNatureza("credito")} /> Entrou</label>
-          {classificacao === "despesa" && natureza === "credito" && (
-            <p className="campo-ajuda">Entrada como despesa é um estorno ou devolução: reduz o total gasto na categoria.</p>
-          )}
-          {classificacao === "receita" && natureza === "debito" && (
-            <p className="campo-ajuda">Saída como receita é uma devolução de receita: reduz o total recebido na categoria.</p>
-          )}
-        </fieldset>
+        {tipo === "sem_categoria" && (
+          <fieldset className="campo opcoes">
+            <legend>Na conta, o dinheiro</legend>
+            <label><input type="radio" name="natureza" checked={naturezaLivre === "debito"} onChange={() => setNaturezaLivre("debito")} /> Saiu</label>
+            <label><input type="radio" name="natureza" checked={naturezaLivre === "credito"} onChange={() => setNaturezaLivre("credito")} /> Entrou</label>
+          </fieldset>
+        )}
 
         <div className="grade-2">
-          <Campo rotulo="Valor (R$)" ajuda={lerValor(valor) ? formatarCentavos(lerValor(valor)!) : "Ex.: 125,90"}>
+          <Campo rotulo="Valor (R$)" ajuda={lerValor(valor) ? `${natureza === "credito" ? "Entra" : "Sai"} ${formatarCentavos(lerValor(valor)!)}` : "Ex.: 125,90"}>
             {(id) => <input id={id} inputMode="decimal" autoComplete="off" required value={valor} onChange={(e) => setValor(e.target.value)} />}
           </Campo>
           <Campo rotulo={situacao === "previsto" && !editando ? "Data prevista" : "Data"}>
