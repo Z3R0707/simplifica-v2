@@ -1,0 +1,21 @@
+Simplifica Finanças v2 — homologação da Etapa 5 parte 3 (0010, importação de faturas) no Supabase real (projeto simplifica-v2)
+Data: 2026-10-13 (horário de Brasília), executada pelo usuário no SQL Editor; resultados enviados em capturas de tela.
+
+1) Migração
+   0010_etapa5_importacao_faturas.sql → executada (última linha do resultado: aplicar_gatilhos_padrao); etapa 5.3-importacao-faturas
+
+2) Validação da etapa
+   09_validar_etapa5_faturas_no_supabase.sql → VALIDAÇÃO APROVADA: 40 de 40 verificações OK (rollback)
+
+3) Regressão (cópias com as guardas atualizadas para a etapa 5.3)
+   03_validar_etapa2_no_supabase               → VALIDAÇÃO APROVADA: 63 de 63
+   04_validar_cancelamento_parcial_no_supabase → VALIDAÇÃO APROVADA: 30 de 30
+   05_validar_etapa3_no_supabase               → VALIDAÇÃO APROVADA: 77 de 77
+   06_validar_etapa4_no_supabase               → VALIDAÇÃO APROVADA: 82 de 82
+   07_validar_etapa5_importacao_no_supabase    → VALIDAÇÃO APROVADA: 49 de 49
+   08_validar_etapa5_leitores_no_supabase      → VALIDAÇÃO APROVADA: 26 de 26
+   01_validar_banco_no_supabase                → pendente (pedido ao usuário)
+   Todos com rollback: nenhum usuário, arquivo ou dado de teste ficou gravado.
+
+4) Site
+   Publicação do site com "Importar fatura": aguardando autorização do usuário.
