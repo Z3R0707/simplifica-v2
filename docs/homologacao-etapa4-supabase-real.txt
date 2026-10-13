@@ -1,0 +1,18 @@
+Simplifica Finanças v2 — Homologação da Etapa 4 no Supabase real (projeto simplifica-v2)
+Data: 13/10/2026 (horário de Brasília)
+
+1) Instalação da migração 0007_etapa4_cartoes.sql (SQL Editor)
+   Resultado: executada sem erro (transação única; etapa do banco passa a "4-cartoes").
+
+2) Validação da Etapa 4 — validacao/06_validar_etapa4_no_supabase.sql
+   VALIDAÇÃO APROVADA: 82 de 82 verificações OK. Tudo desfeito (rollback).
+
+3) Regressão das etapas anteriores, depois da 0007
+   01_validar_banco_no_supabase.sql ............ VALIDAÇÃO APROVADA: 74 de 74
+   03_validar_etapa2_no_supabase.sql ........... VALIDAÇÃO APROVADA: 63 de 63
+   04_validar_cancelamento_parcial_no_supabase . VALIDAÇÃO APROVADA: 30 de 30
+   05_validar_etapa3_no_supabase.sql ........... VALIDAÇÃO APROVADA: 77 de 77
+   Todos com rollback: nenhum usuário, arquivo ou dado de teste ficou gravado.
+
+Situação: banco da Etapa 4 homologado no Supabase real.
+Pendente: confirmação das regras (fechamento; resumo pelo vencimento da fatura), publicar o site com a aba "Cartões" (após autorização) e conferir no site real.
