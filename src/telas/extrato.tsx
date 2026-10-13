@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { listar, rpc } from "../lib/api";
 import { formatarData, hoje } from "../lib/datas";
 import { formatarCentavos } from "../lib/dinheiro";
-import type { LinhaExtrato, LinhaSaldo, Movimento } from "../lib/tipos";
+import type { LinhaExtrato, LinhaSaldo, Movimento, PagamentoAtivo } from "../lib/tipos";
 import { Alerta, Carregando, TituloPagina, Valor, useCadastros, useCarregar } from "../ui";
 import { DialogoCancelar, DialogoEfetivar, DialogoLancamento } from "./lancamento";
 
@@ -14,18 +14,20 @@ export function TelaExtrato({ contaId }: { contaId: string }) {
   const [acao, setAcao] = useState<Acao>(null);
   const [mostrarCancelados, setMostrarCancelados] = useState(false);
   const { dados, erro, carregando, recarregar } = useCarregar(async () => {
-    const [linhas, movimentos, saldos] = await Promise.all([
+    const [linhas, movimentos, saldos, pagamentos] = await Promise.all([
       rpc<LinhaExtrato[]>("extrato_conta", { p_conta_id: contaId, p_inicio: null, p_fim: null }),
       listar<Movimento>("movimentos", { conta_id: `eq.${contaId}` }),
       rpc<LinhaSaldo[]>("saldos_por_conta", { p_data: hoje(), p_projetar_ate: null }),
+      listar<PagamentoAtivo>("pagamentos", { situacao: "eq.ativo" }),
     ]);
+    const pagaConta = new Set(pagamentos.filter((p) => p.situacao === "ativo").map((p) => p.movimento_id));
     const daConta = movimentos.filter((m) => m.conta_id === contaId);
     const porId = new Map(daConta.map((m) => [m.id, m]));
     const parciais = new Map<string, number>();
     for (const m of daConta) {
       if (m.estorno_de && m.situacao !== "cancelado") parciais.set(m.estorno_de, (parciais.get(m.estorno_de) ?? 0) + m.valor_centavos);
     }
-    return { linhas, porId, parciais, saldo: saldos.find((s) => s.conta_id === contaId) ?? null };
+    return { linhas, porId, parciais, pagaConta, saldo: saldos.find((s) => s.conta_id === contaId) ?? null };
   }, [contaId]);
 
   const visiveis = useMemo(
@@ -96,6 +98,9 @@ export function TelaExtrato({ contaId }: { contaId: string }) {
                       {mov?.estorno_de && dados!.porId.get(mov.estorno_de) && (
                         <span className="selo selo-neutro">Cancelamento parcial do lançamento de {formatarData(dados!.porId.get(mov.estorno_de)!.data_movimento)}</span>
                       )}
+                      {l.situacao !== "cancelado" && dados!.pagaConta.has(l.movimento_id) && (
+                        <a className="selo selo-ok" href="#/a-pagar">Pagamento de conta a pagar</a>
+                      )}
                       {mov && !mov.estorno_de && (dados!.parciais.get(mov.id) ?? 0) > 0 && (
                         <span className="selo selo-neutro">Cancelado parcialmente: {formatarCentavos(dados!.parciais.get(mov.id)!)} de {formatarCentavos(mov.valor_centavos)}</span>
                       )}
@@ -131,6 +136,7 @@ export function TelaExtrato({ contaId }: { contaId: string }) {
         <DialogoCancelar
           movimento={acao.mov}
           jaCancelado={dados?.parciais.get(acao.mov.id) ?? 0}
+          pagaConta={dados?.pagaConta.has(acao.mov.id) ?? false}
           aoFechar={() => setAcao(null)}
           aoConcluir={concluir}
         />

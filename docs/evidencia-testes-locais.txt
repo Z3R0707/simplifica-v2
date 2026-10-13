@@ -1,9 +1,12 @@
-Execução: 2026-10-12 16:57 -03 — PostgreSQL 16.15 local + simulação mínima do Supabase; fundação (0001–0003) + Etapa 2 (0004); transações simultâneas com conexões paralelas reais (dblink); Edge Functions em Node 22; página em Chromium (Playwright)
+Simplifica Finanças v2 — suíte completa de testes locais (etapas 1, 2 e 3)
+Gerado em 2026-10-13T15:06Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 
 -- aplicando 0001_fundacao_infra.sql
 -- aplicando 0002_fundacao_cadastros.sql
 -- aplicando 0003_fundacao_lgpd_storage.sql
 -- aplicando 0004_etapa2_movimentos_saldos.sql
+-- aplicando 0005_etapa2_cancelamento_parcial.sql
+-- aplicando 0006_etapa3_contas_a_pagar.sql
 -- testes 05_auxiliares.sql
 -- testes 10_cadastro_permissoes.sql
   OK: perfil criado com nome do cadastro
@@ -249,6 +252,197 @@ Execução: 2026-10-12 16:57 -03 — PostgreSQL 16.15 local + simulação mínim
   OK: S6: lançamento gravado depois
   OK: S6: saldo = nova base + só o posterior a ela (900 − 99 + 50 = 851)
 == 60_etapa2_concorrencia: concluído ==
+-- testes 70_cancelamento_parcial.sql
+  OK: compra de R$ 100 reduz o saldo (R$ 900)
+  OK: cancelamento parcial cria lançamento de sentido contrário na mesma classificação
+  OK: cancelamento parcial fica ligado ao original
+  OK: cancelamento parcial herda a categoria
+  OK: descrição identifica o original
+  OK: lançamento original continua intacto
+  OK: saldo considera o líquido (R$ 930)
+  OK: cancelamento parcial vale a partir da data dele
+  OK: resumo mostra R$ 70 na categoria
+  OK: cancelamento parcial auditado com motivo
+  OK: reenvio devolve o mesmo cancelamento parcial
+  OK: mesma chave com valor diferente é recusada
+  OK: não cancela mais que o restante (R$ 70)
+  OK: valor zero recusado
+  OK: motivo obrigatório
+  OK: data anterior ao original recusada
+  OK: data futura recusada
+  OK: não cancela parcialmente um cancelamento parcial
+  OK: original com cancelamento parcial ativo não é cancelado por completo
+  OK: original não fica menor que o já cancelado
+  OK: original não muda de sentido
+  OK: original não muda de categoria
+  OK: original pode ter descrição alterada e valor aumentado
+  OK: editar o cancelamento parcial respeita o limite (R$ 120)
+  OK: cancelamento parcial não muda de categoria
+  OK: desfazer o cancelamento parcial
+  OK: saldo volta ao original (1.000 − 120)
+  OK: sem parciais ativos, o original pode ser cancelado por completo
+  OK: original cancelado não aceita cancelamento parcial
+  OK: receita cancelada parcialmente pelo valor todo zera o efeito
+  OK: sem restante, não aceita mais cancelamento parcial
+  OK: gravação direta negada
+  OK: outro usuário não cancela parcialmente lançamento alheio
+  OK: vínculo do cancelamento parcial é imutável
+  OK: cancelamento parcial precisa ser da mesma conta
+  OK: P1: primeiro cancelamento parcial em andamento
+  OK: P1: segundo ESPERA o primeiro
+  OK: P1: segundo recusado (passaria do valor original)
+  OK: P1: só R$ 60 cancelados
+  OK: P2: cancelamento total em andamento
+  OK: P2: parcial ESPERA o total
+  OK: P2: parcial recusado (original já cancelado)
+  OK: P3: parcial em andamento
+  OK: P3: total ESPERA o parcial
+  OK: P3: total recusado (há cancelamento parcial ativo)
+  OK: INVARIANTE: nenhum lançamento com cancelamentos parciais acima do valor
+  OK: INVARIANTE: nenhum original cancelado com parcial ativo
+== 70_cancelamento_parcial: concluído ==
+-- testes 80_etapa3_contas_a_pagar.sql
+  OK: conta a pagar nasce aberta, avulsa, mês de referência do vencimento
+  OK: reenvio idêntico não duplica
+  OK: mesma chave com outro valor é recusada
+  OK: chave de idempotência obrigatória
+  OK: valor zero recusado
+  OK: vencimento obrigatório
+  OK: categoria de receita recusada
+  OK: descrição obrigatória
+  OK: conta a pagar sozinha não mexe no saldo
+  OK: vencida (ou a vencer) com restante total
+  OK: pagamento parcial abate R$ 80
+  OK: pagar cria a saída na conta, como despesa
+  OK: saída herda a categoria da conta a pagar
+  OK: saldo cai R$ 80
+  OK: restam R$ 120 (parcial não é paga)
+  OK: reenvio do pagamento não paga duas vezes
+  OK: reenvio não cria segunda saída
+  OK: não abate mais do que falta (R$ 120)
+  OK: pagamento recusado não deixa saída solta
+  OK: pagamento com data futura recusado
+  OK: juros negativos recusados
+  OK: juros iguais ao valor pago (nada abatido) recusados
+  OK: pagamento com juros e multa abate só o principal
+  OK: conta fica paga; pagos R$ 205 com R$ 5 de encargos
+  OK: saída de R$ 125 no Nubank
+  OK: conta paga não aceita mais pagamento
+  OK: resumo por categoria conta o que saiu (R$ 205)
+  OK: desconto quita a conta pagando menos
+  OK: saída que paga conta não pode ser cancelada
+  OK: saída não fica menor que o usado
+  OK: saída não muda de sentido
+  OK: descrição da saída pode mudar
+  OK: cancelamento parcial não invade o valor usado
+  OK: conta com pagamento não pode ser cancelada
+  OK: valor não fica menor que o pago
+  OK: gravação direta em pagamentos negada
+  OK: gravação direta em contas a pagar negada
+  OK: pagamento é imutável (mesmo no banco)
+  OK: histórico de pagamentos da conta
+  OK: desfazer exige motivo
+  OK: desfazer exige versão
+  OK: desfaz pagamento e cancela a saída
+  OK: saída cancelada com o motivo
+  OK: dinheiro volta ao saldo (1000 − 90 da internet)
+  OK: conta volta a ter R$ 80 em aberto
+  OK: pagamento desfeito não se desfaz de novo
+  OK: desfazer auditado com motivo
+  OK: saída já lançada aparece para vincular
+  OK: vínculo também respeita o restante (R$ 80)
+  OK: vínculo quita a conta sem criar saída nova
+  OK: saldo conta a saída uma única vez
+  OK: saída mostra só o que sobrou livre (R$ 20)
+  OK: mesmo vínculo não se repete
+  OK: cancelamento parcial da parte livre é aceito
+  OK: e para aí: o resto paga a conta
+  OK: saída sem valor livre não paga outra conta
+  OK: entrada (cancelamento parcial) não paga conta
+  OK: vínculo não cancela o lançamento junto
+  OK: vínculo desfeito; o lançamento fica
+  OK: lançamento vinculado continua efetivo
+  OK: um lançamento paga duas contas
+  OK: soma usada não passa do lançamento (R$ 150)
+  OK: editar avulsa acompanha o mês do vencimento
+  OK: versão desatualizada recusada
+  OK: conta sem pagamento pode ser cancelada
+  OK: conta cancelada não recebe pagamento
+  OK: conta cancelada não é editada
+  OK: aparece como cancelada
+  OK: reabrir conta cancelada
+  OK: recorrência gera o mês atual e o próximo
+  OK: dia 31 vira o último dia do mês
+  OK: reenvio não duplica a recorrência
+  OK: gerar até daqui a 4 meses cria 3 meses novos
+  OK: gerar de novo não duplica
+  OK: geração limitada a 24 meses à frente
+  OK: 25 meses no total (atual + 24)
+  OK: início no máximo 12 meses atrás
+  OK: dia de vencimento até 31
+  OK: parcelas numeradas exigem último mês
+  OK: mês com pagamento não muda com o modelo
+  OK: mês aberto sem pagamento recebe o novo valor e dia
+  OK: todos os meses futuros abertos atualizados
+  OK: define o último mês
+  OK: meses depois do último são cancelados
+  OK: mês depois do último com pagamento continua aberto
+  OK: mês com pagamento nunca é cancelado pelo encerramento
+  OK: recorrência encerrada não gera mais meses
+  OK: retomar sem fim
+  OK: retomada reabre os meses
+  OK: parcelas numeradas 1/10, 2/10
+  OK: para no último mês (10 parcelas)
+  OK: alterar o modelo mantém a numeração
+  OK: a pagar no Itaú até o fim do mês: R$ 1.000 do aluguel (já pagos R$ 500)
+  OK: outro usuário não vê contas a pagar alheias
+  OK: nem pela consulta
+  OK: nem pagamentos
+  OK: não paga conta a pagar alheia
+  OK: não cancela conta a pagar alheia
+  OK: não vincula lançamento alheio
+  OK: não usa categoria alheia
+  OK: não usa conta alheia
+  OK: anon não executa obrigacao_pagar
+  OK: anon não executa nenhuma função do public
+  OK: funções internas novas fechadas
+  OK: exportação inclui contas a pagar, pagamentos e recorrências
+  OK: exclusão da conta apaga contas a pagar, pagamentos e recorrências
+  OK: dados do outro usuário intactos
+-- testes 90_etapa3_concorrencia.sql
+  OK: C1: primeiro pagamento em andamento
+  OK: C1: segundo pagamento ESPERA o primeiro
+  OK: C1: segundo recusado (passaria do valor da conta)
+  OK: C1: só uma saída criada (a recusada não deixa saída solta)
+  OK: C1: abatido R$ 60
+  OK: C2: cancelamento em andamento
+  OK: C2: pagamento ESPERA o cancelamento
+  OK: C2: pagamento recusado (conta cancelada)
+  OK: C2: nenhuma saída criada
+  OK: C3: cancelamento da saída em andamento
+  OK: C3: vínculo ESPERA o cancelamento
+  OK: C3: vínculo recusado (saída cancelada)
+  OK: C4: vínculo em andamento
+  OK: C4: cancelamento ESPERA o vínculo
+  OK: C4: cancelamento recusado (saída paga uma conta)
+  OK: C5: primeiro vínculo em andamento
+  OK: C5: segundo vínculo ESPERA o primeiro
+  OK: C5: segundo recusado (passaria do valor da saída)
+  OK: C6: vínculo em andamento
+  OK: C6: cancelamento parcial ESPERA o vínculo
+  OK: C6: cancelamento parcial recusado (só R$ 20 livres)
+  OK: C7: desfazer em andamento
+  OK: C7: novo pagamento ESPERA o desfazer
+  OK: C7: novo pagamento aceito depois que o anterior foi desfeito
+  OK: C8: primeira geração cria 4 meses
+  OK: C8: segunda geração ESPERA a primeira
+  OK: C8: segunda geração não cria nada
+  OK: C8: 6 meses, sem duplicata
+  OK: INVARIANTE: nenhuma conta a pagar com abatido acima do valor
+  OK: INVARIANTE: nenhuma saída usada acima do valor
+  OK: INVARIANTE: nenhum pagamento ativo com saída cancelada
+  OK: INVARIANTE: nenhuma conta cancelada com pagamento ativo
+== 90_etapa3_concorrencia: concluído ==
 -- testes Edge Functions (node + SQL real)
   OK: preparação: Eva com 1.501 arquivos
   OK: CORS: preflight respondido
@@ -314,8 +508,8 @@ Execução: 2026-10-12 16:57 -03 — PostgreSQL 16.15 local + simulação mínim
   OK: exclusão com confirmação divergente é rejeitada — HTTP 400
   OK: exclusão com confirmação e-mail do usuário B é rejeitada — HTTP 400
   OK: arquivos de A intactos após confirmações inválidas — 2 arquivo(s)
-  OK: exclusão com o e-mail correto é concluída (com uploads simultâneos) — HTTP 200 {"status":"concluida","arquivos_removidos":5}; uploads aceitos durante a corrida: 3 de 5
-  OK: todos os arquivos de A (inclusive os da corrida) foram removidos — removidos: 5; esperado ao menos 5
+  OK: exclusão com o e-mail correto é concluída (com uploads simultâneos) — HTTP 200 {"status":"concluida","arquivos_removidos":6}; uploads aceitos durante a corrida: 4 de 5
+  OK: todos os arquivos de A (inclusive os da corrida) foram removidos — removidos: 6; esperado ao menos 6
   OK: token antigo de A não consegue mais enviar arquivo — HTTP 400
   OK: A não consegue mais entrar — HTTP 400
   OK: B continua entrando normalmente — HTTP 200

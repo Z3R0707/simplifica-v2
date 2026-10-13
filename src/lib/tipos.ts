@@ -94,6 +94,83 @@ export type LinhaResumo = {
   total_centavos: number;
 };
 
+// ------------------------------------------------ Etapa 3: contas a pagar
+export type StatusContaAPagar = "cancelada" | "paga" | "vencida" | "parcial" | "a_vencer";
+export type LinhaContaAPagar = {
+  obrigacao_id: string;
+  descricao: string;
+  vencimento: string;
+  competencia: string;
+  valor_centavos: number;
+  categoria_id: string | null;
+  categoria: string | null;
+  conta_prevista_id: string | null;
+  conta_prevista: string | null;
+  origem: "avulsa" | "recorrencia" | "fatura";
+  recorrencia_id: string | null;
+  situacao: "aberta" | "cancelada";
+  cancelada_motivo: string | null;
+  observacao: string | null;
+  pago_centavos: number;
+  juros_centavos: number;
+  multa_centavos: number;
+  desconto_centavos: number;
+  abatido_centavos: number;
+  restante_centavos: number;
+  pagamentos: number;
+  ultimo_pagamento_em: string | null;
+  status: StatusContaAPagar;
+  versao: number;
+};
+export type LinhaPagamento = {
+  pagamento_id: string;
+  movimento_id: string;
+  data_pagamento: string;
+  conta_id: string;
+  conta: string;
+  valor_pago_centavos: number;
+  juros_centavos: number;
+  multa_centavos: number;
+  desconto_centavos: number;
+  abatido_centavos: number;
+  origem: "pagamento" | "vinculo";
+  situacao: "ativo" | "desfeito";
+  desfeito_motivo: string | null;
+  movimento_situacao: string;
+  observacao: string | null;
+  versao: number;
+};
+export type MovimentoVinculavel = {
+  movimento_id: string;
+  conta_id: string;
+  conta: string;
+  data_movimento: string;
+  descricao: string;
+  valor_centavos: number;
+  livre_centavos: number;
+  categoria: string | null;
+};
+export type Recorrencia = {
+  id: string;
+  descricao: string;
+  categoria_id: string | null;
+  conta_prevista_id: string | null;
+  valor_centavos: number;
+  dia_vencimento: number;
+  inicio: string;
+  fim: string | null;
+  numerar_parcelas: boolean;
+  observacao: string | null;
+  versao: number;
+};
+export type APagarPorConta = {
+  conta_prevista_id: string | null;
+  quantidade: number;
+  restante_centavos: number;
+  vencidas_centavos: number;
+};
+export type PagamentoAtivo = { id: string; movimento_id: string; obrigacao_id: string; situacao: string };
+
 export const NOMES_TIPO_CONTA: Record<TipoConta, string> = {
   corrente: "Conta corrente",
   poupanca: "Poupança",

@@ -231,8 +231,8 @@ export function DialogoEfetivar({ movimento, aoFechar, aoConcluir }: { movimento
 }
 
 /** Cancelar: total (o lançamento sai do saldo) ou parcial (lançamento de volta ligado ao original). */
-export function DialogoCancelar({ movimento, jaCancelado, aoFechar, aoConcluir }: {
-  movimento: Movimento; jaCancelado: number; aoFechar: () => void; aoConcluir: () => void;
+export function DialogoCancelar({ movimento, jaCancelado, pagaConta = false, aoFechar, aoConcluir }: {
+  movimento: Movimento; jaCancelado: number; pagaConta?: boolean; aoFechar: () => void; aoConcluir: () => void;
 }) {
   const podeParcial = !movimento.estorno_de && movimento.situacao === "efetivo";
   const restante = movimento.valor_centavos - jaCancelado;
@@ -265,6 +265,12 @@ export function DialogoCancelar({ movimento, jaCancelado, aoFechar, aoConcluir }
         });
       }}>
         <p className="dialogo-texto"><strong>{movimento.descricao}</strong>, {formatarCentavos(movimento.valor_centavos)} em {formatarData(movimento.data_movimento)}.</p>
+        {pagaConta && (
+          <Alerta tipo="aviso">
+            Este lançamento paga uma conta a pagar. Para cancelá-lo por completo, desfaça o pagamento em <a href="#/a-pagar">Contas a pagar</a>;
+            lá você escolhe se a saída também é cancelada.
+          </Alerta>
+        )}
         {podeParcial && (
           <fieldset className="campo opcoes">
             <legend>Cancelar</legend>

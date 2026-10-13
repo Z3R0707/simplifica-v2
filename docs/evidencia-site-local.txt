@@ -1,5 +1,5 @@
-Teste do site num Chromium real contra o Supabase simulado (SQL real das migrações 0001–0005, Edge Function excluir-conta real, política de segurança do netlify.toml aplicada)
-Data: 2026-10-13 11:32 -03 — executado 3 vezes seguidas, todas aprovadas; abaixo a última
+Simplifica Finanças v2 — teste do site num navegador real (Chromium) contra o Supabase simulado com o SQL real (0001–0006)
+Gerado em 2026-10-13T15:07Z
 
   OK: tela de entrar abre
   OK: senha curta recusada no cadastro
@@ -45,32 +45,49 @@ Data: 2026-10-13 11:32 -03 — executado 3 vezes seguidas, todas aprovadas; abai
   OK: resumo de outubro: receitas R$ 50,00 e despesas R$ 550,00 (sem o cancelado)
   OK: resumo avisa lançamentos sem categoria
   OK: categoria nova criada
+  OK: Itaú começa com R$ 2.800,00
+  OK: aba Contas a pagar abre vazia
+  OK: conta a pagar entra nos totais do mês
+  OK: conta a pagar sozinha não mexe no saldo
+  OK: pagar sugere a conta prevista
+  OK: pagar sugere o valor que falta
+  OK: mostra quanto vai restar
+  OK: pagamento parcial não marca como paga
+  OK: lista mostra o que falta (R$ 120,00)
+  OK: pagar mais do que falta é recusado com explicação
+  OK: mostra o abatimento com juros
+  OK: conta quitada sai de “Em aberto”
+  OK: aparece em Pagas com os juros
+  OK: saldo do Itaú cai R$ 205 (80 + 125)
+  OK: recorrência cria o mês atual numerado (1/6)
+  OK: recorrência aparece em “Contas que se repetem”
+  OK: próximo mês já tem a parcela 2/6
+  OK: escolher a saída preenche o valor
+  OK: vincular quita a conta
+  OK: vincular não lança a saída de novo (R$ 2.495,00)
+  OK: extrato marca as saídas que pagam contas
+  OK: cancelar avisa que a saída paga uma conta
+  OK: banco recusa cancelar a saída que paga conta
+  OK: histórico mostra os 2 pagamentos
+  OK: desfazer sugere cancelar a saída criada
+  OK: pagamento desfeito continua no histórico com o motivo
+  OK: conta volta a ter R$ 80,00 em aberto
+  OK: dinheiro volta ao saldo (R$ 2.575,00)
+  OK: painel mostra as contas a pagar até o fim do mês
+  OK: total a pagar no mês: R$ 1.580,00 (80 da luz + 1.500 do aluguel)
+  OK: cartão do Itaú mostra o que sai dele no mês
+  OK: encerrar cancela os meses seguintes, sem apagar
   OK: sessão expirada é renovada sem pedir login
   OK: exportação traz contas e lançamentos
+  OK: exportação traz contas a pagar, pagamentos e recorrências
   OK: segundo usuário entra e não vê as contas do primeiro
   OK: segundo usuário não abre o extrato da conta do primeiro pelo endereço
   OK: no celular a página não rola para o lado
+  OK: contas a pagar no celular não rolam para o lado
   OK: exclusão com e-mail errado é recusada
   OK: exclusão concluída volta para a tela de entrar com aviso
   OK: conta excluída não entra mais
-  OK: contas e lançamentos da conta excluída removidos do banco
+  OK: contas, lançamentos e contas a pagar da conta excluída removidos do banco
   OK: segundo usuário continua usando normalmente
   OK: nenhum erro de JavaScript no navegador
-== Site (navegador): 55 verificações aprovadas ==
-
-Testes de unidade (dinheiro e datas):
-# tests 6
-# pass 6
-# fail 0
-
-Banco (suíte completa, etapas 1 e 2 + cancelamento parcial):
-== 10_cadastro_permissoes: concluído ==
-== 20_correcoes_revisao: concluído ==
-== 30_exclusao_conta: concluído ==
-== 40_concorrencia: concluído ==
-== 50_etapa2_saldos: concluído ==
-== 60_etapa2_concorrencia: concluído ==
-== 70_cancelamento_parcial: concluído ==
-== Edge Functions: 40 verificações aprovadas ==
-== Página de validação: VALIDAÇÃO APROVADA — 28 verificações ==
-== RESULTADO: todos os testes passaram ==
+== Site (navegador): 89 verificações aprovadas ==

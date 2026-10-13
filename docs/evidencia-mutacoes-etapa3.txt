@@ -1,0 +1,27 @@
+Simplifica Finanças v2 — Etapa 3 (0006): testes de mutação
+Gerado em 2026-10-13T15:06Z. Cada linha retira UMA proteção da 0006 e roda os testes 80 e 90.
+Esperado: toda mutação ser detectada (FALHOU/ERROR) por pelo menos um dos arquivos.
+
+MUTAÇÃO [sem trava da conta a pagar no pagamento] / 80_etapa3_contas_a_pagar: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [sem trava da conta a pagar no pagamento] / 90_etapa3_concorrencia: ERROR:  FALHOU: C1: segundo pagamento ESPERA o primeiro — esperado t, obtido f
+MUTAÇÃO [sem trava do lançamento no pagamento] / 80_etapa3_contas_a_pagar: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [sem trava do lançamento no pagamento] / 90_etapa3_concorrencia: ERROR:  FALHOU: C3: vínculo ESPERA o cancelamento — esperado t, obtido f
+MUTAÇÃO [sem proteção do lançamento que paga conta] / 80_etapa3_contas_a_pagar: ERROR:  FALHOU: saída que paga conta não pode ser cancelada — o comando deveria ter falhado (22023)
+MUTAÇÃO [sem proteção do lançamento que paga conta] / 90_etapa3_concorrencia: ERROR:  FALHOU: C4: cancelamento recusado (saída paga uma conta) — esperado ERRO:22023, obtido cancelado
+MUTAÇÃO [sem limite do abatido] / 80_etapa3_contas_a_pagar: ERROR:  FALHOU: não abate mais do que falta (R$ 120) — o comando deveria ter falhado (22023)
+MUTAÇÃO [sem limite do abatido] / 90_etapa3_concorrencia: ERROR:  FALHOU: C1: segundo recusado (passaria do valor da conta) — esperado ERRO:22023, obtido 176679fd-491d-42ce-b8d8-20a96c2b329c
+MUTAÇÃO [sem limite do valor livre do lançamento] / 80_etapa3_contas_a_pagar: ERROR:  FALHOU: saída sem valor livre não paga outra conta — o comando deveria ter falhado (22023)
+MUTAÇÃO [sem limite do valor livre do lançamento] / 90_etapa3_concorrencia: ERROR:  FALHOU: C5: segundo recusado (passaria do valor da saída) — esperado ERRO:22023, obtido 9fe07727-51ae-4487-9239-1d45400a5cc8
+MUTAÇÃO [cancela conta com pagamento] / 80_etapa3_contas_a_pagar: ERROR:  FALHOU: conta com pagamento não pode ser cancelada — o comando deveria ter falhado (22023)
+MUTAÇÃO [cancela conta com pagamento] / 90_etapa3_concorrencia: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [desfazer sem trava da conta] / 80_etapa3_contas_a_pagar: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [desfazer sem trava da conta] / 90_etapa3_concorrencia: ERROR:  FALHOU: C7: novo pagamento ESPERA o desfazer — esperado t, obtido f
+MUTAÇÃO [encerramento cancela mês pago] / 80_etapa3_contas_a_pagar: ERROR:  Esta conta tem pagamentos (R$ 10,00 abatidos). Desfaça os pagamentos antes de cancelar, ou ajuste o valor para o que foi pago.
+MUTAÇÃO [encerramento cancela mês pago] / 90_etapa3_concorrencia: (nenhuma falha — NÃO detectada)
+MUTAÇÃO [cancelamento parcial invade valor usado] / 80_etapa3_contas_a_pagar: ERROR:  FALHOU: cancelamento parcial não invade o valor usado — o comando deveria ter falhado (22023)
+MUTAÇÃO [cancelamento parcial invade valor usado] / 90_etapa3_concorrencia: ERROR:  FALHOU: C6: cancelamento parcial recusado (só R$ 20 livres) — esperado ERRO:22023, obtido e78cefcc-c267-4474-8937-7617be837077
+MUTAÇÃO [pagamento alterável] / 80_etapa3_contas_a_pagar: ERROR:  FALHOU: pagamento é imutável (mesmo no banco) — o comando deveria ter falhado (22023)
+MUTAÇÃO [pagamento alterável] / 90_etapa3_concorrencia: (nenhuma falha — NÃO detectada)
+
+RESUMO: 10 de 10 mutações detectadas (cada uma derrubou ao menos um dos arquivos 80/90).
+A 0006 original passa em todos os testes (ver evidencia-testes-locais.txt).

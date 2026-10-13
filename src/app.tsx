@@ -4,6 +4,7 @@ import { Carregando, ProvedorCadastros, useCadastros } from "./ui";
 import { TelaCriarConta, TelaEntrar, TelaEsqueciSenha, TelaNovaSenha } from "./telas/acesso";
 import { TelaCategorias } from "./telas/categorias";
 import { TelaContas } from "./telas/contas";
+import { TelaContasAPagar } from "./telas/contas-a-pagar";
 import { TelaExtrato } from "./telas/extrato";
 import { TelaMinhaConta } from "./telas/minha-conta";
 import { TelaResumo } from "./telas/resumo";
@@ -22,6 +23,7 @@ function irPara(rota: string, substituir = false) {
 
 const NAVEGACAO = [
   { rota: "/saldos", nome: "Saldos" },
+  { rota: "/a-pagar", nome: "A pagar" },
   { rota: "/contas", nome: "Contas" },
   { rota: "/resumo", nome: "Resumo" },
   { rota: "/categorias", nome: "Categorias" },
@@ -87,6 +89,7 @@ function Casca({ rota, aoExcluir }: { rota: string; aoExcluir: () => void }) {
   const conta = /^\/conta\/([0-9a-f-]{36})$/.exec(rota);
   if (conta) tela = <TelaExtrato key={conta[1]} contaId={conta[1]} />;
   else if (rota === "/contas") tela = <TelaContas />;
+  else if (rota === "/a-pagar") tela = <TelaContasAPagar />;
   else if (rota === "/resumo") tela = <TelaResumo />;
   else if (rota === "/categorias") tela = <TelaCategorias />;
   else if (rota === "/minha-conta") tela = <TelaMinhaConta key={perfil?.versao ?? 0} aoExcluir={aoExcluir} />;

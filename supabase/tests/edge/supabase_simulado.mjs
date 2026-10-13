@@ -27,7 +27,8 @@ function literal(v) {
   return `$v$${s}$v$`;
 }
 
-const FUNCOES_SETOF = new Set(["exclusao_listar_arquivos", "storage_listar_orfaos", "saldos_por_conta", "saldo_consolidado", "extrato_conta", "resumo_categorias"]);
+const FUNCOES_SETOF = new Set(["exclusao_listar_arquivos", "storage_listar_orfaos", "saldos_por_conta", "saldo_consolidado", "extrato_conta", "resumo_categorias",
+  "contas_a_pagar", "pagamentos_da_obrigacao", "movimentos_para_vincular", "contas_a_pagar_por_conta"]);
 const STATUS_POSTGREST = { "42501": 403, "P0002": 404, "40001": 409, "23505": 409 };
 
 export function criarSimulador(db, opcoes = {}) {

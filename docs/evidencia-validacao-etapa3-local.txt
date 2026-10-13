@@ -1,0 +1,26 @@
+Simplifica Finanças v2 — validação da Etapa 3 executada localmente (mesmo SQL que vai para o Supabase)
+Gerado em 2026-10-13T15:07Z
+
+1) Banco novo com 0001–0006: os quatro roteiros de validação
+VALIDAÇÃO APROVADA: 74 de 74 verificações OK
+VALIDAÇÃO APROVADA: 63 de 63 verificações OK
+VALIDAÇÃO APROVADA: 30 de 30 verificações OK
+VALIDAÇÃO APROVADA: 77 de 77 verificações OK
+   Depois de cada roteiro: 0 usuários e 0 contas a pagar no banco (tudo desfeito).
+
+2) O roteiro 05 reprova um banco com uma proteção retirada (mutação 'sem proteção do lançamento que paga conta'):
+   VALIDAÇÃO REPROVADA: 75 de 77 OK — #41 saída que paga conta não pode ser cancelada; #46 ...
+
+3) Atualização de um banco já em uso (0005 com dados) para a 0006
+== banco na versão anterior (0005) com dados de um usuário real simulado ==
+== aplica 0006 ==
+UPDATE 1
+COMMIT
+== reaplicar 0006 por engano é recusado sem alterar nada ==
+ABORTADO: este banco não está na Etapa 2 com cancelamento parcial (0005) do Simplifica v2. Nada foi alterado.
+== aplicar 0006 num banco ainda na 0004 é recusado ==
+ABORTADO: este banco não está na Etapa 2 com cancelamento parcial (0005) do Simplifica v2.
+== exportação do usuário existente continua completa ==
+export: movimentos=3 contas_a_pagar=0 pagamentos=0
+depois da 0006: saldo Itaú=616456
+esperado: 123456 - 10000 + 3000 + 500000 = 616456

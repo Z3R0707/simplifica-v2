@@ -1,4 +1,4 @@
-# Simplifica Finanças v2 — Etapas 1 e 2
+# Simplifica Finanças v2 — Etapas 1, 2 e 3
 
 Base do novo sistema: banco, permissões, auditoria, idempotência, versão e exclusão
 de conta (LGPD) sem arquivos órfãos. Tudo vai num projeto Supabase **novo e separado**.
@@ -126,3 +126,42 @@ Migração **adicional** `supabase/migrations/0004_etapa2_movimentos_saldos.sql`
 1. SQL Editor → New query → cole `0004_etapa2_movimentos_saldos.sql` → Run.
 2. Validação: cole `validacao/03_validar_etapa2_no_supabase.sql` → Run. O esperado é `VALIDAÇÃO APROVADA: 63 de 63`, com rollback automático, sem gravar nada.
 3. Regressão: rode de novo `validacao/01_validar_banco_no_supabase.sql`. O esperado é `74 de 74`.
+
+# Etapa 3 — contas a pagar, recorrências e pagamentos parciais
+
+Migração **adicional** `supabase/migrations/0006_etapa3_contas_a_pagar.sql`. Roda sobre a 0005 (cancelamento parcial), não apaga nem recria nada e se recusa a rodar em qualquer outro estado. Tudo numa única transação. As consultas de saldo da Etapa 2 não mudam.
+
+## Regras
+
+- **Conta a pagar não mexe no saldo.** O saldo muda quando o pagamento é registrado.
+- **Pagar** cria a saída na conta escolhida, como despesa na categoria da conta a pagar, e liga a saída à conta a pagar. Não é preciso (nem se deve) lançar a despesa de novo.
+- **Já lancei a saída** (débito automático, Pix lançado antes, futura importação): o pagamento só *vincula* a saída existente; nada é lançado de novo.
+- **Pagamento parcial**: uma conta pode ter vários pagamentos; um lançamento pode pagar várias contas.
+  - abatido = valor pago − juros − multa + desconto;
+  - falta pagar = valor da conta − abatido dos pagamentos ativos;
+  - a conta só fica **paga** quando falta zero; vencer não a torna paga.
+- **Proteções no banco**: o abatido nunca passa do valor da conta; o que um lançamento paga nunca passa do valor dele (descontados cancelamentos parciais); lançamento que paga conta não pode ser cancelado, mudar de sentido nem ficar menor que o usado; conta com pagamento não pode ser cancelada nem ficar menor que o pago. Para mudar, **desfaz-se o pagamento** (com motivo, auditado); quem criou a saída pode cancelá-la junto.
+- **Recorrências** (aluguel, escola, parcelas): cada mês vira uma conta a pagar própria, ajustável sozinha. Os meses são criados até o mês seguinte ao atual, e quando você navega até eles (no máximo 24 meses à frente). Dia 31 vira o último dia em meses mais curtos. Parcelas podem ser numeradas (1/10, 2/10…). Encerrar cancela os meses seguintes ainda sem pagamento, sem apagar; repetir sem fim reabre esses meses.
+- Operações simultâneas (web × WhatsApp, duas abas) ficam em fila: travas sempre na ordem conta a pagar → lançamento.
+
+## Escrita e leitura
+
+| Item | Funções |
+|---|---|
+| Contas a pagar | `obrigacao_criar` (chave obrigatória), `obrigacao_atualizar`, `obrigacao_cancelar` (motivo), `obrigacao_reabrir` |
+| Pagamentos | `obrigacao_pagar`, `obrigacao_vincular_movimento` (chave obrigatória), `pagamento_desfazer` (motivo; versão obrigatória) |
+| Recorrências | `recorrencia_criar`, `recorrencia_atualizar` (opção de aplicar nas contas em aberto), `recorrencia_definir_fim`, `recorrencias_gerar` |
+| Leitura | `contas_a_pagar(início, fim)`, `pagamentos_da_obrigacao`, `movimentos_para_vincular`, `contas_a_pagar_por_conta(até)` |
+| LGPD | A exportação inclui contas a pagar, pagamentos e recorrências; a exclusão de conta apaga tudo antes dos lançamentos. |
+
+No site: aba **A pagar** (mês, totais, filtros, pagar, histórico de pagamentos, desfazer, recorrências); o painel de saldos mostra quanto falta pagar até o fim do mês; o extrato marca as saídas que pagam contas.
+
+## Instalação (projeto simplifica-v2, já com a 0005 homologada)
+
+1. SQL Editor → New query → cole `0006_etapa3_contas_a_pagar.sql` → Run. Esperado: `Success. No rows returned`.
+2. Validação: cole `validacao/05_validar_etapa3_no_supabase.sql` → Run. Esperado: `VALIDAÇÃO APROVADA: 77 de 77`, com rollback automático: os 2 usuários de teste e tudo o que eles criaram são desfeitos; nenhum dado real é tocado.
+3. Regressão: rode de novo `01` (74), `03` (63) e `04` (30).
+4. Só depois disso o site com a aba **A pagar** é publicado (envio para `main` no GitHub → Netlify).
+
+Evidências locais: `docs/evidencia-testes-locais.txt` (487 verificações), `docs/evidencia-mutacoes-etapa3.txt` (10 de 10 mutações detectadas), `docs/evidencia-validacao-etapa3-local.txt`, `docs/evidencia-site-local.txt` (89 verificações no navegador).
+

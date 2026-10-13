@@ -286,3 +286,32 @@ input[type="radio"], input[type="checkbox"] { width: 18px; height: 18px; accent-
 .acesso-cartao { width: 100%; max-width: 400px; background: var(--superficie); border: 1px solid var(--linha); border-radius: 14px; padding: 26px 24px; }
 .acesso-cartao h1 { font-size: 1.35rem; margin-bottom: 18px; }
 .acesso-links { display: flex; justify-content: space-between; gap: 12px; margin: 18px 0 0; font-weight: 600; }
+
+/* ------------------------------------------------------------ contas a pagar (Etapa 3) */
+.seletor-mes { display: inline-flex; align-items: flex-end; gap: 6px; }
+.botao-icone { min-width: 42px; padding: 10px 0; font-size: 1.2rem; line-height: 1; }
+.filtros { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; }
+.filtro {
+  font: inherit; font-weight: 600; font-size: 0.9rem; padding: 7px 14px; border-radius: 999px; cursor: pointer;
+  background: var(--superficie); color: var(--suave); border: 1px solid var(--linha);
+}
+.filtro[aria-pressed="true"] { background: var(--ok-fundo); color: var(--acento); border-color: var(--acento); }
+.selo-perigo { background: var(--erro-fundo); border-color: color-mix(in srgb, var(--saida) 35%, transparent); color: var(--saida); }
+.linha-vencida td:first-child { color: var(--saida); font-weight: 700; }
+.contas-pagar td.num .texto-suave { margin-top: 2px; }
+.grade-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+@media (max-width: 560px) { .grade-3 { grid-template-columns: 1fr; } }
+.rotulo-campo { font-weight: 600; font-size: 0.9rem; }
+.lista-escolha { list-style: none; margin: 0; padding: 0; border: 1px solid var(--linha); border-radius: var(--raio-pequeno); max-height: 260px; overflow-y: auto; }
+.lista-escolha li + li { border-top: 1px solid var(--linha); }
+.lista-escolha label { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; cursor: pointer; }
+.lista-escolha label:hover { background: var(--superficie-2); }
+.lista-escolha-texto { min-width: 0; }
+.lista-escolha .num { text-align: right; }
+.lista-simples > li > div:first-child { min-width: 0; }
+.a-pagar-resumo { margin: 0; }
+.a-pagar-resumo a { font-weight: 600; }
+@media (max-width: 760px) { .nav a { font-size: 0.74rem; padding: 10px 3px; } }
+@media (max-width: 640px) {
+  .contas-pagar td.num { text-align: left; }
+}

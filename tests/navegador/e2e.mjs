@@ -1,5 +1,5 @@
 // Teste de ponta a ponta do site, num Chromium real, contra o Supabase
-// simulado que executa o SQL REAL das migrações (etapas 1 e 2).
+// simulado que executa o SQL REAL das migrações (etapas 1, 2 e 3).
 // Uso: node --experimental-strip-types tests/navegador/e2e.mjs
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync } from "node:fs";
@@ -22,7 +22,7 @@ psql(["-d", "postgres", "-c", `drop database if exists ${DB}`, "-c", `create dat
 const stub = readFileSync(RAIZ + "supabase/tests/00_stub_supabase.sql", "utf8")
   .replace(/^create role (\w+) ([^;]*);/gm, "do $$$$ begin create role $1 $2; exception when duplicate_object then null; end $$$$;");
 execFileSync("psql", [...PSQL, "-q", "-v", "ON_ERROR_STOP=1", "-d", DB], { input: stub, stdio: ["pipe", "ignore", "pipe"] });
-for (const f of ["0001_fundacao_infra.sql", "0002_fundacao_cadastros.sql", "0003_fundacao_lgpd_storage.sql", "0004_etapa2_movimentos_saldos.sql", "0005_etapa2_cancelamento_parcial.sql"]) {
+for (const f of ["0001_fundacao_infra.sql", "0002_fundacao_cadastros.sql", "0003_fundacao_lgpd_storage.sql", "0004_etapa2_movimentos_saldos.sql", "0005_etapa2_cancelamento_parcial.sql", "0006_etapa3_contas_a_pagar.sql"]) {
   psql(["-d", DB, "-f", RAIZ + "supabase/migrations/" + f]);
 }
 
@@ -289,6 +289,159 @@ try {
   await p.getByText("Pet", { exact: true }).waitFor();
   ok((await p.getByText("Pet", { exact: true }).count()) === 1, "categoria nova criada");
 
+
+  // ============================================================ contas a pagar (Etapa 3)
+  const linhaAP = (nome) => p.locator("tbody tr").filter({ has: p.locator(".descricao", { hasText: nome }) });
+  const saldoItau = async () => {
+    await p.getByRole("link", { name: "Saldos" }).first().click();
+    await p.locator(".cartao-conta", { hasText: "Itaú" }).first().waitFor();
+    return (await p.locator(".cartao-conta").filter({ has: p.locator("strong", { hasText: /^Itaú$/ }) }).locator(".valor-grande").innerText()).trim();
+  };
+  ok((await saldoItau()) === "R$ 2.800,00", "Itaú começa com R$ 2.800,00");
+  await p.getByRole("link", { name: "A pagar" }).first().click();
+  await p.getByRole("heading", { name: "Contas a pagar" }).waitFor();
+  await p.getByRole("heading", { name: "Nenhuma conta a pagar neste mês" }).waitFor();
+  ok(true, "aba Contas a pagar abre vazia");
+
+  async function novaContaAPagar({ descricao, valor, vencimento, categoria, conta, todoMes = false, ate, numerar = false }) {
+    await p.getByRole("button", { name: "Nova conta a pagar" }).click();
+    const d = dialogo();
+    await d.getByLabel("Descrição").fill(descricao);
+    await d.getByLabel("Valor (R$)").fill(valor);
+    await d.getByLabel("Vencimento", { exact: true }).fill(vencimento);
+    if (categoria) await d.getByLabel("Categoria", { exact: true }).selectOption({ label: categoria });
+    if (conta) await d.getByLabel("Pagar pela conta (opcional)").selectOption({ label: conta });
+    if (todoMes) {
+      await d.getByRole("radio", { name: "Todo mês" }).check();
+      await d.getByLabel("Primeiro vencimento").fill(vencimento);
+      if (ate) await d.getByLabel("Até o mês (opcional)").fill(ate);
+      if (numerar) await d.getByLabel(/Numerar as parcelas/).check();
+    }
+    await d.getByRole("button", { name: "Cadastrar" }).click();
+    await esperarFechar();
+  }
+
+  await novaContaAPagar({ descricao: "Conta de luz", valor: "200,00", vencimento: "2026-10-20", categoria: "Serviços e assinaturas", conta: "Itaú" });
+  await linhaAP("Conta de luz").waitFor();
+  await esperarTexto(".totais", "200,00");
+  ok((await texto(".totais")).includes("Vencem no mês R$ 200,00"), "conta a pagar entra nos totais do mês", await texto(".totais"));
+  ok((await saldoItau()) === "R$ 2.800,00", "conta a pagar sozinha não mexe no saldo");
+
+  // pagamento parcial
+  await p.getByRole("link", { name: "A pagar" }).first().click();
+  await linhaAP("Conta de luz").getByRole("button", { name: "Pagar" }).click();
+  ok((await dialogo().getByLabel("Saiu da conta").locator("option:checked").innerText()) === "Itaú", "pagar sugere a conta prevista");
+  ok((await dialogo().getByLabel("Valor pago (R$)").inputValue()) === "200,00", "pagar sugere o valor que falta");
+  await dialogo().getByLabel("Valor pago (R$)").fill("80,00");
+  await dialogo().getByLabel("Data do pagamento").fill("2026-10-12");
+  ok((await dialogo().innerText()).includes("Pagamento parcial: restam R$ 120,00"), "mostra quanto vai restar");
+  await p.screenshot({ path: CAPTURAS + "10-pagar.png" });
+  await dialogo().getByRole("button", { name: "Registrar pagamento" }).click();
+  await esperarFechar();
+  await esperarTexto("tbody", "Falta");
+  ok((await texto("tbody")).includes("Paga em parte") || (await texto("tbody")).includes("Vencida"), "pagamento parcial não marca como paga");
+  ok((await texto("tbody")).includes("Falta R$ 120,00"), "lista mostra o que falta (R$ 120,00)");
+
+  // pagar a mais sem informar juros é recusado; com juros, quita
+  await linhaAP("Conta de luz").getByRole("button", { name: "Pagar" }).click();
+  await dialogo().getByLabel("Valor pago (R$)").fill("125,00");
+  await dialogo().getByLabel("Data do pagamento").fill("2026-10-12");
+  await dialogo().getByRole("button", { name: "Registrar pagamento" }).click();
+  ok((await dialogo().innerText()).includes("mas faltam só R$ 120,00"), "pagar mais do que falta é recusado com explicação");
+  await dialogo().getByLabel("Teve juros, multa ou desconto").check();
+  await dialogo().getByLabel("Juros (R$)").fill("5,00");
+  ok((await dialogo().innerText()).includes("= R$ 120,00"), "mostra o abatimento com juros");
+  await dialogo().getByRole("button", { name: "Registrar pagamento" }).click();
+  await esperarFechar();
+  await p.waitForFunction(() => !document.querySelector("tbody")?.textContent?.includes("Conta de luz"), null, { timeout: 10000 }).catch(() => {});
+  ok((await linhaAP("Conta de luz").count()) === 0, "conta quitada sai de “Em aberto”");
+  await p.getByRole("button", { name: "Pagas" }).click();
+  await linhaAP("Conta de luz").waitFor();
+  ok((await texto("tbody")).includes("Paga") && (await texto("tbody")).includes("+ R$ 5,00 de juros/multa"), "aparece em Pagas com os juros");
+  ok((await saldoItau()) === "R$ 2.595,00", "saldo do Itaú cai R$ 205 (80 + 125)", await saldoItau());
+
+  // recorrência com parcelas numeradas
+  await p.getByRole("link", { name: "A pagar" }).first().click();
+  await p.getByRole("heading", { name: "Contas a pagar" }).waitFor();
+  await novaContaAPagar({ descricao: "Aluguel", valor: "1.500,00", vencimento: "2026-10-05", categoria: "Moradia", todoMes: true, ate: "2027-03", numerar: true });
+  await linhaAP("Aluguel (1/6)").waitFor();
+  ok(true, "recorrência cria o mês atual numerado (1/6)");
+  ok((await texto("body")).includes("Contas que se repetem") && (await texto(".secao")).includes("todo dia 5"), "recorrência aparece em “Contas que se repetem”");
+  await p.screenshot({ path: CAPTURAS + "09-contas-a-pagar.png", fullPage: true });
+  await p.getByRole("button", { name: "Próximo mês" }).click();
+  await linhaAP("Aluguel (2/6)").waitFor();
+  ok(true, "próximo mês já tem a parcela 2/6");
+  await p.getByRole("button", { name: "Mês anterior" }).click();
+  await linhaAP("Aluguel (1/6)").waitFor();
+
+  // vincular uma saída já lançada
+  await novaContaAPagar({ descricao: "Internet", valor: "100,00", vencimento: "2026-10-15", categoria: "Serviços e assinaturas" });
+  await linhaAP("Internet").waitFor();
+  await p.getByRole("link", { name: "Saldos" }).first().click();
+  await p.locator(".cartao-conta").filter({ has: p.locator("strong", { hasText: /^Itaú$/ }) }).click();
+  await p.locator(".resumo-conta").waitFor();
+  await lancar({ valor: "100,00", data: "2026-10-12", descricao: "Débito internet", categoria: "Serviços e assinaturas" });
+  await p.getByRole("link", { name: "A pagar" }).first().click();
+  await linhaAP("Internet").getByRole("button", { name: "Pagar" }).click();
+  await dialogo().getByRole("radio", { name: "Já lancei essa saída" }).check();
+  await dialogo().getByRole("radio", { name: /Débito internet/ }).check();
+  ok((await dialogo().getByLabel("Valor pago (R$)").inputValue()) === "100,00", "escolher a saída preenche o valor");
+  await dialogo().getByRole("button", { name: "Vincular saída" }).click();
+  await esperarFechar();
+  await p.waitForFunction(() => !document.querySelector("tbody")?.textContent?.includes("Internet"), null, { timeout: 10000 }).catch(() => {});
+  ok((await linhaAP("Internet").count()) === 0, "vincular quita a conta");
+  ok((await saldoItau()) === "R$ 2.495,00", "vincular não lança a saída de novo (R$ 2.495,00)", await saldoItau());
+
+  // extrato: saída que paga conta é protegida
+  await p.locator(".cartao-conta").filter({ has: p.locator("strong", { hasText: /^Itaú$/ }) }).click();
+  await p.locator(".resumo-conta").waitFor();
+  await p.locator("tr", { hasText: "Débito internet" }).waitFor();
+  ok((await p.getByText("Pagamento de conta a pagar").count()) === 3, "extrato marca as saídas que pagam contas");
+  await p.locator("tr", { hasText: "Débito internet" }).getByRole("button", { name: "Cancelar" }).click();
+  ok((await dialogo().innerText()).includes("paga uma conta a pagar"), "cancelar avisa que a saída paga uma conta");
+  await dialogo().getByLabel("Motivo").fill("tentativa");
+  await dialogo().getByRole("button", { name: "Cancelar lançamento" }).click();
+  await dialogo().locator("[role=alert]").waitFor();
+  ok((await dialogo().innerText()).includes("Desfaça o pagamento"), "banco recusa cancelar a saída que paga conta");
+  await dialogo().getByRole("button", { name: "Voltar" }).click();
+  await esperarFechar();
+
+  // desfazer um pagamento devolve o valor
+  await p.getByRole("link", { name: "A pagar" }).first().click();
+  await p.getByRole("button", { name: "Pagas" }).click();
+  await linhaAP("Conta de luz").getByRole("button", { name: "Pagamentos" }).click();
+  await dialogo().locator("li").first().waitFor();
+  ok((await dialogo().locator("li").count()) === 2, "histórico mostra os 2 pagamentos");
+  await dialogo().locator("li", { hasText: "Pago R$ 80,00" }).getByRole("button", { name: "Desfazer" }).click();
+  const dd = p.getByRole("dialog", { name: "Desfazer pagamento" });
+  ok(await dd.getByLabel(/Cancelar também a saída/).isChecked(), "desfazer sugere cancelar a saída criada");
+  await dd.getByLabel("Motivo").fill("Paguei na conta errada");
+  await dd.getByRole("button", { name: "Desfazer pagamento" }).click();
+  await dd.waitFor({ state: "detached" });
+  await p.getByRole("dialog").getByText("Desfeito: Paguei na conta errada").waitFor();
+  ok(true, "pagamento desfeito continua no histórico com o motivo");
+  await p.getByRole("dialog").getByRole("button", { name: "Fechar" }).last().click();
+  await esperarFechar();
+  await p.getByRole("button", { name: "Em aberto" }).click();
+  await linhaAP("Conta de luz").waitFor();
+  ok((await linhaAP("Conta de luz").innerText()).includes("Falta R$ 80,00"), "conta volta a ter R$ 80,00 em aberto");
+  ok((await saldoItau()) === "R$ 2.575,00", "dinheiro volta ao saldo (R$ 2.575,00)", await saldoItau());
+  ok((await texto(".consolidado")).includes("Contas a pagar até 31/10/2026"), "painel mostra as contas a pagar até o fim do mês", await texto(".consolidado"));
+  ok((await texto(".consolidado")).includes("R$ 1.580,00"), "total a pagar no mês: R$ 1.580,00 (80 da luz + 1.500 do aluguel)");
+  ok((await p.locator(".cartao-conta").filter({ has: p.locator("strong", { hasText: /^Itaú$/ }) }).innerText()).includes("A pagar até o fim do mês: R$ 80,00"), "cartão do Itaú mostra o que sai dele no mês");
+
+  // encerrar a recorrência
+  await p.getByRole("link", { name: "A pagar" }).first().click();
+  await p.locator(".secao li", { hasText: "Aluguel" }).getByRole("button", { name: "Mudar fim" }).click();
+  await dialogo().getByLabel("Último mês").fill("2026-10");
+  await dialogo().getByRole("button", { name: "Encerrar" }).click();
+  await esperarFechar();
+  await p.getByRole("button", { name: "Próximo mês" }).click();
+  await p.getByRole("button", { name: "Todas" }).click();
+  await linhaAP("Aluguel (2/6)").waitFor();
+  ok((await linhaAP("Aluguel (2/6)").innerText()).includes("Cancelada: Recorrência encerrada"), "encerrar cancela os meses seguintes, sem apagar");
+  await p.getByRole("button", { name: "Mês anterior" }).click();
+
   // ============================================================ sessão: renovação do token
   await p.evaluate(() => {
     const s = JSON.parse(localStorage.getItem("simplifica-v2.sessao"));
@@ -304,7 +457,9 @@ try {
   await p.getByRole("link", { name: "Minha conta" }).first().click();
   const [download] = await Promise.all([p.waitForEvent("download"), p.getByRole("button", { name: "Baixar meus dados" }).click()]);
   const exportado = JSON.parse(readFileSync(await download.path(), "utf8"));
-  ok(exportado.movimentos?.length === 7 && exportado.contas?.length === 6, "exportação traz contas e lançamentos", `${exportado.movimentos?.length} mov, ${exportado.contas?.length} contas`);
+  ok(exportado.movimentos?.length === 10 && exportado.contas?.length === 6, "exportação traz contas e lançamentos", `${exportado.movimentos?.length} mov, ${exportado.contas?.length} contas`);
+  ok(exportado.contas_a_pagar?.length === 4 && exportado.pagamentos?.length === 3 && exportado.recorrencias?.length === 1, "exportação traz contas a pagar, pagamentos e recorrências",
+    `${exportado.contas_a_pagar?.length} contas a pagar, ${exportado.pagamentos?.length} pagamentos, ${exportado.recorrencias?.length} recorrências`);
 
   // ============================================================ isolamento: outro usuário
   const ctx2 = await navegador.newContext({ viewport: { width: 390, height: 844 }, locale: "pt-BR", timezoneId: "America/Sao_Paulo" });
@@ -343,6 +498,11 @@ try {
   await p3.locator(".cartao-conta", { hasText: "Santander" }).click();
   await p3.locator(".resumo-conta").waitFor();
   await p3.screenshot({ path: CAPTURAS + "08-celular-extrato.png", fullPage: true });
+  await p3.getByRole("link", { name: "A pagar" }).click();
+  await p3.locator(".totais").waitFor();
+  await p3.locator("tbody tr").first().waitFor();
+  ok(await p3.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "contas a pagar no celular não rolam para o lado");
+  await p3.screenshot({ path: CAPTURAS + "11-celular-contas-a-pagar.png", fullPage: true });
   await ctx3.close();
 
   // ============================================================ exclusão de conta (Ana)
@@ -359,8 +519,8 @@ try {
   await p.getByRole("button", { name: "Entrar" }).click();
   await p.locator("[role=alert]").waitFor();
   ok((await texto("[role=alert]")).includes("incorretos"), "conta excluída não entra mais");
-  const resto = execFileSync("psql", [...PSQL, "-d", DB, "-tAc", `select (select count(*) from public.movimentos where user_id = '${idAna}') + (select count(*) from public.contas where user_id = '${idAna}')`], { encoding: "utf8" }).trim();
-  ok(resto === "0", "contas e lançamentos da conta excluída removidos do banco");
+  const resto = execFileSync("psql", [...PSQL, "-d", DB, "-tAc", `select (select count(*) from public.movimentos where user_id = '${idAna}') + (select count(*) from public.contas where user_id = '${idAna}') + (select count(*) from public.obrigacoes where user_id = '${idAna}') + (select count(*) from public.pagamentos where user_id = '${idAna}') + (select count(*) from public.recorrencias where user_id = '${idAna}')`], { encoding: "utf8" }).trim();
+  ok(resto === "0", "contas, lançamentos e contas a pagar da conta excluída removidos do banco");
   await p2.goto(srv.base + "/#/saldos");
   await p2.reload();
   await p2.getByRole("heading", { name: "Cadastre sua primeira conta" }).waitFor();
@@ -371,6 +531,7 @@ try {
 } catch (e) {
   falhas++;
   console.log(`FALHOU: execução interrompida — ${String(e.message ?? e).split("\n")[0]}`);
+  if (errosJs.length) console.log(`   erros no navegador: ${errosJs.join(" | ").slice(0, 600)}`);
   try { await p.screenshot({ path: CAPTURAS + "erro.png", fullPage: true }); } catch {}
 } finally {
   await navegador.close();

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { rpc } from "../lib/api";
-import { formatarData, hoje } from "../lib/datas";
-import type { Consolidado, LinhaSaldo } from "../lib/tipos";
+import { formatarData, hoje, limitesDoMes, mesAtual } from "../lib/datas";
+import type { APagarPorConta, Consolidado, LinhaSaldo } from "../lib/tipos";
 import { Alerta, Carregando, TituloPagina, Valor, useCarregar } from "../ui";
 import { DialogoLancamento } from "./lancamento";
 
@@ -16,12 +16,14 @@ export function TelaSaldos() {
   const [data, setData] = useState(hoje());
   const [mostrarArquivadas, setMostrarArquivadas] = useState(false);
   const [lancando, setLancando] = useState(false);
+  const fimDoMes = limitesDoMes(mesAtual())[1];
   const { dados, erro, carregando, recarregar } = useCarregar(async () => {
-    const [linhas, consolidado] = await Promise.all([
+    const [linhas, consolidado, aPagar] = await Promise.all([
       rpc<LinhaSaldo[]>("saldos_por_conta", { p_data: data, p_projetar_ate: null }),
       rpc<Consolidado[]>("saldo_consolidado", { p_data: data }),
+      rpc<APagarPorConta[]>("contas_a_pagar_por_conta", { p_ate: fimDoMes }),
     ]);
-    return { linhas, total: consolidado[0] };
+    return { linhas, total: consolidado[0], aPagar };
   }, [data]);
 
   const linhas = dados?.linhas ?? [];
@@ -29,6 +31,10 @@ export function TelaSaldos() {
   const arquivadas = linhas.filter((l) => !l.ativa);
   const total = dados?.total;
   const ehHoje = data === hoje();
+  const aPagar = dados?.aPagar ?? [];
+  const totalAPagar = aPagar.reduce((s, l) => s + l.restante_centavos, 0);
+  const vencidas = aPagar.reduce((s, l) => s + l.vencidas_centavos, 0);
+  const aPagarDa = (conta: string) => aPagar.find((l) => l.conta_prevista_id === conta)?.restante_centavos ?? 0;
 
   return (
     <>
@@ -53,6 +59,12 @@ export function TelaSaldos() {
             )}
             <p>{total.contas_somadas === 1 ? "1 conta somada" : `${total.contas_somadas} contas somadas`}</p>
           </div>
+          {totalAPagar > 0 && (
+            <p className="a-pagar-resumo">
+              <a href="#/a-pagar">Contas a pagar até {formatarData(fimDoMes)}: <Valor centavos={totalAPagar} /></a>
+              {vencidas > 0 && <> · <span className="valor-saida">vencidas: <Valor centavos={vencidas} classe="valor-saida" /></span></>}
+            </p>
+          )}
           {!total.completo && (
             <Alerta tipo="aviso">
               {total.contas_pendentes === 1 ? "1 conta ficou" : `${total.contas_pendentes} contas ficaram`} fora da soma porque o saldo inicial ainda não foi confirmado
@@ -72,7 +84,7 @@ export function TelaSaldos() {
 
       {ativas.length > 0 && (
         <ul className="lista-contas">
-          {ativas.map((l) => <CartaoConta key={l.conta_id} linha={l} />)}
+          {ativas.map((l) => <CartaoConta key={l.conta_id} linha={l} aPagar={aPagarDa(l.conta_id)} />)}
         </ul>
       )}
 
@@ -90,7 +102,7 @@ export function TelaSaldos() {
   );
 }
 
-function CartaoConta({ linha }: { linha: LinhaSaldo }) {
+function CartaoConta({ linha, aPagar = 0 }: { linha: LinhaSaldo; aPagar?: number }) {
   const pendente = linha.saldo_confirmado_centavos === null;
   return (
     <li>
@@ -109,6 +121,7 @@ function CartaoConta({ linha }: { linha: LinhaSaldo }) {
           {!pendente && linha.saldo_projetado_centavos !== null && linha.saldo_projetado_centavos !== linha.saldo_confirmado_centavos && (
             <span className="texto-suave">Com previstos: <Valor centavos={linha.saldo_projetado_centavos} /></span>
           )}
+          {aPagar > 0 && <span className="texto-suave">A pagar até o fim do mês: <Valor centavos={aPagar} /></span>}
           <span className="texto-suave">
             Saldo inicial em {formatarData(linha.saldo_inicial_data)}
             {!linha.incluir_consolidado && ", fora da soma"}
