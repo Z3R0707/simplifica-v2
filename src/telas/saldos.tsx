@@ -18,12 +18,13 @@ export function TelaSaldos() {
   const [lancando, setLancando] = useState(false);
   const fimDoMes = limitesDoMes(mesAtual())[1];
   const { dados, erro, carregando, recarregar } = useCarregar(async () => {
-    const [linhas, consolidado, aPagar] = await Promise.all([
+    const [linhas, consolidado, aPagar, conciliacao] = await Promise.all([
       rpc<LinhaSaldo[]>("saldos_por_conta", { p_data: data, p_projetar_ate: null }),
       rpc<Consolidado[]>("saldo_consolidado", { p_data: data }),
       rpc<APagarPorConta[]>("contas_a_pagar_por_conta", { p_ate: fimDoMes }),
+      rpc<{ conta_id: string; pendentes: number; sugestoes: number; divergencias: number }[]>("conciliacao_resumo").catch(() => []),
     ]);
-    return { linhas, total: consolidado[0], aPagar };
+    return { linhas, total: consolidado[0], aPagar, conciliacao };
   }, [data]);
 
   const linhas = dados?.linhas ?? [];
@@ -35,6 +36,7 @@ export function TelaSaldos() {
   const totalAPagar = aPagar.reduce((s, l) => s + l.restante_centavos, 0);
   const vencidas = aPagar.reduce((s, l) => s + l.vencidas_centavos, 0);
   const aPagarDa = (conta: string) => aPagar.find((l) => l.conta_prevista_id === conta)?.restante_centavos ?? 0;
+  const conciliacaoDa = (conta: string) => dados?.conciliacao.find((c) => c.conta_id === conta);
 
   return (
     <>
@@ -85,7 +87,7 @@ export function TelaSaldos() {
 
       {ativas.length > 0 && (
         <ul className="lista-contas">
-          {ativas.map((l) => <CartaoConta key={l.conta_id} linha={l} aPagar={aPagarDa(l.conta_id)} />)}
+          {ativas.map((l) => <CartaoConta key={l.conta_id} linha={l} aPagar={aPagarDa(l.conta_id)} conciliacao={conciliacaoDa(l.conta_id)} />)}
         </ul>
       )}
 
@@ -103,7 +105,7 @@ export function TelaSaldos() {
   );
 }
 
-function CartaoConta({ linha, aPagar = 0 }: { linha: LinhaSaldo; aPagar?: number }) {
+function CartaoConta({ linha, aPagar = 0, conciliacao }: { linha: LinhaSaldo; aPagar?: number; conciliacao?: { pendentes: number; sugestoes: number; divergencias: number } }) {
   const pendente = linha.saldo_confirmado_centavos === null;
   return (
     <li>
@@ -123,6 +125,12 @@ function CartaoConta({ linha, aPagar = 0 }: { linha: LinhaSaldo; aPagar?: number
             <span className="texto-suave">Com previstos: <Valor centavos={linha.saldo_projetado_centavos} /></span>
           )}
           {aPagar > 0 && <span className="texto-suave">A pagar até o fim do mês: <Valor centavos={aPagar} /></span>}
+          {conciliacao && (conciliacao.pendentes + conciliacao.sugestoes + conciliacao.divergencias > 0) ? (
+            <span className={`selo ${conciliacao.divergencias > 0 ? "selo-previsto" : "selo-neutro"}`}>
+              Conciliação: {[conciliacao.sugestoes ? `${conciliacao.sugestoes} sugestão(ões)` : "", conciliacao.pendentes ? `${conciliacao.pendentes} pendente(s)` : "",
+                conciliacao.divergencias ? `${conciliacao.divergencias} divergência(s)` : ""].filter(Boolean).join(", ")}
+            </span>
+          ) : conciliacao && linha.ativa && !pendente ? <span className="selo selo-ok">Conciliada</span> : null}
           <span className="texto-suave">
             Saldo inicial em {formatarData(linha.saldo_inicial_data)}
             {!linha.incluir_consolidado && ", fora da soma"}

@@ -106,8 +106,10 @@ a:hover { color: var(--acento-forte); }
 @media (max-width: 760px) {
   .topo { padding: 10px 16px; }
   .topo nav { position: fixed; left: 0; right: 0; bottom: 0; background: var(--superficie); border-top: 1px solid var(--linha); padding-bottom: env(safe-area-inset-bottom); z-index: 20; }
-  .nav { justify-content: space-around; gap: 0; }
-  .nav a { padding: 10px 6px; font-size: 0.8rem; text-align: center; border-radius: 0; }
+  .nav { justify-content: space-between; gap: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav li { flex: 1 0 auto; }
+  .nav a { display: block; padding: 12px 10px; font-size: 0.8rem; text-align: center; border-radius: 0; white-space: nowrap; }
   .nav a[aria-current="page"] { background: none; box-shadow: inset 0 3px 0 var(--acento); }
   h1 { font-size: 1.35rem; }
 }
@@ -346,4 +348,18 @@ input[type="file"] { padding: 7px; }
 @media (max-width: 640px) {
   .previa td:first-child { grid-row: span 2; }
   .previa td.num { text-align: right; }
+}
+
+/* ---------------------------------------------------------- conciliação */
+.abas { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--linha); margin: 16px 0 8px; }
+.aba { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 12px; font: inherit; color: inherit; cursor: pointer; }
+.aba:hover { background: rgba(0, 0, 0, 0.03); }
+.aba-ativa { border-bottom-color: currentColor; font-weight: 600; }
+.lista-conciliacao > li > div:first-child { display: flex; flex-direction: column; gap: 2px; }
+.lista-conciliacao .selo { margin-left: 0; align-self: flex-start; }
+.acoes-pendente { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; white-space: normal; }
+.acoes-pendente select { max-width: 200px; }
+@media (max-width: 640px) {
+  .lista-conciliacao > li { flex-direction: column; align-items: stretch; }
+  .acoes-pendente { justify-content: flex-start; }
 }

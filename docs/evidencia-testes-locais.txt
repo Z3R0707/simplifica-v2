@@ -1,5 +1,5 @@
-Simplifica Finanças v2 — suíte completa de testes locais (etapas 1 a 5.5)
-Gerado em 2026-10-13T23:51Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu
+Simplifica Finanças v2 — suíte completa de testes locais (etapas 1 a 6.1)
+Gerado em 2026-10-14T17:59Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu
 
 -- aplicando 0001_fundacao_infra.sql
 -- aplicando 0002_fundacao_cadastros.sql
@@ -13,6 +13,7 @@ Gerado em 2026-10-13T23:51Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 -- aplicando 0010_etapa5_importacao_faturas.sql
 -- aplicando 0011_etapa5_valor_parcela.sql
 -- aplicando 0012_etapa5_leitores_faturas.sql
+-- aplicando 0013_etapa6_conciliacao.sql
 -- testes 05_auxiliares.sql
 -- testes 100_etapa4_cartoes.sql
   OK: fecha dia 3 / vence dia 10: compra em 02/10 vence em outubro
@@ -360,6 +361,34 @@ Gerado em 2026-10-13T23:51Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
   OK: fatura = total do banco
   OK: anuidade em 12x a partir da 4ª: 9 parcelas
   OK: compra antiga (12/12 do ano anterior) entra só com a última parcela
+-- testes 190_etapa6_conciliacao.sql
+  OK: sugestões: um lançamento por conta a pagar; data e nome pesam; fora de 20 dias não; Internet já paga e PIX já usado em parte não são sugeridos
+  OK: sugestão explica o motivo
+  OK: resumo da conta: 14 pendentes, 6 sugestões, 1 divergência
+  OK: fatura com pagamento antecipado: sugere pelo valor cobrado pelo banco e vincula só esse valor
+  OK: divergência: Internet paga à mão e também no extrato
+  OK: antes: a Internet sai duas vezes do saldo
+  OK: confirmada: lançamento vira pagamento da fatura
+  OK: a sugestão confirmada sai da lista
+  OK: pagamento à mão só é divergência com débito importado de mesmo valor e ainda sem vínculo
+  OK: Santander: o boleto do extrato abate R$ 88,00; o pagamento antecipado fica em aberto para vincular
+  OK: o resto da fatura não é sugerido de novo pelo valor cobrado
+  OK: confirmar não mexe no saldo (a saída já estava contada); só a reforma e o gás pagos à mão saem
+  OK: versão desatualizada recusada
+  OK: lançamento de outro valor recusado
+  OK: vínculo (que não criou lançamento) não é trocado, mesmo com débito livre de mesmo valor
+  OK: trocado: a Internet sai uma vez só
+  OK: o lançamento feito à mão fica cancelado (não é apagado)
+  OK: o lançamento do extrato passa a pagar a Internet
+  OK: a Internet continua paga
+  OK: divergência resolvida
+  OK: desfeito: o lançamento volta a pendente, com a classificação que tinha
+  OK: a sugestão volta
+  OK: histórico guarda os vínculos desfeitos e o motivo
+  OK: outro usuário não vê nada da conciliação da Cora
+  OK: outro usuário não troca pagamento da Cora
+  OK: anônimo não consulta a conciliação
+  OK: nenhuma função de conciliação executável por anônimo
 -- testes 20_correcoes_revisao.sql
   OK: conta_atualizar sem versão é recusada
   OK: conta_definir_ativa sem versão é recusada
@@ -823,49 +852,7 @@ Gerado em 2026-10-13T23:51Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 == Página de validação: VALIDAÇÃO APROVADA — 28 verificações ==
 == RESULTADO: todos os testes passaram ==
 
--- testes unitários do site (leitores de extrato e de fatura; dinheiro)
-ok 1 - lerValor: formatos brasileiros
-ok 2 - lerValor: entradas inválidas
-ok 3 - lerValor: sem perda por ponto flutuante
-ok 4 - formatarCentavos
-ok 5 - ida e volta campo ↔ centavos
-ok 6 - datas
-ok 7 - Santander: cartões, seções, parcelas antigas, antecipação e conferência pelo resumo
-ok 8 - Mercado Pago: encargos do rotativo, pagamento sem sinal, cartões e conferência pelo resumo
-ok 9 - Sicredi: data com hora, descrição em duas linhas, pagamento, crédito e conferência
-ok 10 - Sicoob: descrição e parcela em linhas separadas, estornos, pagamento e conferência pelo TOTAL
-ok 11 - Riachuelo: data com ano, valor total da compra, compras diferentes na mesma loja e conferência
-ok 12 - cada leitor reconhece só a própria fatura
-ok 13 - Riachuelo: estorno (crédito que não é pagamento) entra e é descontado na conferência
-ok 14 - utilidades: valores, parcelas e ano das datas
-ok 15 - Nubank: reconhece a fatura (e não outros PDFs)
-ok 16 - Nubank: lê lançamentos, parcelas, antecipação, IOF, créditos e pagamentos
-ok 17 - Nubank: soma diferente do subtotal do banco bloqueia (lançamento faltando)
-ok 18 - Nubank: linha com data e sem valor reconhecível é erro
-ok 19 - Itaú: reconhece a fatura (e não o extrato)
-ok 20 - Itaú: lê a coluna da esquerda e depois a da direita, só a seção de lançamentos
-ok 21 - Itaú: soma diferente do total dos lançamentos atuais bloqueia
-ok 22 - Itaú: sem o total dos lançamentos não há conferência, e a leitura é recusada
-ok 23 - Itaú: 'próximas faturas' encerra os lançamentos mesmo quando o total vem depois (na outra coluna)
-ok 24 - data da compra de parcela antiga e parcelas da mesma compra na mesma fatura
-ok 25 - OFX 1.x (SGML): lê conta, período, saldo e lançamentos; erros ficam visíveis
-ok 26 - OFX 2.x (XML) e OFX de cartão de crédito
-ok 27 - valor OFX não aceita separador de milhar nem casas significativas além da 2ª
-ok 28 - arquivo em Windows-1252 é lido com acentos corretos
-ok 29 - valores de CSV em formatos brasileiros e americanos
-ok 30 - datas de CSV
-ok 31 - CSV com cabeçalho, aspas e ponto e vírgula; mapeamento sugerido e linhas inválidas apontadas
-ok 32 - CSV com débito e crédito em colunas separadas, e sinal invertido
-ok 33 - extrairLinhas agrupa itens na mesma altura e ordena da esquerda para a direita
-ok 34 - Itaú: reconhece o extrato e ignora outros PDFs
-ok 35 - Itaú: lê os lançamentos e confere cada dia com o SALDO DO DIA
-ok 36 - Itaú: dia que não fecha bloqueia a leitura (lançamento faltando ou valor errado)
-ok 37 - Itaú: diferença só no dia da emissão (dia ainda aberto no banco) vira aviso, não erro
-ok 38 - Itaú: valor na coluna de saldo para um lançamento é erro; dia sem SALDO DO DIA é erro
-ok 39 - Itaú: valor fora do padrão é erro de leitura
-ok 40 - Nubank: reconhece o cabeçalho exato (com ou sem BOM)
-ok 41 - Nubank: lê valores com ponto decimal, identificador e descrição com vírgula
-ok 42 - Nubank: fora do padrão é erro (vírgula decimal, identificador inválido ou repetido, data)
+== testes unitários dos leitores ==
 # tests 42
 # pass 42
 # fail 0

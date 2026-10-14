@@ -1,4 +1,4 @@
-# Simplifica Finanças v2 — Etapas 1 a 5 (parte 5)
+# Simplifica Finanças v2 — Etapas 1 a 6 (parte 1)
 
 Base do novo sistema: banco, permissões, auditoria, idempotência, versão e exclusão
 de conta (LGPD) sem arquivos órfãos. Tudo vai num projeto Supabase **novo e separado**.
@@ -302,3 +302,16 @@ Instalação: `0012_etapa5_leitores_faturas.sql` → Run; validação `validacao
 
 Evidências: `docs/evidencia-etapa5-parte5-local.txt` (roteiros, 15 de 15 mutações, atualização com dados), `docs/evidencia-leitores-arquivos-reais.txt`, `docs/evidencia-testes-locais.txt` (775 no banco + 42 testes dos leitores), `docs/evidencia-site-local.txt` (153 no navegador).
 
+# Etapa 6, parte 1 — conciliação bancária
+
+Migração **adicional** `supabase/migrations/0013_etapa6_conciliacao.sql` (sobre a 0012). Não cria tabelas nem altera dados: só consultas e uma operação nova. Nova tela **Conciliação** (menu, depois de "A pagar"), por conta:
+
+- **Sugestões**: lançamento de saída do extrato × conta a pagar/fatura em aberto com o **mesmo valor**, até 20 dias do vencimento. Pesam a data mais próxima, o nome do banco/cartão/conta na descrição e a conta prevista para o pagamento. Cada lançamento e cada conta a pagar entram em uma sugestão só, com o motivo escrito. Fatura importada com **pagamento antecipado** (o banco já desconta e cobra menos que a soma das compras) é sugerida pelo **valor cobrado**; o vínculo abate só esse valor e o resto da fatura fica aberto para vincular o pagamento antecipado. Confirmar uma a uma ou todas de uma vez.
+- **Pendentes**: lançamentos sem classificação e sem vínculo — classificar (categoria) ou vincular a uma conta a pagar.
+- **Divergências**: conta paga à mão no Simplifica **e** o mesmo débito no extrato importado (a saída conta duas vezes) — botão "Usar o lançamento do extrato" troca de forma atômica (o lançamento feito à mão fica cancelado, não apagado); e saldo informado pelo banco diferente do calculado na última importação.
+- **Conciliados** e **Histórico** (vínculos ativos e desfeitos, com o motivo); desfazer um vínculo volta o lançamento a pendente.
+- O painel de **Saldos** mostra, em cada conta, quantas pendências de conciliação ela tem (ou "Conciliada").
+
+Instalação: `0013_etapa6_conciliacao.sql` → Run; validação `validacao/12_validar_etapa6_conciliacao_no_supabase.sql` → `VALIDAÇÃO APROVADA: 37 de 37`; regressão 01 (74), 03 (63), 04 (30), 05 (77), 06 (82), 07 (49), 08 (26), 09 (40), 10 (15), 11 (16). Nenhum roteiro antigo mudou.
+
+Evidências: `docs/evidencia-etapa6-parte1-local.txt` (roteiros, mutações, atualização com dados, conferência com os arquivos reais), `docs/evidencia-testes-locais.txt` (802 no banco + 42 testes dos leitores), `docs/evidencia-site-local.txt` (160 no navegador).

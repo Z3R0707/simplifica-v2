@@ -1,5 +1,5 @@
-Simplifica Finanças v2 — teste do site num navegador real (Chromium) contra o Supabase simulado com o SQL real (0001–0012)
-Gerado em 2026-10-13T23:51Z
+Simplifica Finanças v2 — teste do site num navegador real (Chromium) contra o Supabase simulado com o SQL real (0001–0013)
+Gerado em 2026-10-14T17:58Z
 
   OK: tela de entrar abre
   OK: senha curta recusada no cadastro
@@ -139,6 +139,13 @@ Gerado em 2026-10-13T23:51Z
   OK: diálogo mostra o valor da parcela
   OK: valor da parcela corrigido: fatura passa a R$ 377,04
   OK: a parcela mostra o novo valor
+  OK: sugestão: boleto do extrato × conta a pagar de mesmo valor, com o motivo
+  OK: sugestão confirmada sai da lista
+  OK: pendente classificado sai da lista de pendentes
+  OK: conciliados mostra o boleto pagando a mensalidade
+  OK: desfazer fica no histórico, com o motivo
+  OK: desfeito: a sugestão volta
+  OK: painel de saldos mostra a situação de conciliação da conta
   OK: sessão expirada é renovada sem pedir login
   OK: exportação traz contas e lançamentos
   OK: exportação traz contas a pagar, pagamentos e recorrências
@@ -154,4 +161,4 @@ Gerado em 2026-10-13T23:51Z
   OK: contas, lançamentos e contas a pagar da conta excluída removidos do banco
   OK: segundo usuário continua usando normalmente
   OK: nenhum erro de JavaScript no navegador
-== Site (navegador): 153 verificações aprovadas ==
+== Site (navegador): 160 verificações aprovadas ==

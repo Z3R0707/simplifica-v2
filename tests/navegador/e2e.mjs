@@ -24,7 +24,7 @@ psql(["-d", "postgres", "-c", `drop database if exists ${DB}`, "-c", `create dat
 const stub = readFileSync(RAIZ + "supabase/tests/00_stub_supabase.sql", "utf8")
   .replace(/^create role (\w+) ([^;]*);/gm, "do $$$$ begin create role $1 $2; exception when duplicate_object then null; end $$$$;");
 execFileSync("psql", [...PSQL, "-q", "-v", "ON_ERROR_STOP=1", "-d", DB], { input: stub, stdio: ["pipe", "ignore", "pipe"] });
-for (const f of ["0001_fundacao_infra.sql", "0002_fundacao_cadastros.sql", "0003_fundacao_lgpd_storage.sql", "0004_etapa2_movimentos_saldos.sql", "0005_etapa2_cancelamento_parcial.sql", "0006_etapa3_contas_a_pagar.sql", "0007_etapa4_cartoes.sql", "0008_etapa5_importacao_extratos.sql", "0009_etapa5_leitores_bancos.sql", "0010_etapa5_importacao_faturas.sql", "0011_etapa5_valor_parcela.sql", "0012_etapa5_leitores_faturas.sql"]) {
+for (const f of ["0001_fundacao_infra.sql", "0002_fundacao_cadastros.sql", "0003_fundacao_lgpd_storage.sql", "0004_etapa2_movimentos_saldos.sql", "0005_etapa2_cancelamento_parcial.sql", "0006_etapa3_contas_a_pagar.sql", "0007_etapa4_cartoes.sql", "0008_etapa5_importacao_extratos.sql", "0009_etapa5_leitores_bancos.sql", "0010_etapa5_importacao_faturas.sql", "0011_etapa5_valor_parcela.sql", "0012_etapa5_leitores_faturas.sql", "0013_etapa6_conciliacao.sql"]) {
   psql(["-d", DB, "-f", RAIZ + "supabase/migrations/" + f]);
 }
 
@@ -801,6 +801,47 @@ try {
   ok((await texto(".fatura-topo")).includes("R$ 377,04"), "valor da parcela corrigido: fatura passa a R$ 377,04", await texto(".fatura-topo"));
   ok((await texto("tbody tr:has-text('1/10')")).includes("R$ 100,05"), "a parcela mostra o novo valor");
 
+  // ============================================================ conciliação bancária (Etapa 6, parte 1)
+  // o extrato em PDF do Itaú trouxe "PAG BOLETO ESCOLA" −R$ 12,34 em 05/10; a conta a pagar vence em 07/10
+  await p.getByRole("link", { name: "A pagar" }).first().click();
+  await p.getByRole("heading", { name: "Contas a pagar" }).waitFor();
+  await novaContaAPagar({ descricao: "Mensalidade escola", valor: "12,34", vencimento: "2026-10-07", categoria: "Educação", conta: "Itaú" });
+  await p.getByRole("link", { name: "Conciliação" }).first().click();
+  await p.getByRole("heading", { name: "Conciliação bancária" }).waitFor();
+  await p.getByLabel("Conta").selectOption({ label: "Itaú" });
+  await esperarTexto(".lista-conciliacao", "PAG BOLETO ESCOLA");
+  const sug = await texto(".lista-conciliacao");
+  ok(sug.includes("PAG BOLETO ESCOLA") && sug.includes("Mensalidade escola") && sug.includes("2 dia(s) do vencimento"),
+    "sugestão: boleto do extrato × conta a pagar de mesmo valor, com o motivo", sug);
+  await p.screenshot({ path: CAPTURAS + "19-conciliacao-sugestoes.png", fullPage: true });
+  await p.locator(".lista-conciliacao li", { hasText: "PAG BOLETO ESCOLA" }).getByRole("button", { name: "Confirmar" }).click();
+  await p.getByText(/Nenhuma sugestão agora/).waitFor();
+  ok(true, "sugestão confirmada sai da lista");
+  await p.getByRole("tab", { name: /Pendentes/ }).click();
+  await p.locator(".lista-conciliacao li", { hasText: "PAY CAFETERIA" }).waitFor();
+  const pend = p.locator(".lista-conciliacao li", { hasText: "PAY CAFETERIA" });
+  await pend.getByLabel("Categoria de PAY CAFETERIA 06/10").selectOption({ label: "Alimentação" });
+  await pend.getByRole("button", { name: "Salvar" }).click();
+  await p.waitForFunction(() => !document.querySelector(".lista-conciliacao")?.textContent?.includes("PAY CAFETERIA"), null, { timeout: 10000 }).catch(() => {});
+  ok(!(await texto("main")).includes("PAY CAFETERIA"), "pendente classificado sai da lista de pendentes");
+  await p.getByRole("tab", { name: "Conciliados" }).click();
+  await esperarTexto(".lista-conciliacao", "Paga: Mensalidade escola");
+  ok((await texto(".lista-conciliacao")).includes("Paga: Mensalidade escola"), "conciliados mostra o boleto pagando a mensalidade");
+  await p.getByRole("tab", { name: "Histórico" }).click();
+  await p.locator(".lista-conciliacao li", { hasText: "PAG BOLETO ESCOLA" }).getByRole("button", { name: "Desfazer" }).click();
+  await dialogo().getByLabel("Motivo").fill("vinculei errado");
+  await dialogo().getByRole("button", { name: "Desfazer" }).click();
+  await esperarFechar();
+  await esperarTexto(".lista-conciliacao", "Desfeito: vinculei errado");
+  ok((await texto(".lista-conciliacao")).includes("Desfeito: vinculei errado"), "desfazer fica no histórico, com o motivo");
+  await p.getByRole("tab", { name: /Sugestões/ }).click();
+  await esperarTexto(".lista-conciliacao", "PAG BOLETO ESCOLA");
+  ok((await texto(".lista-conciliacao")).includes("Mensalidade escola"), "desfeito: a sugestão volta");
+  await p.getByRole("link", { name: "Saldos" }).first().click();
+  await p.locator(".cartao-conta", { hasText: "Itaú" }).first().waitFor();
+  const cartItau = await p.locator(".cartao-conta").filter({ has: p.locator("strong", { hasText: /^Itaú$/ }) }).innerText();
+  ok(/Conciliação: 1 sugestão\(ões\), \d+ pendente\(s\)/.test(cartItau), "painel de saldos mostra a situação de conciliação da conta", cartItau);
+
   // ============================================================ sessão: renovação do token
   await p.evaluate(() => {
     const s = JSON.parse(localStorage.getItem("simplifica-v2.sessao"));
@@ -817,7 +858,7 @@ try {
   const [download] = await Promise.all([p.waitForEvent("download"), p.getByRole("button", { name: "Baixar meus dados" }).click()]);
   const exportado = JSON.parse(readFileSync(await download.path(), "utf8"));
   ok(exportado.movimentos?.length === 17 && exportado.contas?.length === 6 && exportado.importacoes?.length === 3, "exportação traz contas e lançamentos", `${exportado.movimentos?.length} mov, ${exportado.contas?.length} contas`);
-  ok(exportado.contas_a_pagar?.length >= 4 && exportado.pagamentos?.length === 4 && exportado.recorrencias?.length === 1, "exportação traz contas a pagar, pagamentos e recorrências",
+  ok(exportado.contas_a_pagar?.length >= 4 && exportado.pagamentos?.length === 5 && exportado.recorrencias?.length === 1, "exportação traz contas a pagar, pagamentos e recorrências",
     `${exportado.contas_a_pagar?.length} contas a pagar, ${exportado.pagamentos?.length} pagamentos, ${exportado.recorrencias?.length} recorrências`);
   ok(exportado.cartoes?.length === 1 && exportado.compras_cartao?.length === 5 && exportado.parcelas?.length === 14 && exportado.importacoes_fatura?.length === 1, "exportação traz cartões, compras e parcelas",
     `${exportado.cartoes?.length} cartões, ${exportado.compras_cartao?.length} compras, ${exportado.parcelas?.length} parcelas`);
