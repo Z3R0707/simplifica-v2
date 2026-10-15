@@ -1,0 +1,8 @@
+Simplifica Finanças v2 — homologação da Etapa 6 parte 1 (0013, conciliação bancária) no Supabase real (projeto simplifica-v2)
+Data: 2026-10-15 (horário de Brasília), executada pelo usuário no SQL Editor; resultados enviados em capturas de tela.
+
+1) Migração: 0013_etapa6_conciliacao.sql → "Success. No rows returned" (etapa 6.1-conciliacao)
+2) Validação: 12_validar_etapa6_conciliacao_no_supabase.sql → VALIDAÇÃO APROVADA: 37 de 37 (rollback)
+3) Regressão: 01 → 74 de 74 · 03 → 63 de 63 · 04 → 30 de 30 · 05 → 77 de 77 · 06 → 82 de 82 · 07 → 49 de 49 · 08 → 26 de 26 · 09 → 40 de 40 · 10 → 15 de 15 · 11 → 16 de 16
+   Todos com rollback: nenhum usuário, arquivo ou dado de teste ficou gravado.
+4) Site: aguardando autorização do usuário para publicar.
