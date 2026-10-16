@@ -59,7 +59,10 @@ export function lerNubankFaturaPdf(linhas: LinhaPdf[]): FaturaLida {
     if (!md) {
       // sem data: subtotal de portador, cabeçalho de pagamentos, ou detalhe (conversão de moeda)
       if (temValor && /^Pagamentos e Financiamentos$/i.test(c.slice(0, -1).map((x) => x.texto).join(" "))) { emPagamentos = true; continue; }
-      if (temValor && c.length === 2 && !emPagamentos) {
+      // nome + valor = subtotal de portador; se vier depois dos pagamentos,
+      // é outro portador e a seção de pagamentos acabou
+      if (temValor && c.length === 2) {
+        emPagamentos = false;
         subtotais += valorBr(ultima.texto) ?? 0;
         achouSubtotal = true;
       }

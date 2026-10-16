@@ -256,11 +256,21 @@ export async function rpc<T>(nome: string, args: Record<string, unknown> = {}): 
   return (await autenticado("POST", `/rest/v1/rpc/${nome}`, args)) as T;
 }
 
-/** Lê uma tabela (o RLS do banco já limita aos dados do próprio usuário). */
+// O Supabase devolve no máximo 1000 linhas por pedido (max-rows), sem avisar
+// que cortou. Por isso a leitura é feita em lotes desse tamanho até acabar.
+const LOTE = 1000;
+
+/** Lê uma tabela inteira (o RLS do banco já limita aos dados do próprio usuário). */
 export async function listar<T>(tabela: string, filtros: Record<string, string> = {}): Promise<T[]> {
-  const q = new URLSearchParams({ select: "*", ...filtros });
-  const dados = await autenticado("GET", `/rest/v1/${tabela}?${q.toString()}`);
-  return Array.isArray(dados) ? (dados as T[]) : [];
+  const todos: T[] = [];
+  for (let inicio = 0; ; inicio += LOTE) {
+    // ordem fixa por id: sem ela, um lote pode repetir ou pular linhas do outro
+    const q = new URLSearchParams({ select: "*", order: "id", ...filtros, limit: String(LOTE), offset: String(inicio) });
+    const dados = await autenticado("GET", `/rest/v1/${tabela}?${q.toString()}`);
+    const lote = Array.isArray(dados) ? (dados as T[]) : [];
+    todos.push(...lote);
+    if (lote.length < LOTE) return todos;
+  }
 }
 
 export async function excluirMinhaConta(email: string): Promise<{ status: string; arquivos_removidos: number }> {

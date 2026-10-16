@@ -93,6 +93,20 @@ test("Nubank: linha com data e sem valor reconhecível é erro", () => {
   assert.ok(f.erros.some((e) => /não reconhecida/.test(e.motivo)));
 });
 
+test("Nubank: portador listado depois dos pagamentos continua sendo compra", () => {
+  const f = lerNubankFaturaPdf(nubank([
+    ...NU,
+    L(6, cel("Beltrano de Tal", 119), cel("R$ 150,00", 490)),
+    T("11 SET", "Mercado", "R$ 120,00", "5678"),
+    T("15 SET", "Padaria", "R$ 30,00", "5678"),
+  ], "R$ 505,28"));
+  assert.deepEqual(f.erros, []);
+  assert.equal(f.total_lancamentos_centavos, 65528, "soma os subtotais dos dois portadores");
+  assert.deepEqual(f.finais, ["1234", "5678"]);
+  assert.deepEqual(f.itens.filter((i) => i.final === "5678").map((i) => [i.descricao, i.tipo, i.valor_centavos]), [["Mercado", "compra", 12000], ["Padaria", "compra", 3000]]);
+  assert.deepEqual(f.pagamentos, [{ data: "2026-09-08", descricao: "Pagamento em 08 SET", valor_centavos: -50000 }]);
+});
+
 // ---------------------------------------------------------------- Itaú
 function itau(esq: LinhaPdf[], dir: LinhaPdf[] = []): LinhaPdf[] {
   yy = 800;

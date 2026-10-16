@@ -4,3 +4,4 @@ dist/
 .env.*
 !.env.example
 docs/capturas-site/erro.png
+.cartographer/

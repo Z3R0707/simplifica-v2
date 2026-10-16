@@ -89,14 +89,17 @@ export function iniciarServidor({ db, porta, dist }) {
       if (tabela && req.method === "GET") {
         const uid = uidDoToken(req.headers.authorization);
         const filtros = [];
+        let ordem = "", pagina = "";
         for (const [k, v] of u.searchParams) {
-          if (k === "select" || k === "order") continue;
+          if (k === "select") continue;
+          if (k === "order") { if (v === "id") ordem = " order by id"; continue; }
+          if ((k === "limit" || k === "offset") && /^\d+$/.test(v)) { pagina += ` ${k} ${v}`; continue; }
           if (!/^[a-z_]+$/.test(k) || !v.startsWith("eq.")) return enviar(400, { code: "PGRST100", message: "filtro não suportado no simulador" });
           filtros.push(`${k}::text = ${lit(v.slice(3))}`);
         }
         try {
           const papel = uid ? comoUsuario(uid) : "set role anon;";
-          const saida = sql(db, `${papel} select coalesce(json_agg(t), '[]') from public.${tabela[1]} t${filtros.length ? " where " + filtros.join(" and ") : ""}`);
+          const saida = sql(db, `${papel} select coalesce(json_agg(t), '[]') from (select * from public.${tabela[1]}${filtros.length ? " where " + filtros.join(" and ") : ""}${ordem}${pagina}) t`);
           return enviar(200, JSON.parse(saida));
         } catch (e) {
           return enviar(e.code === "42501" ? (uid ? 403 : 401) : 400, { code: e.code, message: e.message });
