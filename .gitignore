@@ -5,3 +5,6 @@ dist/
 !.env.example
 docs/capturas-site/erro.png
 .cartographer/
+.agents/
+.claude/
+skills-lock.json
