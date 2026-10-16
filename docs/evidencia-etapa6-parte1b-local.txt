@@ -1,0 +1,63 @@
+Simplifica Finanças v2 — Etapa 6 parte 1b (0014): pagamentos mostrados na fatura importada + centavos na conciliação
+Gerado em 2026-10-16T00:39Z
+
+1) Banco novo com 0001–0014: os doze roteiros de validação
+   01_validar_banco_no_supabase: VALIDAÇÃO APROVADA: 74 de 74 verificações OK.
+   03_validar_etapa2_no_supabase: VALIDAÇÃO APROVADA: 63 de 63 verificações OK.
+   04_validar_cancelamento_parcial_no_supabase: VALIDAÇÃO APROVADA: 30 de 30 verificações OK.
+   05_validar_etapa3_no_supabase: VALIDAÇÃO APROVADA: 77 de 77 verificações OK.
+   06_validar_etapa4_no_supabase: VALIDAÇÃO APROVADA: 82 de 82 verificações OK.
+   07_validar_etapa5_importacao_no_supabase: VALIDAÇÃO APROVADA: 49 de 49 verificações OK.
+   08_validar_etapa5_leitores_no_supabase: VALIDAÇÃO APROVADA: 26 de 26 verificações OK.
+   09_validar_etapa5_faturas_no_supabase: VALIDAÇÃO APROVADA: 40 de 40 verificações OK.
+   10_validar_etapa5_valor_parcela_no_supabase: VALIDAÇÃO APROVADA: 15 de 15 verificações OK.
+   11_validar_etapa5_leitores_faturas_no_supabase: VALIDAÇÃO APROVADA: 16 de 16 verificações OK.
+   12_validar_etapa6_conciliacao_no_supabase: VALIDAÇÃO APROVADA: 37 de 37 verificações OK.
+   13_validar_etapa6_pagamentos_fatura_no_supabase: VALIDAÇÃO APROVADA: 28 de 28 verificações OK.
+
+2) Testes de mutação da 0014 (cada linha estraga UMA regra da migração e roda os testes 200 e 190)
+DETECTADA anterior/antecipado trocados
+DETECTADA saldo restante vira pagamento
+DETECTADA crédito positivo vira pagamento
+DETECTADA importação não confirmada aceita
+DETECTADA registrado ignora o valor
+DETECTADA sugestão aceita transferência entre contas
+DETECTADA sugestão sem janela de dias
+DETECTADA sugestão de lançamento já vinculado
+DETECTADA conta sugerida ignora o banco do cartão
+DETECTADA conta e lançamento juntos aceitos
+DETECTADA registra duas vezes
+NÃO DETECTADA passa do restante
+NÃO DETECTADA registrar sem dono
+DETECTADA registra na data errada
+DETECTADA centavos sem limite
+DETECTADA centavos sem nome nem banco
+DETECTADA centavos em conta que não é fatura
+DETECTADA desconto vira juros
+DETECTADA juros zerado
+DETECTADA anon executa
+18/20 detectadas. As 2 não detectadas são equivalentes (a regra existe também em outra camada, conferido no código):
+  - passa do restante: obrigacao_pagar e obrigacao_vincular_movimento recusam abater mais do que falta pagar (22023);
+  - registrar sem dono: a lista de pagamentos é security invoker; para outro usuário ela vem vazia e o registro para com P0002.
+
+3) Atualização de um banco já em uso (0013 com dados) para a 0014
+== banco na versão anterior (0013) com dados: cartão com compra em 12x, antecipação com desconto, fatura de 10/2026 com total do banco e paga ==
+antes:
+  faturas=10/26:25000:paga,11/26:29000:aberta,12/26:10000:aberta,01/27:10000:aberta,02/27:10000:aberta,03/27:10000:aberta,04/27:10000:aberta,05/27:10000:aberta,06/27:10000:aberta,07/27:10000:aberta,08/27:0:aberta,09/27:0:aberta compras=2 parcelas=13 informado10=25000 saldo=475000 movimentos=1 pagamentos=1 a_pagar=Fatura Nubank 10/2026:aberta,Fatura Nubank 11/2026:aberta
+== aplica 0014 ==
+COMMIT
+depois:
+  faturas=10/26:25000:paga,11/26:29000:aberta,12/26:10000:aberta,01/27:10000:aberta,02/27:10000:aberta,03/27:10000:aberta,04/27:10000:aberta,05/27:10000:aberta,06/27:10000:aberta,07/27:10000:aberta,08/27:0:aberta,09/27:0:aberta compras=2 parcelas=13 informado10=25000 saldo=475000 movimentos=1 pagamentos=1 a_pagar=Fatura Nubank 10/2026:aberta,Fatura Nubank 11/2026:aberta
+etapa: 6.1b-pagamentos-fatura
+== reaplicar 0014 por engano é recusado sem alterar nada ==
+ABORTADO: este banco não está na Etapa 6 parte 1 (0013) do Simplifica v2. Nada foi alterado.
+depois da tentativa:
+  faturas=10/26:25000:paga,11/26:29000:aberta,12/26:10000:aberta,01/27:10000:aberta,02/27:10000:aberta,03/27:10000:aberta,04/27:10000:aberta,05/27:10000:aberta,06/27:10000:aberta,07/27:10000:aberta,08/27:0:aberta,09/27:0:aberta compras=2 parcelas=13 informado10=25000 saldo=475000 movimentos=1 pagamentos=1 a_pagar=Fatura Nubank 10/2026:aberta,Fatura Nubank 11/2026:aberta
+
+4) Conferência com os arquivos reais do usuário (só no ambiente local, nada vai para o repositório)
+   - Faturas de 7 bancos: cada pagamento impresso foi classificado como da fatura anterior (até o vencimento dela) ou antecipado;
+     os créditos de "saldo restante" (±R$ 0,01) ficaram de fora.
+   - Nubank: o pagamento antecipado de 17/09 não teve sugestão de lançamento na conta Itaú (era transferência entre contas);
+     registrado saindo da conta Nubank, a fatura ficou com o valor cobrado pelo banco menos R$ 0,01; o débito da fatura
+     na conta Nubank foi sugerido na conciliação com R$ 0,01 de acréscimo.
+   - Santander: registrado o antecipado de 22/09, falta pagar exatamente o valor cobrado pelo banco, sugerido pelo mesmo valor.

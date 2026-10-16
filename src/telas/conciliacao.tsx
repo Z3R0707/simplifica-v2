@@ -11,7 +11,7 @@ import { Alerta, Carregando, Confirmar, Dialogo, TituloPagina, Valor, useCadastr
 type Resumo = { conta_id: string; pendentes: number; sugestoes: number; divergencias: number; conciliados: number };
 type Sugestao = {
   movimento_id: string; conta_id: string; conta: string; data_movimento: string; descricao: string; valor_centavos: number;
-  obrigacao_id: string; obrigacao: string; vencimento: string; restante_centavos: number; valor_vincular_centavos: number; e_fatura: boolean; pontos: number; motivo: string;
+  obrigacao_id: string; obrigacao: string; vencimento: string; restante_centavos: number; valor_vincular_centavos: number; juros_centavos: number; desconto_centavos: number; e_fatura: boolean; pontos: number; motivo: string;
 };
 type Lancamento = {
   movimento_id: string; conta_id: string; conta: string; data_movimento: string; descricao: string; valor_centavos: number; origem: string;
@@ -100,7 +100,7 @@ function Sugestoes({ lista, aoMudar }: { lista: Sugestao[]; aoMudar: () => void 
   if (lista.length === 0) return <p className="vazio">Nenhuma sugestão agora. Importe um extrato ou cadastre as contas a pagar para o sistema encontrar os pares.</p>;
   const confirmar = (s: Sugestao) => rpc("obrigacao_vincular_movimento", {
     p_obrigacao_id: s.obrigacao_id, p_movimento_id: s.movimento_id, p_valor_pago_centavos: s.valor_vincular_centavos,
-    p_juros_centavos: 0, p_multa_centavos: 0, p_desconto_centavos: 0, p_chave_idempotencia: `${chave}-${s.movimento_id.slice(0, 8)}-${s.obrigacao_id.slice(0, 8)}`,
+    p_juros_centavos: s.juros_centavos, p_multa_centavos: 0, p_desconto_centavos: s.desconto_centavos, p_chave_idempotencia: `${chave}-${s.movimento_id.slice(0, 8)}-${s.obrigacao_id.slice(0, 8)}`,
   });
   return (
     <section className="secao">

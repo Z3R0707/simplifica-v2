@@ -1,7 +1,7 @@
 // Importação da FATURA de um cartão (PDF): leitura no navegador com
 // conferência do total, prévia no banco (o que já está lançado, o que é
 // novo, antecipações e ajustes de centavos), confirmação e histórico.
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { guardarArquivo, listar, rpc, sessaoAtual } from "../lib/api";
 import { PDFJS_BASE } from "../config";
 import { formatarData } from "../lib/datas";
@@ -145,6 +145,7 @@ export function TelaImportarFatura({ cartaoId }: { cartaoId: string }) {
             {resultado.itens_ajustados > 0 && <li><strong>{resultado.itens_ajustados}</strong> parcela(s) com centavos acertados pelo valor do banco</li>}
             {resultado.itens_ignorados > 0 && <li><strong>{resultado.itens_ignorados}</strong> deixado(s) de fora</li>}
           </ul>
+          <PagamentosDaFatura importacaoId={resultado.id} />
           <div className="acoes acoes-esquerda">
             <a className="botao" href={`#/cartao/${cartaoId}/${resultado.vencimento.slice(0, 7)}`}>Ver a fatura</a>
             <button type="button" className="botao-secundario" onClick={recomecar}>Importar outra fatura</button>
@@ -336,6 +337,7 @@ function HistoricoFatura({ dados, carregando, erro, aoRetomar, aoAlterar }: {
   dados: LinhaHistorico[]; carregando: boolean; erro: string | null; aoRetomar: (l: LinhaHistorico) => Promise<void>; aoAlterar: () => void;
 }) {
   const [desfazendo, setDesfazendo] = useState<LinhaHistorico | null>(null);
+  const [aberta, setAberta] = useState<string | null>(null);
   const [erroRetomar, setErroRetomar] = useState<string | null>(null);
   if (carregando) return <Carregando />;
   if (erro) return <Alerta>{erro}</Alerta>;
@@ -362,8 +364,13 @@ function HistoricoFatura({ dados, carregando, erro, aoRetomar, aoAlterar }: {
                   </span>
                 )}
                 {l.situacao === "cancelada" && <span className="selo">Desfeita{l.cancelada_motivo ? `: ${l.cancelada_motivo}` : ""}</span>}
+                {aberta === l.importacao_id && <PagamentosDaFatura importacaoId={l.importacao_id} />}
               </div>
               <span className="acoes-linha">
+                {l.situacao === "confirmada" && (
+                  <button type="button" className="botao-texto" aria-expanded={aberta === l.importacao_id}
+                    onClick={() => setAberta(aberta === l.importacao_id ? null : l.importacao_id)}>Pagamentos da fatura</button>
+                )}
                 {l.situacao === "previa" && <button type="button" className="botao-texto" onClick={() => { setErroRetomar(null); aoRetomar(l).catch((e) => setErroRetomar(mensagemDeErro(e))); }}>Continuar prévia</button>}
                 {l.situacao !== "cancelada" && <button type="button" className="botao-texto botao-texto-perigo" onClick={() => setDesfazendo(l)}>{l.situacao === "previa" ? "Descartar" : "Desfazer"}</button>}
               </span>
@@ -381,5 +388,71 @@ function HistoricoFatura({ dados, carregando, erro, aoRetomar, aoAlterar }: {
           aoConfirmar={async (motivo) => { await rpc("importacao_fatura_desfazer", { p_id: desfazendo.importacao_id, p_versao_esperada: desfazendo.versao, p_motivo: motivo, p_chave_idempotencia: null }); setDesfazendo(null); aoAlterar(); }} />
       )}
     </section>
+  );
+}
+
+// ------------------------------------------------------------ pagamentos mostrados na fatura
+type PagamentoFatura = {
+  ordem: number; data: string; descricao: string; valor_centavos: number; tipo: "fatura_anterior" | "antecipado";
+  obrigacao_id: string | null; obrigacao: string | null; obrigacao_restante_centavos: number | null; registrado: boolean;
+  pagamento_id: string | null; conta_sugerida_id: string | null; movimento_sugerido_id: string | null; movimento_sugerido: string | null;
+};
+
+export function PagamentosDaFatura({ importacaoId }: { importacaoId: string }) {
+  const q = useCarregar(() => rpc<PagamentoFatura[]>("importacao_fatura_pagamentos", { p_importacao_id: importacaoId }), [importacaoId]);
+  if (q.carregando && !q.dados) return <Carregando />;
+  if (q.erro) return <Alerta>{q.erro}</Alerta>;
+  const lista = q.dados ?? [];
+  if (lista.length === 0) return null;
+  return (
+    <div className="pagamentos-fatura">
+      <h3>Pagamentos mostrados na fatura</h3>
+      <p className="campo-ajuda">
+        Pagamentos não são compras. O pagamento da fatura anterior quita a anterior; o pagamento feito antes do vencimento desta fatura
+        (antecipado) abate o que falta pagar nela — registre-o para o valor a pagar ficar igual ao do banco.
+      </p>
+      <ul className="lista-conciliacao">
+        {lista.map((p) => <LinhaPagamentoFatura key={p.ordem} p={p} importacaoId={importacaoId} aoAlterar={q.recarregar} />)}
+      </ul>
+    </div>
+  );
+}
+
+function LinhaPagamentoFatura({ p, importacaoId, aoAlterar }: { p: PagamentoFatura; importacaoId: string; aoAlterar: () => void }) {
+  const { contas } = useCadastros();
+  const ativas = contas.filter((c) => c.ativa);
+  const [conta, setConta] = useState(p.conta_sugerida_id ?? ativas[0]?.id ?? "");
+  const { chave, enviando, erro, enviar } = useEnvio("fatura-pagamento");
+  const registrar = (alvo: { p_conta_id: string | null; p_movimento_id: string | null }) => void enviar(async () => {
+    await rpc("importacao_fatura_registrar_pagamento", { p_importacao_id: importacaoId, p_ordem: p.ordem, ...alvo, p_chave_idempotencia: `${chave}-${p.ordem}` });
+    aoAlterar();
+  });
+  const tipo = p.tipo === "antecipado" ? "Pagamento antecipado desta fatura" : "Pagamento da fatura anterior";
+  let situacao: ReactNode;
+  if (p.registrado) situacao = <span className="selo selo-ok">Registrado{p.obrigacao ? ` em ${p.obrigacao}` : ""}</span>;
+  else if (!p.obrigacao_id) situacao = <span className="texto-suave">A fatura que ele quita não está em aberto no Simplifica — nada a registrar.</span>;
+  else if ((p.obrigacao_restante_centavos ?? 0) < p.valor_centavos) situacao = <span className="texto-suave">{p.obrigacao} já está paga no Simplifica — nada a registrar.</span>;
+  else situacao = (
+    <span className="acoes-pendente">
+      {p.movimento_sugerido_id && (
+        <button type="button" className="botao-secundario" disabled={enviando}
+          onClick={() => registrar({ p_conta_id: null, p_movimento_id: p.movimento_sugerido_id })}>Vincular ao lançamento {p.movimento_sugerido}</button>
+      )}
+      <select aria-label={`Conta de onde saiu o pagamento de ${formatarData(p.data)}`} value={conta} onChange={(e) => setConta(e.target.value)}>
+        {ativas.map((c) => <option key={c.id} value={c.id}>{c.apelido}</option>)}
+      </select>
+      <button type="button" className={p.movimento_sugerido_id ? "botao-texto" : "botao-secundario"} disabled={enviando || !conta}
+        onClick={() => registrar({ p_conta_id: conta, p_movimento_id: null })}>Registrar saindo desta conta</button>
+    </span>
+  );
+  return (
+    <li>
+      <div>
+        <strong>{formatarData(p.data)} · <Valor centavos={p.valor_centavos} /></strong> <span className="texto-suave">{p.descricao}</span>
+        <span className="texto-suave">{tipo}{p.obrigacao && !p.registrado ? ` → ${p.obrigacao} (falta pagar ${formatarCentavos(p.obrigacao_restante_centavos ?? 0)})` : ""}</span>
+        {situacao}
+        {erro && <Alerta>{erro}</Alerta>}
+      </div>
+    </li>
   );
 }

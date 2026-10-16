@@ -1,4 +1,4 @@
-# Simplifica Finanças v2 — Etapas 1 a 6 (parte 1)
+# Simplifica Finanças v2 — Etapas 1 a 6 (parte 1b)
 
 Base do novo sistema: banco, permissões, auditoria, idempotência, versão e exclusão
 de conta (LGPD) sem arquivos órfãos. Tudo vai num projeto Supabase **novo e separado**.
@@ -315,3 +315,14 @@ Migração **adicional** `supabase/migrations/0013_etapa6_conciliacao.sql` (sobr
 Instalação: `0013_etapa6_conciliacao.sql` → Run; validação `validacao/12_validar_etapa6_conciliacao_no_supabase.sql` → `VALIDAÇÃO APROVADA: 37 de 37`; regressão 01 (74), 03 (63), 04 (30), 05 (77), 06 (82), 07 (49), 08 (26), 09 (40), 10 (15), 11 (16). Nenhum roteiro antigo mudou.
 
 Evidências: `docs/evidencia-etapa6-parte1-local.txt` (roteiros, mutações, atualização com dados, conferência com os arquivos reais), `docs/evidencia-testes-locais.txt` (802 no banco + 42 testes dos leitores), `docs/evidencia-site-local.txt` (160 no navegador).
+
+# Etapa 6, parte 1b — pagamentos mostrados na fatura e centavos na conciliação
+
+Migração **adicional** `supabase/migrations/0014_etapa6_pagamentos_fatura.sql` (sobre a 0013). Não cria tabelas nem altera dados.
+
+- Depois de importar uma fatura (e no histórico, em **Pagamentos da fatura**), aparecem os pagamentos que o banco imprimiu nela. Cada um é identificado como pagamento da **fatura anterior** (até o vencimento dela) ou **antecipado** desta fatura (depois). Basta registrar: vinculando o débito do extrato que o sistema sugere (mesmo valor, até 3 dias, numa conta do mesmo banco do cartão ou com "fatura"/nome do banco na descrição — transferência entre contas não serve) ou lançando a saída na conta escolhida (sugere a conta do mesmo banco do cartão). Assim o que falta pagar no Simplifica fica igual ao valor cobrado pelo banco. Um pagamento já registrado não é registrado de novo.
+- Conciliação: fatura com diferença de até R$ 0,99 entre o débito e o que falta pagar (centavos que o banco carrega ou arredonda) é sugerida quando o nome do banco/cartão está na descrição ou o débito é numa conta do mesmo banco do cartão; a diferença entra como acréscimo ou desconto e a fatura fica quitada. Contas a pagar comuns continuam exigindo o mesmo valor.
+
+Instalação: `0014_etapa6_pagamentos_fatura.sql` → Run; validação `validacao/13_validar_etapa6_pagamentos_fatura_no_supabase.sql` → `VALIDAÇÃO APROVADA: 28 de 28`; regressão 01 (74), 03 (63), 04 (30), 05 (77), 06 (82), 07 (49), 08 (26), 09 (40), 10 (15), 11 (16), 12 (37). Nenhum roteiro antigo mudou.
+
+Evidências: `docs/evidencia-etapa6-parte1b-local.txt`, `docs/evidencia-testes-locais.txt` (831 no banco + 42 testes dos leitores), `docs/evidencia-site-local.txt` (163 no navegador).

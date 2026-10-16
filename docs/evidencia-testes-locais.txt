@@ -1,5 +1,5 @@
-Simplifica Finanças v2 — suíte completa de testes locais (etapas 1 a 6.1)
-Gerado em 2026-10-14T17:59Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu
+Simplifica Finanças v2 — suíte completa de testes locais (etapas 1 a 6.1b)
+Gerado em 2026-10-16T00:40Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu
 
 -- aplicando 0001_fundacao_infra.sql
 -- aplicando 0002_fundacao_cadastros.sql
@@ -14,6 +14,7 @@ Gerado em 2026-10-14T17:59Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
 -- aplicando 0011_etapa5_valor_parcela.sql
 -- aplicando 0012_etapa5_leitores_faturas.sql
 -- aplicando 0013_etapa6_conciliacao.sql
+-- aplicando 0014_etapa6_pagamentos_fatura.sql
 -- testes 05_auxiliares.sql
 -- testes 100_etapa4_cartoes.sql
   OK: fecha dia 3 / vence dia 10: compra em 02/10 vence em outubro
@@ -389,6 +390,36 @@ Gerado em 2026-10-14T17:59Z — PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
   OK: outro usuário não troca pagamento da Cora
   OK: anônimo não consulta a conciliação
   OK: nenhuma função de conciliação executável por anônimo
+-- testes 200_etapa6_pagamentos_fatura.sql
+  OK: prévia ainda não confirmada: nada a registrar
+  OK: prévia não confirmada não lista pagamentos
+  OK: pagamento até o vencimento anterior quita a fatura anterior; depois, é antecipado desta; saldo restante e estorno não são pagamento; transferência e débito fora de 3 dias não são sugeridos
+  OK: conta sugerida: a conta do mesmo banco do cartão
+  OK: débito da conta do mesmo banco é sugerido para o pagamento antecipado
+  OK: sem conta e sem lançamento: recusado
+  OK: conta e lançamento juntos: recusado
+  OK: pagamento inexistente
+  OK: saldo restante (positivo) não é pagamento
+  OK: pagamento de outro valor não conta como registrado
+  OK: pagamento maior que o que falta pagar na fatura: recusado
+  OK: fatura anterior quitada pela conta escolhida; fatura atual abatida pelo antecipado (falta R$ 593,40)
+  OK: registrar pela conta lança a saída na data do pagamento mostrado na fatura
+  OK: registrar pelo lançamento do extrato vincula, sem lançar outra saída
+  OK: os dois aparecem como registrados
+  OK: registrar de novo é recusado
+  OK: mesma chave devolve o mesmo pagamento (idempotente)
+  OK: desfeito o vínculo, o pagamento volta a não registrado
+  OK: débito já vinculado a outra conta a pagar não é sugerido
+  OK: fatura com R$ 0,01 de diferença na conta do mesmo banco: sugerida, diferença como acréscimo; sem nome/outro banco ou diferença ≥ R$ 1,00: não
+  OK: conta a pagar comum com centavos de diferença: não sugerida
+  OK: motivo explica a diferença
+  OK: R$ 0,03 a menos, na conta do mesmo banco do cartão: entra como desconto
+  OK: confirmadas: as duas faturas ficam quitadas
+  OK: outro usuário não vê os pagamentos da fatura
+  OK: outro usuário: parâmetros conferidos antes
+  OK: outro usuário não registra pagamento da Iris
+  OK: anônimo não consulta
+  OK: nenhuma função nova executável por anônimo
 -- testes 20_correcoes_revisao.sql
   OK: conta_atualizar sem versão é recusada
   OK: conta_definir_ativa sem versão é recusada

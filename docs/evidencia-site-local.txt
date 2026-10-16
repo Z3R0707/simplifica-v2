@@ -1,5 +1,5 @@
-Simplifica Finanças v2 — teste do site num navegador real (Chromium) contra o Supabase simulado com o SQL real (0001–0013)
-Gerado em 2026-10-14T17:58Z
+Simplifica Finanças v2 — teste do site num navegador real (Chromium) contra o Supabase simulado com o SQL real (0001–0014)
+Gerado em 2026-10-16T00:39Z
 
   OK: tela de entrar abre
   OK: senha curta recusada no cadastro
@@ -133,6 +133,9 @@ Gerado em 2026-10-14T17:58Z
   OK: prévia: TV 1/10, as 3 antecipadas e o desconto já estavam; o estorno é possível duplicado; padaria e IOF são novos
   OK: parcela já lançada é mostrada com a compra do Simplifica
   OK: importação: 2 novos, 5 já existentes
+  OK: pagamento de 13/10 mostrado como antecipado desta fatura
+  OK: pagamento antecipado registrado na fatura
+  OK: fatura 11/2026: falta pagar R$ 376,99 − R$ 50,00 = R$ 326,99
   OK: histórico: fatura do Simplifica confere com o total do banco
   OK: fatura 11/2026: R$ 350,00 + padaria + IOF = R$ 376,99
   OK: compra importada com a categoria escolhida
@@ -161,4 +164,4 @@ Gerado em 2026-10-14T17:58Z
   OK: contas, lançamentos e contas a pagar da conta excluída removidos do banco
   OK: segundo usuário continua usando normalmente
   OK: nenhum erro de JavaScript no navegador
-== Site (navegador): 160 verificações aprovadas ==
+== Site (navegador): 163 verificações aprovadas ==

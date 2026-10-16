@@ -24,7 +24,7 @@ psql(["-d", "postgres", "-c", `drop database if exists ${DB}`, "-c", `create dat
 const stub = readFileSync(RAIZ + "supabase/tests/00_stub_supabase.sql", "utf8")
   .replace(/^create role (\w+) ([^;]*);/gm, "do $$$$ begin create role $1 $2; exception when duplicate_object then null; end $$$$;");
 execFileSync("psql", [...PSQL, "-q", "-v", "ON_ERROR_STOP=1", "-d", DB], { input: stub, stdio: ["pipe", "ignore", "pipe"] });
-for (const f of ["0001_fundacao_infra.sql", "0002_fundacao_cadastros.sql", "0003_fundacao_lgpd_storage.sql", "0004_etapa2_movimentos_saldos.sql", "0005_etapa2_cancelamento_parcial.sql", "0006_etapa3_contas_a_pagar.sql", "0007_etapa4_cartoes.sql", "0008_etapa5_importacao_extratos.sql", "0009_etapa5_leitores_bancos.sql", "0010_etapa5_importacao_faturas.sql", "0011_etapa5_valor_parcela.sql", "0012_etapa5_leitores_faturas.sql", "0013_etapa6_conciliacao.sql"]) {
+for (const f of ["0001_fundacao_infra.sql", "0002_fundacao_cadastros.sql", "0003_fundacao_lgpd_storage.sql", "0004_etapa2_movimentos_saldos.sql", "0005_etapa2_cancelamento_parcial.sql", "0006_etapa3_contas_a_pagar.sql", "0007_etapa4_cartoes.sql", "0008_etapa5_importacao_extratos.sql", "0009_etapa5_leitores_bancos.sql", "0010_etapa5_importacao_faturas.sql", "0011_etapa5_valor_parcela.sql", "0012_etapa5_leitores_faturas.sql", "0013_etapa6_conciliacao.sql", "0014_etapa6_pagamentos_fatura.sql"]) {
   psql(["-d", DB, "-f", RAIZ + "supabase/migrations/" + f]);
 }
 
@@ -719,7 +719,7 @@ try {
   // ============================================================ importação de fatura (Etapa 5, parte 3)
   // fatura 11/2026 do "Nubank Ana" no layout do Nubank, com dados fictícios: a TV 1/10 e as 6, 7 e 8 já
   // antecipadas (com o desconto) estão no Simplifica; o estorno também; a padaria e o IOF são novos.
-  async function pdfNubankFatura(linhas, subtotal) {
+  async function pdfNubankFatura(linhas, subtotal, pagamentos = []) {
     const doc = await PDFDocument.create();
     const fonte = await doc.embedFont(StandardFonts.Helvetica);
     const t = (pg, x, y, s) => pg.drawText(s, { x, y, size: 8, font: fonte });
@@ -738,6 +738,12 @@ try {
       if (cartao) { t(pg, 172, y, "•••• 4321"); t(pg, 214, y, desc); } else t(pg, 185, y, desc);
       dir(pg, 535, y, v);
       y -= 22;
+    }
+    if (pagamentos.length > 0) {
+      y -= 10;
+      t(pg, 119, y, "Pagamentos e Financiamentos"); dir(pg, 535, y, "-R$ 50,00");
+      y -= 22;
+      for (const [d, desc, v] of pagamentos) { t(pg, 123, y, d); t(pg, 185, y, desc); dir(pg, 535, y, v); y -= 22; }
     }
     return Buffer.from(await doc.save());
   }
@@ -766,7 +772,7 @@ try {
   await esperarTexto(".importar-passo .alerta-erro", "extrato da conta");
   ok((await texto(".importar-passo .alerta-erro")).includes("extrato da conta, não a fatura"), "extrato escolhido na tela de fatura é explicado");
   // fatura correta
-  await campoFatura.setInputFiles({ name: "Nubank_2026-11-10.pdf", mimeType: "application/pdf", buffer: await pdfNubankFatura(LINHAS_FATURA, "R$ 376,99") });
+  await campoFatura.setInputFiles({ name: "Nubank_2026-11-10.pdf", mimeType: "application/pdf", buffer: await pdfNubankFatura(LINHAS_FATURA, "R$ 376,99", [["13 OUT", "Pagamento em 13 OUT", "-R$ 50,00"]]) });
   await p.getByRole("button", { name: "Ver prévia" }).waitFor();
   const resumoFat = await texto(".importar-passo:has(h2)");
   ok(resumoFat.includes("Fatura de 11/2026") && resumoFat.includes("8 lançamento(s)") && resumoFat.includes("Conferido: a soma dos 8 lançamentos"),
@@ -784,6 +790,20 @@ try {
   await p.getByRole("heading", { name: "Fatura importada" }).waitFor();
   const resFat = await texto("main");
   ok(resFat.includes("2 lançamento(s) novo(s)") && resFat.includes("5 já estavam no cartão"), "importação: 2 novos, 5 já existentes", resFat);
+  // pagamento feito antes do vencimento, mostrado na fatura: registrar abate o que falta pagar
+  await esperarTexto(".pagamentos-fatura", "Pagamento em 13 OUT");
+  const pagFat = await texto(".pagamentos-fatura");
+  ok(pagFat.includes("Pagamento antecipado desta fatura") && pagFat.includes("falta pagar R$ 376,99"),
+    "pagamento de 13/10 mostrado como antecipado desta fatura", pagFat);
+  await p.screenshot({ path: CAPTURAS + "20-fatura-pagamento-antecipado.png", fullPage: true });
+  await p.locator(".pagamentos-fatura").getByRole("button", { name: "Registrar saindo desta conta" }).click();
+  await esperarTexto(".pagamentos-fatura", "Registrado");
+  ok((await texto(".pagamentos-fatura")).includes("Registrado em Fatura"), "pagamento antecipado registrado na fatura", await texto(".pagamentos-fatura"));
+  const restanteFat = execFileSync("psql", [...PSQL, "-d", DB, "-tAc", "select o.valor_centavos - (select coalesce(sum(abatido_centavos), 0) from public.pagamentos where obrigacao_id = o.id and situacao = 'ativo') from public.obrigacoes o where o.descricao like 'Fatura Nubank Ana 11/2026%'"], { encoding: "utf8" }).trim();
+  ok(restanteFat === "32699", "fatura 11/2026: falta pagar R$ 376,99 − R$ 50,00 = R$ 326,99", restanteFat);
+  // volta ao estado anterior para o resto do roteiro (o lançamento criado é cancelado, não apagado)
+  execFileSync("psql", [...PSQL, "-d", DB, "-v", "ON_ERROR_STOP=1", "-c", `begin; set local role authenticated; select set_config('request.jwt.claim.sub', '${idAna}', true);
+    select public.pagamento_desfazer(id, versao, 'roteiro', true, null) from public.pagamentos where observacao like 'Pagamento mostrado na fatura%' and situacao = 'ativo'; commit;`], { encoding: "utf8" });
   await esperarTexto(".lista-simples", "confere com o banco");
   ok((await texto(".lista-simples")).includes("Fatura confere com o banco (R$ 376,99)"), "histórico: fatura do Simplifica confere com o total do banco");
   await p.getByRole("link", { name: "Ver a fatura" }).click();
@@ -857,8 +877,8 @@ try {
   await p.getByRole("link", { name: "Minha conta" }).first().click();
   const [download] = await Promise.all([p.waitForEvent("download"), p.getByRole("button", { name: "Baixar meus dados" }).click()]);
   const exportado = JSON.parse(readFileSync(await download.path(), "utf8"));
-  ok(exportado.movimentos?.length === 17 && exportado.contas?.length === 6 && exportado.importacoes?.length === 3, "exportação traz contas e lançamentos", `${exportado.movimentos?.length} mov, ${exportado.contas?.length} contas`);
-  ok(exportado.contas_a_pagar?.length >= 4 && exportado.pagamentos?.length === 5 && exportado.recorrencias?.length === 1, "exportação traz contas a pagar, pagamentos e recorrências",
+  ok(exportado.movimentos?.length === 18 && exportado.contas?.length === 6 && exportado.importacoes?.length === 3, "exportação traz contas e lançamentos", `${exportado.movimentos?.length} mov, ${exportado.contas?.length} contas`);
+  ok(exportado.contas_a_pagar?.length >= 4 && exportado.pagamentos?.length === 6 && exportado.recorrencias?.length === 1, "exportação traz contas a pagar, pagamentos e recorrências",
     `${exportado.contas_a_pagar?.length} contas a pagar, ${exportado.pagamentos?.length} pagamentos, ${exportado.recorrencias?.length} recorrências`);
   ok(exportado.cartoes?.length === 1 && exportado.compras_cartao?.length === 5 && exportado.parcelas?.length === 14 && exportado.importacoes_fatura?.length === 1, "exportação traz cartões, compras e parcelas",
     `${exportado.cartoes?.length} cartões, ${exportado.compras_cartao?.length} compras, ${exportado.parcelas?.length} parcelas`);

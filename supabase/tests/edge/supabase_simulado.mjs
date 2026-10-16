@@ -34,7 +34,7 @@ function literal(v) {
 const FUNCOES_SETOF = new Set(["exclusao_listar_arquivos", "storage_listar_orfaos", "saldos_por_conta", "saldo_consolidado", "extrato_conta", "resumo_categorias",
   "contas_a_pagar", "pagamentos_da_obrigacao", "movimentos_para_vincular", "contas_a_pagar_por_conta",
   "faturas_do_cartao", "lancamentos_da_fatura", "parcelas_da_compra", "cartoes_resumo", "fatura_prevista",
-  "importacoes_da_conta", "importacao_itens_lista", "importacoes_fatura_do_cartao", "importacao_fatura_itens_lista", "conciliacao_lancamentos", "conciliacao_sugestoes", "conciliacao_divergencias", "conciliacao_resumo", "conciliacao_historico"]);
+  "importacoes_da_conta", "importacao_itens_lista", "importacoes_fatura_do_cartao", "importacao_fatura_itens_lista", "conciliacao_lancamentos", "conciliacao_sugestoes", "conciliacao_divergencias", "conciliacao_resumo", "conciliacao_historico", "importacao_fatura_pagamentos"]);
 const STATUS_POSTGREST = { "42501": 403, "P0002": 404, "40001": 409, "23505": 409 };
 
 export function criarSimulador(db, opcoes = {}) {
