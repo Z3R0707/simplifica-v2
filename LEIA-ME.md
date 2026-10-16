@@ -326,3 +326,23 @@ Migração **adicional** `supabase/migrations/0014_etapa6_pagamentos_fatura.sql`
 Instalação: `0014_etapa6_pagamentos_fatura.sql` → Run; validação `validacao/13_validar_etapa6_pagamentos_fatura_no_supabase.sql` → `VALIDAÇÃO APROVADA: 28 de 28`; regressão 01 (74), 03 (63), 04 (30), 05 (77), 06 (82), 07 (49), 08 (26), 09 (40), 10 (15), 11 (16), 12 (37). Nenhum roteiro antigo mudou.
 
 Evidências: `docs/evidencia-etapa6-parte1b-local.txt`, `docs/evidencia-testes-locais.txt` (831 no banco + 42 testes dos leitores), `docs/evidencia-site-local.txt` (163 no navegador).
+
+# Etapa 6, parte 1c — desfazer vínculo devolve a classificação original
+
+Migração **adicional** `supabase/migrations/0015_etapa6_desfazer_vinculo.sql` (sobre a 0014). Não cria tabelas nem altera dados; só substitui a função `pagamento_desfazer`.
+
+- Correção: um lançamento do extrato vinculado a **duas** faturas (ex.: um Pix que pagou parte de cada uma) ficava para sempre como "pagamento de fatura" depois de desfeitos os dois vínculos, e sumia do resumo por categoria. Agora, quando o último vínculo é desfeito, ele volta à classificação que tinha antes (sem categoria, se ela foi arquivada nesse meio-tempo), em qualquer ordem em que os vínculos forem desfeitos.
+- Dois vínculos do mesmo lançamento desfeitos ao mesmo tempo também devolvem a classificação (antes, cada um esperava pelo outro).
+- Lançamentos que já ficaram presos antes desta migração **não** são corrigidos por ela. Para ver se há algum (só consulta, não altera nada):
+
+  ```sql
+  select m.id, m.data_movimento, m.descricao, m.valor_centavos
+    from public.movimentos m
+   where m.classificacao = 'pagamento_fatura'
+     and not exists (select 1 from public.pagamentos p where p.movimento_id = m.id and p.situacao = 'ativo')
+     and exists (select 1 from public.pagamentos p where p.movimento_id = m.id and p.classificacao_anterior is not null);
+  ```
+
+Instalação: `0015_etapa6_desfazer_vinculo.sql` → Run; validação `validacao/14_validar_etapa6_desfazer_vinculo_no_supabase.sql` → `VALIDAÇÃO APROVADA: 36 de 36`; regressão 01 a 13 — principalmente 05 (contas a pagar), 06 (cartões) e 12 (conciliação), que usam `pagamento_desfazer`.
+
+Testes locais: `supabase/tests/210_etapa6_desfazer_vinculo.sql` (também cobre: reclassificado entre um vínculo e outro, volta a classificação mais recente).
