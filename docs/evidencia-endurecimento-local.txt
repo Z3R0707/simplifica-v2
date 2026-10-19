@@ -1,0 +1,33 @@
+Simplifica Finanças v2 — evidência local do endurecimento (0016, itens P1 da auditoria)
+Data: 2026-10-19. Executado neste computador (Windows), sem o Supabase real.
+
+Ambiente: PGlite 0.2.17 (PostgreSQL rodando dentro do Node 22), com o stub
+supabase/tests/00_stub_supabase.sql (que ganhou as colunas file_size_limit e
+allowed_mime_types de storage.buckets, como no Supabase). Os testes de
+supabase/tests/*.sql não rodam nesse ambiente (usam comandos do psql e dblink);
+continuam valendo os resultados anteriores registrados em evidencia-testes-locais.txt.
+
+1) Linha de base (migrações 0001 → 0015): roteiros 01 e 03 a 14 APROVADOS,
+   iguais aos resultados no Supabase real. Isso confirma que o ambiente local
+   reproduz os roteiros.
+
+2) Com a 0016 (migrações 0001 → 0016):
+   migração 0016_endurecimento_auditoria.sql: ok
+   01: 74 de 74 | 03: 63 de 63 | 04: 30 de 30 | 05: 77 de 77 | 06: 82 de 82
+   07: 49 de 49 | 08: 26 de 26 | 09: 40 de 40 | 10: 15 de 15 | 11: 16 de 16
+   12: 37 de 37 | 13: 28 de 28 | 14: 36 de 36 | 15: 50 de 50
+   Os roteiros 07 e 09 (verificação 6 reescrita) também passam sem a 0016.
+
+3) Mutações (cada uma aplicada depois da 0016; o roteiro 15 precisa reprovar):
+   1. tabela nova com user_id fora da lista          → reprovou (#2: nova_tabela)
+   2. gatilho dos pagamentos removido                → reprovou (#12, #23 e seguintes)
+   3. bucket sem limite de tamanho                   → reprovou (#8)
+   4. tabela "categorias" tirada da lista            → reprovou (#2, #44, #45)
+   5. lista executável pelo papel authenticated      → reprovou (#5)
+   5 de 5 detectadas.
+
+4) Site e Edge Function: npm test → 48 de 48 (inclui 4 testes novos dos prazos
+   da excluir-conta: caminho normal com prazo em toda chamada; Storage que não
+   responde é abortado e a falha registrada; tempo insuficiente não tenta
+   concluir e registra a falha; espera pelos uploads encolhe para caber).
+   npm run build → concluído.

@@ -1,4 +1,4 @@
-# Simplifica Finanças v2 — Etapas 1 a 6 (parte 1c)
+# Simplifica Finanças v2 — Etapas 1 a 6 (parte 1c) + endurecimento (0016)
 
 Base do novo sistema: banco, permissões, auditoria, idempotência, versão e exclusão
 de conta (LGPD) sem arquivos órfãos. Tudo vai num projeto Supabase **novo e separado**.
@@ -54,7 +54,7 @@ tudo numa única transação; se algo falhar, nada muda.
    - Repita com o nome `limpar-orfaos` e o arquivo `functions/limpar-orfaos/index.ts`.
    - Abra cada função → Settings → deixe **Verify JWT with legacy secret** DESLIGADO e salve (a função valida a sessão no próprio código).
    - O editor precisa ter UM único arquivo, `index.ts`; não use "Add File". Se o .ts abrir como vídeo no Windows, use Abrir com → Bloco de Notas.
-2. Edge Functions → Secrets → `MANUTENCAO_SEGREDO` = frase longa e aleatória (mínimo 24 caracteres). Deixe `ORIGENS_PERMITIDAS` sem configurar por enquanto.
+2. Edge Functions → Secrets → `MANUTENCAO_SEGREDO` = frase longa e aleatória (mínimo 24 caracteres). `ORIGENS_PERMITIDAS` = `https://simplifica-v2.netlify.app` (desde a 0016; veja a seção do endurecimento no fim). As configurações esperadas das funções estão em `supabase/config.toml`.
 3. Authentication → Providers → Email: e-mail e senha ativos, **Confirm email** ligado.
 
 ## Validação no projeto real (obrigatória para homologar)
@@ -346,3 +346,17 @@ Migração **adicional** `supabase/migrations/0015_etapa6_desfazer_vinculo.sql` 
 Instalação: `0015_etapa6_desfazer_vinculo.sql` → Run; validação `validacao/14_validar_etapa6_desfazer_vinculo_no_supabase.sql` → `VALIDAÇÃO APROVADA: 36 de 36`; regressão 01 a 13 — principalmente 05 (contas a pagar), 06 (cartões) e 12 (conciliação), que usam `pagamento_desfazer`.
 
 Testes locais: `supabase/tests/210_etapa6_desfazer_vinculo.sql` (também cobre: reclassificado entre um vínculo e outro, volta a classificação mais recente).
+
+# Endurecimento — itens P1 da auditoria (0016)
+
+Migração **adicional** `supabase/migrations/0016_endurecimento_auditoria.sql` (sobre a 0015). Não cria tabelas nem altera dados já gravados.
+
+- **Lista única das tabelas do usuário** (`privado.tabelas_do_usuario()`): a exportação (`exportar_meus_dados`) e a exclusão de conta (`exclusao_concluir`) passam a ler essa lista, em vez de cada etapa recopiar as duas funções. A exportação continua com as mesmas 19 chaves. **Etapa nova com tabela de dados do usuário: basta acrescentar uma linha na lista.** O roteiro 15 compara a lista com o catálogo do banco e reprova se aparecer uma tabela com `user_id` fora dela.
+- **Bucket `documentos`**: até 10 MB por arquivo (o mesmo limite das telas) e só PDF, OFX, CSV e texto. O site confere antes de enviar e mostra a mensagem certa se o Storage recusar. Os arquivos já guardados não mudam.
+- **Pagamentos impressos na fatura**: a lista é conferida ao gravar a importação (lista de até 200 itens; cada um com data AAAA-MM-DD existente, descrição e valor inteiro em centavos). Antes, uma entrada malformada quebrava a tela "Pagamentos da fatura".
+- **Edge Function `excluir-conta`** (sem migração; o código novo precisa ser colado no painel): cada chamada ao Auth, ao Storage e ao banco tem prazo, e a execução inteira tem um orçamento de 120 s, abaixo do limite de 150 s do Supabase. Se o tempo acabar, a falha fica registrada (a exclusão pode ser retomada) em vez de a função morrer com a exclusão parada em "em andamento".
+- **CORS**: `ORIGENS_PERMITIDAS` = `https://simplifica-v2.netlify.app`. Só o site publicado chama a `excluir-conta` pelo navegador. Consequência: o roteiro 02 (página aberta do próprio computador) não consegue mais chamar a função. Para rodá-lo de novo, apague o segredo temporariamente e recoloque depois.
+
+Instalação: `0016_endurecimento_auditoria.sql` → Run; validação `validacao/15_validar_endurecimento_no_supabase.sql` → `VALIDAÇÃO APROVADA: 50 de 50`; regressão 01 a 14. Nesta versão mudaram os roteiros 07 e 09 (a verificação 6 de cada um passa a ler a ordem de exclusão da lista única; funciona antes e depois da 0016).
+
+Evidências: `docs/evidencia-endurecimento-local.txt` (migrações 0001 → 0016 e roteiros 01 a 15 num PostgreSQL local, 5 de 5 mutações detectadas pelo roteiro 15, testes dos prazos da `excluir-conta`).

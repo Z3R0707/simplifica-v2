@@ -1,0 +1,25 @@
+# Configuração do projeto Supabase simplifica-v2 que precisa ficar
+# registrada no repositório. Hoje as funções são publicadas pelo painel
+# (Edge Functions → editor), então este arquivo documenta como elas devem
+# estar configuradas; se um dia a publicação for feita pela CLI
+# (`supabase functions deploy`), ele é aplicado sozinho.
+project_id = "simplifica-v2"
+
+# As duas funções conferem o acesso no próprio código:
+#   excluir-conta  → confere a sessão do usuário no Auth (GoTrue);
+#   limpar-orfaos  → exige o cabeçalho x-segredo-manutencao.
+# Por isso a verificação automática de JWT fica DESLIGADA
+# (no painel: função → Settings → "Verify JWT with legacy secret" desligado).
+[functions.excluir-conta]
+verify_jwt = false
+
+[functions.limpar-orfaos]
+verify_jwt = false
+
+# Segredos das funções (Edge Functions → Secrets). Os valores NÃO ficam
+# aqui; só os nomes e o que se espera em cada um:
+#   ORIGENS_PERMITIDAS = https://simplifica-v2.netlify.app
+#       Endereços (separados por vírgula) que podem chamar excluir-conta
+#       pelo navegador. Vazio = qualquer endereço (era o caso até a 0016).
+#   MANUTENCAO_SEGREDO = frase aleatória com 24 ou mais caracteres
+#       Usada pela limpar-orfaos.

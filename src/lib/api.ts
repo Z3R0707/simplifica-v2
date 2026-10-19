@@ -294,7 +294,15 @@ export function novaChave(prefixo: string): string {
  * Guarda um arquivo original no Storage (pasta do próprio usuário). Se o
  * mesmo arquivo (mesmo caminho, que inclui o SHA-256) já estiver lá, segue.
  */
+// Os mesmos limites do bucket "documentos" (migração 0016).
+const TAMANHO_MAXIMO_ARQUIVO = 10 * 1024 * 1024;
+const TIPOS_ACEITOS = ["application/pdf", "application/x-ofx", "text/csv", "text/plain"];
+const MSG_GRANDE = "Arquivo grande demais (máximo 10 MB).";
+const MSG_TIPO = "Tipo de arquivo não aceito: envie PDF, OFX ou CSV.";
+
 export async function guardarArquivo(caminho: string, dados: Blob, tipo: string): Promise<void> {
+  if (dados.size > TAMANHO_MAXIMO_ARQUIVO) throw new ErroApi(413, "storage", MSG_GRANDE);
+  if (!TIPOS_ACEITOS.includes(tipo)) throw new ErroApi(415, "storage", MSG_TIPO);
   if (!sessao) throw new ErroApi(401, "sessao", "Sua sessão terminou. Entre novamente.");
   if (Date.now() > sessao.expira_em - 60_000) await renovar();
   let r: Response;
@@ -304,7 +312,7 @@ export async function guardarArquivo(caminho: string, dados: Blob, tipo: string)
       headers: {
         apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${sessao!.access_token}`,
-        "Content-Type": tipo || "application/octet-stream",
+        "Content-Type": tipo,
         "x-upsert": "false",
       },
       body: dados,
@@ -315,6 +323,8 @@ export async function guardarArquivo(caminho: string, dados: Blob, tipo: string)
   if (r.ok) return;
   const texto = await r.text();
   if (r.status === 409 || /duplicate|already exists/i.test(texto)) return;
+  if (r.status === 413 || /too large|maximum allowed size|exceeded the maximum/i.test(texto)) throw new ErroApi(413, "storage", MSG_GRANDE);
+  if (r.status === 415 || /mime type/i.test(texto)) throw new ErroApi(415, "storage", MSG_TIPO);
   if (r.status === 403 || r.status === 401) {
     throw new ErroApi(r.status, "storage", "O arquivo não pôde ser guardado (sem permissão). Entre novamente e tente de novo.");
   }

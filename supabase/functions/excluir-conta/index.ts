@@ -14,6 +14,12 @@
 //  Qualquer falha fica registrada e a exclusão pode ser retomada chamando
 //  a função novamente.
 //
+//  Tempo: a Edge Function é encerrada pelo Supabase depois de 150 s (plano
+//  gratuito). Cada chamada externa tem prazo próprio e a execução inteira
+//  tem um orçamento menor que esse limite, com uma sobra reservada para
+//  registrar a falha. Assim a exclusão nunca morre sem registro, parada em
+//  "em andamento".
+//
 // Arquivo único e sem dependências externas, para poder ser colado no
 // editor de Edge Functions do painel do Supabase.
 
@@ -23,6 +29,8 @@ type Env = {
   SUPABASE_SERVICE_ROLE_KEY: string;
   ORIGENS_PERMITIDAS?: string; // ex.: "https://simplifica-v2.netlify.app,http://localhost:5173"
   ESPERA_ENTRE_TENTATIVAS_MS?: number;
+  ORCAMENTO_MS?: number;       // só para testes; padrão ORCAMENTO_MS
+  PRAZO_CHAMADA_MS?: number;   // só para testes; padrão PRAZO_CHAMADA_MS
 };
 type Fetch = typeof fetch;
 
@@ -31,7 +39,40 @@ const TAMANHO_LOTE = 1000;      // limite da API do Storage por chamada
 const MAX_TENTATIVAS_CONCLUSAO = 5;
 const ESPERA_CONCLUSAO_MS = 20000; // quanto o banco espera uploads em andamento
 
+const ORCAMENTO_MS = 120_000;       // execução inteira (o Supabase encerra em 150 s)
+const PRAZO_CHAMADA_MS = 15_000;    // cada chamada ao Auth, ao Storage ou ao banco
+const FOLGA_CONCLUSAO_MS = 25_000;  // além da espera: apagar os dados no banco
+const RESERVA_REGISTRO_MS = 8_000;  // guardada para registrar a falha
+const ESPERA_MINIMA_MS = 2_000;     // abaixo disso não vale tentar concluir
+
 const esperar = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
+
+type Prazo = { restante: () => number };
+function criarPrazo(totalMs: number): Prazo {
+  const fim = Date.now() + totalMs;
+  return { restante: () => fim - Date.now() };
+}
+
+const tempoEsgotado = () =>
+  new ErroHttp(503, "tempo_esgotado", "O tempo desta execução acabou; chame novamente para continuar.");
+
+// fetch com prazo: no máximo `limiteMs` por chamada e nunca além do
+// orçamento (menos a reserva para registrar a falha).
+function comPrazo(f: Fetch, prazo: Prazo, limiteMs: number): Fetch {
+  return (async (url: string | URL | Request, init?: RequestInit) => {
+    const ms = Math.min(limiteMs, prazo.restante() - RESERVA_REGISTRO_MS);
+    if (ms <= 0) throw tempoEsgotado();
+    try {
+      return await f(url, { ...init, signal: AbortSignal.timeout(ms) });
+    } catch (e) {
+      const nome = (e as { name?: string })?.name;
+      if (nome === "TimeoutError" || nome === "AbortError") {
+        throw new ErroHttp(504, "sem_resposta", `Um serviço do Supabase não respondeu em ${Math.round(ms / 1000)} s.`);
+      }
+      throw e;
+    }
+  }) as Fetch;
+}
 
 
 class ErroHttp extends Error {
@@ -155,15 +196,18 @@ export async function tratar(req: Request, env: Env, f: Fetch = fetch): Promise<
 
   let userId = "";
   const progresso = { removidos: 0 };
+  const prazo = criarPrazo(env.ORCAMENTO_MS ?? ORCAMENTO_MS);
+  const limiteChamada = env.PRAZO_CHAMADA_MS ?? PRAZO_CHAMADA_MS;
+  const fc = comPrazo(f, prazo, limiteChamada);
   try {
-    const usuario = await usuarioDoToken(f, env, token);
+    const usuario = await usuarioDoToken(fc, env, token);
     userId = usuario.id;
 
     // Passo 2: validação do e-mail e bloqueio — feitos pelo banco, como o usuário
     try {
-      await rpc(f, env, "exclusao_solicitar", { p_confirmacao_email: email }, token, env.SUPABASE_ANON_KEY);
+      await rpc(fc, env, "exclusao_solicitar", { p_confirmacao_email: email }, token, env.SUPABASE_ANON_KEY);
     } catch (e) {
-      if (e instanceof ErroHttp) throw new ErroHttp(400, e.codigo, e.message);
+      if (e instanceof ErroHttp && e.status < 500) throw new ErroHttp(400, e.codigo, e.message);
       throw e;
     }
 
@@ -173,13 +217,16 @@ export async function tratar(req: Request, env: Env, f: Fetch = fetch): Promise<
     // recusa (SF410) e o ciclo recomeça; se demorar demais, desiste sem
     // apagar nada (55P03) e o ciclo recomeça.
     const svc = env.SUPABASE_SERVICE_ROLE_KEY;
-    const listar = () => rpc(f, env, "exclusao_listar_arquivos", { p_user_id: userId, p_limite: TAMANHO_LOTE }, svc, svc);
+    const listar = () => rpc(fc, env, "exclusao_listar_arquivos", { p_user_id: userId, p_limite: TAMANHO_LOTE }, svc, svc);
     let fim: { status?: string } | null = null;
     for (let tentativa = 1; tentativa <= MAX_TENTATIVAS_CONCLUSAO; tentativa++) {
-      await removerArquivos(f, env, listar, progresso);
+      await removerArquivos(fc, env, listar, progresso);
+      // a espera pelos uploads encolhe para caber no tempo que sobra
+      const espera = Math.min(ESPERA_CONCLUSAO_MS, prazo.restante() - RESERVA_REGISTRO_MS - FOLGA_CONCLUSAO_MS);
+      if (espera < ESPERA_MINIMA_MS) throw tempoEsgotado();
       try {
-        fim = await rpc(f, env, "exclusao_concluir",
-          { p_user_id: userId, p_arquivos_removidos: progresso.removidos, p_espera_ms: ESPERA_CONCLUSAO_MS }, svc, svc);
+        fim = await rpc(comPrazo(f, prazo, espera + FOLGA_CONCLUSAO_MS), env, "exclusao_concluir",
+          { p_user_id: userId, p_arquivos_removidos: progresso.removidos, p_espera_ms: espera }, svc, svc);
         break; // conclusão recusada é desfeita no banco: o total acumulado é enviado inteiro
       } catch (e) {
         const repetir = e instanceof ErroHttp && (e.codigo === "SF410" || e.codigo === "55P03");
@@ -191,9 +238,9 @@ export async function tratar(req: Request, env: Env, f: Fetch = fetch): Promise<
     // Conferência final: se algum arquivo do usuário surgiu depois da
     // conclusão (ex.: gravação tardia feita pelo próprio serviço de
     // Storage), ele é removido agora e registrado no comprovante.
-    const tardios = await removerArquivos(f, env, listar, { removidos: 0 });
+    const tardios = await removerArquivos(fc, env, listar, { removidos: 0 });
     if (tardios > 0) {
-      await rpc(f, env, "exclusao_registrar_limpeza_tardia", { p_user_id: userId, p_arquivos: tardios }, svc, svc);
+      await rpc(fc, env, "exclusao_registrar_limpeza_tardia", { p_user_id: userId, p_arquivos: tardios }, svc, svc);
     }
     return resposta(req, env, 200, {
       status: fim?.status ?? "concluida",
@@ -202,10 +249,14 @@ export async function tratar(req: Request, env: Env, f: Fetch = fetch): Promise<
   } catch (e) {
     const erro = e instanceof ErroHttp ? e : new ErroHttp(500, "erro_interno", "Erro inesperado na exclusão.");
     // Falha depois de a solicitação existir: registra para retomada
+    // (usa a reserva de tempo guardada para isto, com prazo próprio).
+    // Se a conclusão chegou a terminar no banco e só a resposta se perdeu,
+    // o registro não altera nada: o banco ignora exclusões já concluídas.
     if (userId && erro.status !== 400 && erro.status !== 401) {
       try {
         const svc = env.SUPABASE_SERVICE_ROLE_KEY;
-        await rpc(f, env, "exclusao_registrar_falha",
+        const fr = comPrazo(f, { restante: () => RESERVA_REGISTRO_MS * 2 }, RESERVA_REGISTRO_MS - 1000);
+        await rpc(fr, env, "exclusao_registrar_falha",
           { p_user_id: userId, p_erro: `${erro.codigo}: ${erro.message}`, p_arquivos_removidos: progresso.removidos }, svc, svc);
       } catch { /* o registro de falha não pode mascarar o erro original */ }
     }
