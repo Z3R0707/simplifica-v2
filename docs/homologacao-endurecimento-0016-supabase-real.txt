@@ -6,7 +6,13 @@ Data: 2026-10-19 (horário de Brasília), executada pelo usuário no SQL Editor;
 3) Regressão: roteiros 01 e 03 a 14 aprovados, incluindo as versões novas de 07 e 09
    (verificação 6 lendo a ordem da lista única). As contagens individuais não foram anotadas.
    Todos com rollback: nenhum usuário, arquivo ou dado de teste ficou gravado.
-4) Edge Function excluir-conta (prazos) e segredo ORIGENS_PERMITIDAS: configuração no painel
-   a cargo do usuário; ainda não confirmada nesta data.
-5) Site: a conferência de tamanho e tipo antes de guardar o arquivo vai ao ar com o envio
-   deste registro ao GitHub (Netlify).
+4) Edge Function excluir-conta: código novo (prazos) colado e publicado pelo usuário no painel,
+   com "Verify JWT with legacy secret" desligado.
+5) Segredo ORIGENS_PERMITIDAS = https://simplifica-v2.netlify.app criado pelo usuário.
+   Conferido de fora (preflight OPTIONS em /functions/v1/excluir-conta, 19/10/2026):
+     Origin https://simplifica-v2.netlify.app → 204, Access-Control-Allow-Origin = o próprio site
+     Origin https://outro-site.exemplo        → 204, Access-Control-Allow-Origin = o site do Netlify
+                                                (o navegador bloqueia a chamada de outro endereço)
+6) Site: publicado pelo Netlify com fe75050 (bundle /assets/app-3R64DA3N.js contém a conferência
+   de tamanho e tipo antes de guardar o arquivo).
+7) Não feito: exclusão real de um usuário de teste pelo site (passo opcional).
