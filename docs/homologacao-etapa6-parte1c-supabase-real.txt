@@ -1,0 +1,8 @@
+Simplifica Finanças v2 — homologação da Etapa 6 parte 1c (0015, desfazer vínculo com fatura devolve a classificação original) no Supabase real (projeto simplifica-v2)
+Data: 2026-10-16 (horário de Brasília), executada pelo usuário no SQL Editor; resultado informado pelo usuário na sessão.
+
+1) Migração: 0015_etapa6_desfazer_vinculo.sql → aplicada (etapa 6.1c-desfazer-vinculo)
+2) Validação: 14_validar_etapa6_desfazer_vinculo_no_supabase.sql → VALIDAÇÃO APROVADA: 36 de 36 (rollback)
+3) Regressão: 05, 06 e 12 aprovadas (os roteiros que usam pagamento_desfazer). A contagem de cada uma não foi anotada.
+   Todos com rollback: nenhum usuário, arquivo ou dado de teste ficou gravado.
+4) Site: esta parte só muda o banco. O site no ar (conferido em 19/10/2026) está na mesma versão do GitHub (main@936642d), com a correção das listas cortadas em 1000 linhas (ee7871d).

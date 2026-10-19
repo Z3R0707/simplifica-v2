@@ -1,10 +1,10 @@
-# Simplifica Finanças v2 — Etapas 1 a 6 (parte 1b)
+# Simplifica Finanças v2 — Etapas 1 a 6 (parte 1c)
 
 Base do novo sistema: banco, permissões, auditoria, idempotência, versão e exclusão
 de conta (LGPD) sem arquivos órfãos. Tudo vai num projeto Supabase **novo e separado**.
 Nada aqui toca o banco atual, o projeto `simplifica-teste` ou o site atual.
 
-**Situação:** Etapa 1 HOMOLOGADA (12/10/2026; 74/74 no banco, 28/28 no navegador). Etapa 2 HOMOLOGADA (12/10/2026; 63/63 + regressão 74/74). Detalhes em `docs/`.
+**Situação:** Etapa 1 HOMOLOGADA (12/10/2026; 74/74 no banco, 28/28 no navegador). Etapa 2 HOMOLOGADA (12/10/2026; 63/63 + regressão 74/74). Etapas 3 a 6 (parte 1c) homologadas no Supabase real até 16/10/2026; site publicado em dia com o GitHub (conferido em 19/10/2026). Detalhes em `docs/`.
 
 ## O que mudou nesta revisão
 

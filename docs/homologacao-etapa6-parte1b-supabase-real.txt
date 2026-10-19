@@ -6,3 +6,4 @@ Data: 2026-10-15 (horário de Brasília), executada pelo usuário no SQL Editor;
 3) Regressão: 01 → 74 de 74 · 03 → 63 de 63 · 04 → 30 de 30 · 05 → 77 de 77 · 06 → 82 de 82 · 07 → 49 de 49 · 08 → 26 de 26 · 09 → 40 de 40 · 10 → 15 de 15 · 11 → 16 de 16 · 12 → 37 de 37
    Todos com rollback: nenhum usuário, arquivo ou dado de teste ficou gravado.
 4) Site: aguardando autorização do usuário para publicar.
+5) Publicação conferida em 19/10/2026: o Netlify voltou a publicar depois que os créditos da conta foram restabelecidos. O código que está no ar em simplifica-v2.netlify.app (baixado e conferido) já contém a seção "Pagamentos da fatura". Falta o usuário conferir as telas no site real.
