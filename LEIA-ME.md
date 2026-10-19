@@ -172,7 +172,7 @@ Migração **adicional** `supabase/migrations/0007_etapa4_cartoes.sql`. Roda sob
 ## Regras
 
 - **Cartão**: dia de fechamento, dia de vencimento, limite (opcional) e a conta que costuma pagar a fatura.
-- **Regra de fechamento** (decisão a confirmar): compra feita **antes** do dia do fechamento entra na fatura que fecha naquele mês; **no dia do fechamento ou depois**, na seguinte. Quando o banco lançar diferente, a fatura pode ser escolhida na própria compra.
+- **Regra de fechamento** (confirmada pelo usuário em 19/10/2026): compra feita **antes** do dia do fechamento entra na fatura que fecha naquele mês; **no dia do fechamento ou depois**, na seguinte. Quando o banco lançar diferente, a fatura pode ser escolhida na própria compra.
 - **Fatura**: uma por cartão e mês de vencimento. O total é sempre a soma das parcelas (débitos − créditos); nunca é digitado. Datas de uma fatura podem ser ajustadas (feriado) sem mover lançamentos.
 - **Lançamentos do cartão**: compra à vista ou parcelada (até 99x, informando o total ou o valor da parcela; centavos que sobram vão para a 1ª parcela), encargo (juros, IOF, tarifa, anuidade, multa, outro), crédito e estorno (ligado à compra, nunca acima do valor dela).
 - **Compra já em andamento**: dá para registrar a partir da parcela atual (ex.: 3/10); as anteriores não são lançadas.
@@ -181,7 +181,7 @@ Migração **adicional** `supabase/migrations/0007_etapa4_cartoes.sql`. Roda sob
 - **Cancelar**: "lancei errado" remove todas as parcelas; "compra cancelada na loja" remove só as ainda não cobradas (as cobradas voltam por estorno). Nada é apagado.
 - **Contas a pagar**: cada fatura com valor vira **uma** conta a pagar que acompanha o total sozinha; compras e parcelas não viram contas a pagar (nada somado duas vezes). Fatura sem valor tem a conta a pagar cancelada sozinha. A conta a pagar da fatura não é editada à mão.
 - **Pagar a fatura** lança a saída como **pagamento de fatura**: mexe no saldo, mas não é despesa. Uma saída já lançada como despesa, ao ser vinculada à fatura, passa a pagamento de fatura (e volta se o vínculo for desfeito).
-- **Resumo por categoria** (decisão a confirmar): compras do cartão entram no mês do **vencimento da fatura**.
+- **Resumo por categoria** (confirmada pelo usuário em 19/10/2026): compras do cartão entram no mês do **vencimento da fatura**.
 - **Limite usado** = tudo o que falta pagar no cartão, inclusive parcelas futuras.
 - **Conferência com o banco**: o total informado pelo banco fica guardado à parte; a diferença aparece, mas nunca é ajustada sozinha.
 - Operações simultâneas ficam em fila (travas: compra → faturas em ordem de vencimento → conta a pagar → lançamento).
