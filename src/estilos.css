@@ -277,6 +277,7 @@ input[type="radio"], input[type="checkbox"] { width: 18px; height: 18px; accent-
   box-shadow: var(--sombra-dialogo); padding: 20px 22px 22px;
 }
 .dialogo-largo { max-width: 640px; }
+.dialogo:focus { outline: none; }
 .dialogo-topo { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
 .dialogo-fechar { background: none; border: 0; font-size: 1.6rem; line-height: 1; color: var(--suave); cursor: pointer; padding: 4px 8px; }
 .dialogo-texto p:last-child { margin-bottom: 0; }

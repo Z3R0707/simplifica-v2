@@ -9,12 +9,18 @@ export function useCarregar<T>(funcao: () => Promise<T>, deps: unknown[]) {
     dados: null, erro: null, carregando: true,
   });
   const [versao, setVersao] = useState(0);
+  const depsAnteriores = useRef<unknown[] | null>(null);
   useEffect(() => {
     let vivo = true;
+    // Numa recarga (mesmas deps), um erro passageiro mantém os dados já mostrados.
+    // Se as deps mudaram, os dados antigos são de outra consulta e não podem ficar.
+    const antes = depsAnteriores.current;
+    const mesmasDeps = antes !== null && antes.length === deps.length && deps.every((d, i) => Object.is(d, antes[i]));
+    depsAnteriores.current = deps;
     setEstado((e) => ({ ...e, carregando: true, erro: null }));
     funcao().then(
       (dados) => vivo && setEstado({ dados, erro: null, carregando: false }),
-      (e) => vivo && setEstado({ dados: null, erro: mensagemDeErro(e), carregando: false }),
+      (e) => vivo && setEstado((atual) => ({ dados: mesmasDeps ? atual.dados : null, erro: mensagemDeErro(e), carregando: false })),
     );
     return () => { vivo = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -125,25 +131,52 @@ export function Carregando({ texto = "Carregando…" }: { texto?: string }) {
   return <p className="carregando" role="status">{texto}</p>;
 }
 
+// Diálogos abertos, do mais antigo ao mais novo. Só o do topo responde ao teclado.
+const pilhaDialogos: object[] = [];
+const FOCAVEIS = "a[href], input, select, textarea, button, [tabindex]:not([tabindex='-1'])";
+
 export function Dialogo({ titulo, aoFechar, children, largo }: { titulo: string; aoFechar: () => void; children: ReactNode; largo?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const idTitulo = useId();
+  // As telas passam aoFechar como função nova a cada render; guardar numa ref
+  // evita refazer o efeito (e devolver o foco ao primeiro campo) a cada tecla.
+  const aoFecharRef = useRef(aoFechar);
+  useEffect(() => { aoFecharRef.current = aoFechar; });
   useEffect(() => {
+    const eu = {};
+    pilhaDialogos.push(eu);
+    const noTopo = () => pilhaDialogos[pilhaDialogos.length - 1] === eu;
     const anterior = document.activeElement as HTMLElement | null;
     const primeiro = ref.current?.querySelector<HTMLElement>("input, select, textarea, button:not(.dialogo-fechar)");
-    primeiro?.focus();
-    const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") aoFechar(); };
+    (primeiro ?? ref.current)?.focus();
+    const tecla = (e: KeyboardEvent) => {
+      if (!noTopo()) return;
+      if (e.key === "Escape") { e.preventDefault(); aoFecharRef.current(); return; }
+      const caixa = ref.current;
+      if (e.key !== "Tab" || !caixa) return;
+      const focaveis = Array.from(caixa.querySelectorAll<HTMLElement>(FOCAVEIS))
+        .filter((el) => !el.hasAttribute("disabled") && el.offsetParent !== null);
+      if (focaveis.length === 0) { e.preventDefault(); caixa.focus(); return; }
+      const inicio = focaveis[0];
+      const fim = focaveis[focaveis.length - 1];
+      const ativo = document.activeElement;
+      const fora = !caixa.contains(ativo);
+      if (e.shiftKey && (ativo === inicio || fora)) { e.preventDefault(); fim.focus(); }
+      else if (!e.shiftKey && (ativo === fim || fora)) { e.preventDefault(); inicio.focus(); }
+    };
     document.addEventListener("keydown", tecla);
     document.body.classList.add("sem-rolagem");
     return () => {
       document.removeEventListener("keydown", tecla);
-      document.body.classList.remove("sem-rolagem");
+      const i = pilhaDialogos.indexOf(eu);
+      if (i >= 0) pilhaDialogos.splice(i, 1);
+      if (pilhaDialogos.length === 0) document.body.classList.remove("sem-rolagem");
       anterior?.focus?.();
     };
-  }, [aoFechar]);
+  }, []);
   return (
     <div className="dialogo-fundo" onMouseDown={(e) => { if (e.target === e.currentTarget) aoFechar(); }}>
-      <div className={`dialogo${largo ? " dialogo-largo" : ""}`} role="dialog" aria-modal="true" aria-labelledby={idTitulo} ref={ref}>
+      <div className={`dialogo${largo ? " dialogo-largo" : ""}`} role="dialog" aria-modal="true" aria-labelledby={idTitulo} ref={ref} tabIndex={-1}>
         <div className="dialogo-topo">
           <h2 id={idTitulo}>{titulo}</h2>
           <button type="button" className="dialogo-fechar" onClick={aoFechar} aria-label="Fechar">×</button>
