@@ -80,6 +80,9 @@ test("Nubank: lê lançamentos, parcelas, antecipação, IOF, créditos e pagame
   assert.equal(f.itens.filter((i) => i.descricao === "Lavanderia").length, 2, "duas compras iguais no mesmo dia continuam duas");
   assert.deepEqual(f.pagamentos, [{ data: "2026-09-08", descricao: "Pagamento em 08 SET", valor_centavos: -50000 }]);
   assert.ok(f.avisos.some((a) => /Conferido/.test(a)));
+  assert.ok(f.avisos.some((a) => /data original das compras parceladas/.test(a)), "parcela 4/12 com a data da cobrança avisa");
+  const soAVista = lerNubankFaturaPdf(nubank([T("12 SET", "Lavanderia", "R$ 18,95")], "R$ 18,95"));
+  assert.ok(!soAVista.avisos.some((a) => /data original/.test(a)), "sem parcela da 2ª em diante não avisa");
 });
 
 test("Nubank: soma diferente do subtotal do banco bloqueia (lançamento faltando)", () => {

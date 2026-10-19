@@ -13,6 +13,7 @@ import { conferirTotal, dataIsoDe, marcarAntecipacoesNaFatura, separarParcela, s
 
 const DATA = /^(\d{2})\/(\d{2})\/(\d{2})(?: \d+)?$/;
 const VALOR = /^[-+]? ?[\d.]+,\d{2}$/;
+const FIM_HISTORICO = /^(Encargos|Informações Importantes)$/;
 
 export function reconheceRiachueloFatura(linhas: LinhaPdf[]): boolean {
   const t = linhas.map((l) => l.texto).join(" | ");
@@ -50,12 +51,15 @@ export function lerRiachueloFaturaPdf(linhas: LinhaPdf[]): FaturaLida {
   const encargos = valorDe(/^Encargos$/) ?? 0;
   const pagCred = valorDe(/^Pagamentos\/Créditos$/) ?? 0;
 
+  // O histórico pode continuar na página seguinte (com cabeçalho repetido):
+  // termina no quadro de "Encargos" (taxas) ou em "Informações Importantes".
   const ini = linhas.findIndex((l) => /^Histórico de Despesas$/.test(l.texto));
   let n = 0;
   for (const l of ini >= 0 ? linhas.slice(ini + 1) : []) {
+    if (FIM_HISTORICO.test(l.texto)) break;
     const c = l.celulas;
     const md = DATA.exec(c[0]?.texto ?? "");
-    if (!md) { if (l.pagina !== linhas[ini].pagina) break; continue; }
+    if (!md) continue;
     n++;
     const ultima = c[c.length - 1];
     if (!VALOR.test(ultima.texto)) { f.erros.push({ linha: n, motivo: `valor não reconhecido: "${l.texto}"` }); continue; }

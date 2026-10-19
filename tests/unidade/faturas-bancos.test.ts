@@ -245,6 +245,26 @@ test("cada leitor reconhece só a própria fatura", () => {
   }
 });
 
+test("Riachuelo: histórico que continua na página seguinte é lido até o quadro de Encargos", () => {
+  const p1 = riachuelo("+ 233,30").filter((x) => !x.texto.startsWith("MIDWAY"));
+  pagina(2);
+  const p2 = [
+    L(c("Cartão Riachuelo", 250)),
+    L(c("Valor", 266), c("Juros", 311), c("Ult. venc.", 377), c("Nº", 472), c("Lançamento", 503)),
+    L(c("Data", 43), c("Loja Descrição", 72), c("IOF", 347), c("Valor", 427)),
+    L(c("20/09/26 438", 43), c("LOJA - SHOPPING C", 90), c("100,00", 427), c("01/02", 472), c("+ 50,00", 531)),
+    L(c("Encargos", 278)),
+    L(c("Descrição", 43), c("Taxa de Juros", 321)),
+    L(c("21/09/26 001", 43), c("NÃO É LANÇAMENTO", 90), c("+ 9,99", 531)),
+    L(c("Informações Importantes", 243)),
+  ];
+  const f = lerRiachueloFaturaPdf([...p1, ...p2]);
+  assert.deepEqual(f.erros, []);
+  assert.equal(f.total_lancamentos_centavos, 23330);
+  assert.deepEqual(descs(f).slice(-1), ["LOJA - SHOPPING C|5000|1"]);
+  assert.equal(f.itens.length, 4);
+});
+
 test("Riachuelo: estorno (crédito que não é pagamento) entra e é descontado na conferência", () => {
   const l = riachuelo().map((x) => x);
   const i = l.findIndex((x) => x.texto.startsWith("Pagamentos/Créditos"));

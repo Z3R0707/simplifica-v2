@@ -11,7 +11,12 @@ export const dataIsoDe = (a: number, m: number, d: number) => dataIso(a, m, d);
 export type TipoItemFatura = "compra" | "encargo" | "credito";
 
 export type ItemFatura = {
-  data: string;                  // AAAA-MM-DD, como aparece na fatura
+  // AAAA-MM-DD, como aparece na fatura. Em parcelas, a maioria dos bancos
+  // imprime a data ORIGINAL da compra; o Nubank imprime a data da cobrança
+  // neste período (o PDF dele não traz a data original). Ela vira a data da
+  // compra criada; em qual fatura cada parcela cai vem do mês da fatura
+  // importada, e a comparação com parcelas já lançadas não usa a data.
+  data: string;
   descricao: string;             // sem o sufixo de parcela
   valor_centavos: number;        // positivo = débito (compra, encargo); negativo = crédito
   tipo: TipoItemFatura;

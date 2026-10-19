@@ -105,6 +105,9 @@ export function lerNubankFaturaPdf(linhas: LinhaPdf[]): FaturaLida {
     f.itens.push(item);
   }
   f.finais = [...finais].sort();
+  if (f.itens.some((i) => (i.parcela_atual ?? 0) > 1 && !i.antecipada)) {
+    f.avisos.push("O Nubank não mostra na fatura a data original das compras parceladas: nas parcelas a partir da 2ª, a data da compra lançada será a da cobrança nesta fatura. Os valores e as faturas de cada parcela não mudam.");
+  }
   f.total_lancamentos_centavos = achouSubtotal ? subtotais : null;
   conferirTotal(f, "total de transações dos portadores");
   return f;
