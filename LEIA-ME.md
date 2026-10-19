@@ -357,6 +357,8 @@ Migração **adicional** `supabase/migrations/0016_endurecimento_auditoria.sql` 
 - **Edge Function `excluir-conta`** (sem migração; o código novo precisa ser colado no painel): cada chamada ao Auth, ao Storage e ao banco tem prazo, e a execução inteira tem um orçamento de 120 s, abaixo do limite de 150 s do Supabase. Se o tempo acabar, a falha fica registrada (a exclusão pode ser retomada) em vez de a função morrer com a exclusão parada em "em andamento".
 - **CORS**: `ORIGENS_PERMITIDAS` = `https://simplifica-v2.netlify.app`. Só o site publicado chama a `excluir-conta` pelo navegador. Consequência: o roteiro 02 (página aberta do próprio computador) não consegue mais chamar a função. Para rodá-lo de novo, apague o segredo temporariamente e recoloque depois.
 
+**Situação:** banco HOMOLOGADO em 19/10/2026 (0016 aplicada, roteiro 15 aprovado, regressão 01 e 03 a 14 aprovada). Registro em `docs/homologacao-endurecimento-0016-supabase-real.txt`.
+
 Instalação: `0016_endurecimento_auditoria.sql` → Run; validação `validacao/15_validar_endurecimento_no_supabase.sql` → `VALIDAÇÃO APROVADA: 50 de 50`; regressão 01 a 14. Nesta versão mudaram os roteiros 07 e 09 (a verificação 6 de cada um passa a ler a ordem de exclusão da lista única; funciona antes e depois da 0016).
 
 Evidências: `docs/evidencia-endurecimento-local.txt` (migrações 0001 → 0016 e roteiros 01 a 15 num PostgreSQL local, 5 de 5 mutações detectadas pelo roteiro 15, testes dos prazos da `excluir-conta`).

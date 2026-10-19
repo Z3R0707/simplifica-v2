@@ -1,0 +1,12 @@
+Simplifica Finanças v2 — homologação do endurecimento (0016, itens P1 da auditoria) no Supabase real (projeto simplifica-v2)
+Data: 2026-10-19 (horário de Brasília), executada pelo usuário no SQL Editor; resultado informado pelo usuário na sessão.
+
+1) Migração: 0016_endurecimento_auditoria.sql → aplicada (etapa 6.1d-endurecimento)
+2) Validação: 15_validar_endurecimento_no_supabase.sql → VALIDAÇÃO APROVADA (50 verificações, rollback)
+3) Regressão: roteiros 01 e 03 a 14 aprovados, incluindo as versões novas de 07 e 09
+   (verificação 6 lendo a ordem da lista única). As contagens individuais não foram anotadas.
+   Todos com rollback: nenhum usuário, arquivo ou dado de teste ficou gravado.
+4) Edge Function excluir-conta (prazos) e segredo ORIGENS_PERMITIDAS: configuração no painel
+   a cargo do usuário; ainda não confirmada nesta data.
+5) Site: a conferência de tamanho e tipo antes de guardar o arquivo vai ao ar com o envio
+   deste registro ao GitHub (Netlify).
