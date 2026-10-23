@@ -1,0 +1,47 @@
+CONFERÊNCIA DO SITE NO SISTEMA REAL (ETAPAS 3 A 6 + ENDURECIMENTO) — APROVADA
+Site: https://simplifica-v2.netlify.app (Netlify, publicado a partir de Z3R0707/simplifica-v2, branch main)
+Código do site: o mesmo de fe75050 (os commits depois dele só mudam documentação). GitHub em main@565f331.
+Banco: Supabase Simplifica V2 (0001–0016, homologado em 19/10/2026)
+Data: 23/10/2026
+Quem conferiu: o usuário, com os próprios dados reais, no site publicado
+
+Roteiro seguido e resultado esperado em cada tela (o usuário informou: "está tudo certo")
+
+  A pagar (etapa 3)
+    Totais "Vencem no mês", "Falta pagar" e "Vencidas"; troca de mês; filtros Em aberto / Pagas / Todas
+    Etiquetas Paga, Paga em parte (com "Falta R$ …") e Vencida
+    Cada fatura de cartão aparece como uma única conta a pagar, com o mesmo valor do total da fatura
+
+  Cartões (etapa 4)
+    Fatura do mês com etiqueta Aberta / Fechada / Paga; Pago, Falta pagar e Limite disponível
+    Parcelas numeradas (ex.: 3/10)
+    Regra confirmada em 19/10: compra no dia do fechamento entra na fatura seguinte
+
+  Importação de extrato (etapas 5.1 e 5.2)
+    Prévia sem mexer no saldo; linhas Novo / Já importado / Possível duplicado (este desmarcado)
+    Saldo da conta igual ao do banco depois de confirmar; o mesmo arquivo não entra duas vezes
+
+  Importação de fatura Nubank (etapa 5.3, com a correção do portador após os pagamentos)
+    Parcelas já lançadas aparecem como "Já lançado", sem duplicar; compras novas como "Novo"
+    Selo "Fatura confere com o banco (R$ …)" com o mesmo total do PDF
+
+  Pagamentos da fatura (etapa 6.1b)
+    Pagamentos impressos pelo banco marcados como "fatura anterior" ou "antecipado desta fatura"
+    Registro por "Vincular ao lançamento …" ou "Registrar saindo desta conta"; selo "Registrado"
+    "Falta pagar" do cartão igual ao valor cobrado pelo banco
+
+  Conciliação (etapa 6.1)
+    Abas Sugestões, Pendentes, Divergências, Conciliados e Histórico
+    Sugestões com o motivo escrito; Confirmar uma a uma ou "Confirmar as N sugestões"
+    Saldos mostra "Conciliada" ou o número de pendências em cada conta
+
+  Teclado nas janelas (correção P1 da auditoria, 70e417b)
+    A pagar → "Pagamentos: …" → Desfazer → "Desfazer pagamento" aberta por cima
+    1º Esc fecha só a janela de cima; 2º Esc fecha a de baixo; o pagamento continua registrado
+    Tab circula só dentro da janela aberta
+
+Situação
+  Com esta conferência, todas as etapas publicadas (1 a 6.1c + endurecimento 0016) estão conferidas
+  no banco real e no site real. Ficou de fora, por escolha: excluir um usuário de teste pelo site
+  depois da 0016, os itens P2/P3 da auditoria e os testes locais e2e/SQL (sem PostgreSQL e Playwright
+  neste computador).

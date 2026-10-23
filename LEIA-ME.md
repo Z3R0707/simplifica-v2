@@ -4,7 +4,7 @@ Base do novo sistema: banco, permissões, auditoria, idempotência, versão e ex
 de conta (LGPD) sem arquivos órfãos. Tudo vai num projeto Supabase **novo e separado**.
 Nada aqui toca o banco atual, o projeto `simplifica-teste` ou o site atual.
 
-**Situação:** Etapa 1 HOMOLOGADA (12/10/2026; 74/74 no banco, 28/28 no navegador). Etapa 2 HOMOLOGADA (12/10/2026; 63/63 + regressão 74/74). Etapas 3 a 6 (parte 1c) homologadas no Supabase real até 16/10/2026; site publicado em dia com o GitHub (conferido em 19/10/2026). Detalhes em `docs/`.
+**Situação:** Etapa 1 HOMOLOGADA (12/10/2026; 74/74 no banco, 28/28 no navegador). Etapa 2 HOMOLOGADA (12/10/2026; 63/63 + regressão 74/74). Etapas 3 a 6 (parte 1c) homologadas no Supabase real até 16/10/2026; site publicado em dia com o GitHub (conferido em 19/10/2026). Site real conferido pelo usuário com os próprios dados em 23/10/2026 (A pagar, Cartões, importações, Pagamentos da fatura, Conciliação e teclado nas janelas): `docs/homologacao-site-real-etapas-3-a-6.txt`. Detalhes em `docs/`.
 
 ## O que mudou nesta revisão
 
