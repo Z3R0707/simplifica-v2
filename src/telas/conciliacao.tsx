@@ -124,7 +124,10 @@ function Sugestoes({ lista, aoMudar }: { lista: Sugestao[]; aoMudar: () => void 
       {lista.length > 1 && (
         <div className="acoes acoes-esquerda">
           <button type="button" className="botao-secundario" disabled={enviando}
-            onClick={() => void enviar(async () => { for (const s of lista) await confirmar(s); aoMudar(); })}>
+            onClick={() => void enviar(async () => {
+              // recarrega mesmo se uma falhar: as anteriores já foram gravadas e saem da lista
+              try { for (const s of lista) await confirmar(s); } finally { aoMudar(); }
+            })}>
             {enviando ? "Confirmando…" : `Confirmar as ${lista.length} sugestões`}
           </button>
         </div>
