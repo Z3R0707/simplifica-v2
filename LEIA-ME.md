@@ -362,3 +362,21 @@ Migração **adicional** `supabase/migrations/0016_endurecimento_auditoria.sql` 
 Instalação: `0016_endurecimento_auditoria.sql` → Run; validação `validacao/15_validar_endurecimento_no_supabase.sql` → `VALIDAÇÃO APROVADA: 50 de 50`; regressão 01 a 14. Nesta versão mudaram os roteiros 07 e 09 (a verificação 6 de cada um passa a ler a ordem de exclusão da lista única; funciona antes e depois da 0016).
 
 Evidências: `docs/evidencia-endurecimento-local.txt` (migrações 0001 → 0016 e roteiros 01 a 15 num PostgreSQL local, 5 de 5 mutações detectadas pelo roteiro 15, testes dos prazos da `excluir-conta`).
+
+# Manter o Supabase ativo (plano gratuito)
+
+No plano gratuito, o Supabase **pausa** o projeto depois de 7 dias sem atividade no banco. O site deixa de carregar dados até alguém clicar em **Restore project** no painel. Os dados não se perdem.
+
+O arquivo `.github/workflows/manter-supabase-ativo.yml` evita isso: uma vez por dia, o GitHub entra com um **usuário de manutenção** (sem dados reais), lê o perfil dele e sai. Isso conta como atividade no banco. Nada fica aberto para quem não está logado: o banco continua sem nenhuma função ou tabela acessível pela chave anon.
+
+Configuração (uma vez só):
+
+1. **Usuário de manutenção.** No Supabase: Authentication → Users → Add user → Create new user. Use um e-mail só para isso (não precisa receber e-mail) e uma senha forte. Marque **Auto Confirm User**. Não use a sua conta.
+2. **Segredos no GitHub.** No repositório: Settings → Secrets and variables → Actions → New repository secret. Crie os quatro:
+   - `SUPABASE_URL`: o mesmo valor do Netlify (`https://<projeto>.supabase.co`)
+   - `SUPABASE_ANON_KEY`: a mesma chave anon do Netlify
+   - `MANTER_ATIVO_EMAIL`: o e-mail do passo 1
+   - `MANTER_ATIVO_SENHA`: a senha do passo 1
+3. **Teste.** No repositório: Actions → "Manter o Supabase ativo" → Run workflow. A execução precisa ficar verde e mostrar "Banco respondeu (1 perfil lido). Projeto ativo."
+
+Se a execução falhar, o GitHub manda e-mail. A mensagem diz o motivo (segredo faltando, login recusado, banco sem resposta). Atenção: o GitHub **desliga** tarefas agendadas de repositórios sem nenhum commit por 60 dias e avisa por e-mail. Para religar, use o botão **Enable workflow** em Actions.

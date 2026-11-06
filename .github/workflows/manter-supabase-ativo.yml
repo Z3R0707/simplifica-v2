@@ -1,0 +1,56 @@
+# Mantém o projeto Supabase (plano gratuito) ativo: o Supabase pausa o
+# projeto depois de 7 dias sem atividade no banco. Uma vez por dia, este
+# job entra com um usuário de manutenção (sem dados reais), lê o próprio
+# perfil (consulta real no banco, sob RLS) e sai. Não abre nada para quem
+# não está logado: o banco continua sem nenhuma função ou tabela para anon.
+#
+# Segredos do repositório (Settings → Secrets and variables → Actions):
+#   SUPABASE_URL         https://<projeto>.supabase.co (o mesmo do Netlify)
+#   SUPABASE_ANON_KEY    chave pública anon (a mesma do Netlify)
+#   MANTER_ATIVO_EMAIL   e-mail do usuário de manutenção
+#   MANTER_ATIVO_SENHA   senha do usuário de manutenção
+# Passo a passo no LEIA-ME, seção "Manter o Supabase ativo".
+name: Manter o Supabase ativo
+
+on:
+  schedule:
+    - cron: "17 11 * * *" # todo dia, 08:17 no horário de Brasília
+  workflow_dispatch: # botão "Run workflow" para testar na hora
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Entrar com o usuário de manutenção e ler o perfil
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          EMAIL: ${{ secrets.MANTER_ATIVO_EMAIL }}
+          SENHA: ${{ secrets.MANTER_ATIVO_SENHA }}
+        run: |
+          set -eu
+          for v in SUPABASE_URL SUPABASE_ANON_KEY EMAIL SENHA; do
+            if [ -z "$(printenv "$v")" ]; then echo "::error::Segredo $v não configurado no repositório"; exit 1; fi
+          done
+          URL="${SUPABASE_URL%/}"
+
+          corpo=$(jq -n --arg e "$EMAIL" --arg s "$SENHA" '{email: $e, password: $s}')
+          resposta=$(curl -sS -m 30 -X POST "$URL/auth/v1/token?grant_type=password" \
+            -H "apikey: $SUPABASE_ANON_KEY" -H "Content-Type: application/json" -d "$corpo")
+          token=$(printf '%s' "$resposta" | jq -r '.access_token // empty')
+          if [ -z "$token" ]; then
+            echo "::error::Login do usuário de manutenção falhou: $(printf '%s' "$resposta" | jq -r '.error_description // .msg // .message // "sem detalhe"')"
+            exit 1
+          fi
+          echo "::add-mask::$token"
+
+          codigo=$(curl -sS -m 30 -o perfil.json -w '%{http_code}' "$URL/rest/v1/perfis?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $token")
+          if [ "$codigo" != "200" ]; then echo "::error::O banco respondeu $codigo à leitura do perfil"; exit 1; fi
+          echo "Banco respondeu ($(jq length perfil.json) perfil lido). Projeto ativo."
+
+          # encerra a sessão para não acumular uma por dia no Auth
+          curl -sS -m 30 -X POST "$URL/auth/v1/logout" -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $token" -o /dev/null || true
