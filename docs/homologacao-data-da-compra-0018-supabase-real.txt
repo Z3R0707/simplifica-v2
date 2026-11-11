@@ -1,0 +1,11 @@
+Simplifica Finanças v2 — homologação da 0018 (corrigir a data de uma compra do cartão) no Supabase real (projeto simplifica-v2)
+Data: 2026-11-11 (horário de Brasília), executada pelo usuário no SQL Editor; resultados enviados em capturas de tela.
+
+1) Migração: 0018_data_da_compra.sql aplicada (etapa 6.1f-data-da-compra). Conferido de fora: a RPC
+   compra_alterar_data existe e recusa o papel anônimo (42501). Uma segunda execução da migração foi
+   barrada pela guarda ("ABORTADO: este banco não está na 0017 ... Nada foi alterado"), como esperado.
+2) Validação: 17_validar_data_da_compra_no_supabase.sql → VALIDAÇÃO APROVADA: 25 de 25 (rollback)
+3) Regressão: 06 → 82 de 82 · 09 → 40 de 40
+   Todos com rollback: nenhum usuário, arquivo ou dado de teste ficou gravado.
+   Os demais roteiros (01, 03 a 05, 07, 08, 10 a 16) foram aprovados localmente com a 0018 (PGlite).
+4) Site: publicado (main@b5b528a) com o campo "Data da compra" no Editar do lançamento do cartão.
