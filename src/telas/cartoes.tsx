@@ -733,6 +733,7 @@ function DialogoEditarCompra({ l, aoFechar, aoConcluir }: { l: LancamentoFatura;
   const compra = compraQ.dados?.[0];
   const [descricao, setDescricao] = useState(l.descricao);
   const [categoria, setCategoria] = useState(l.categoria_id ?? "");
+  const [data, setData] = useState(l.data);
   // valor da parcela antes do desconto de antecipação (o que o banco lista)
   const valorOriginal = l.valor_centavos + l.desconto_centavos;
   const podeMudarValor = (l.tipo === "compra" || l.tipo === "encargo") && l.status !== "cancelada";
@@ -748,9 +749,15 @@ function DialogoEditarCompra({ l, aoFechar, aoConcluir }: { l: LancamentoFatura;
         if (!compra) return;
         const novoValor = podeMudarValor ? lerValor(valor) : valorOriginal;
         if (novoValor === null || novoValor <= 0) return setErro("Informe o valor, maior que zero.");
+        if (!dataValida(data) || data > hoje()) return setErro("Informe a data da compra (hoje ou antes).");
         void enviar(async () => {
+          // a data muda primeiro; a versão nova da compra segue para a edição de descrição e categoria
+          let versao = compra.versao;
+          if (data !== l.data) {
+            versao = (await rpc<Compra>("compra_alterar_data", { p_id: l.compra_id, p_versao_esperada: versao, p_data: data, p_chave_idempotencia: `${chave}-data-${data}` })).versao;
+          }
           if (descricao !== l.descricao || (categoria || null) !== (l.categoria_id ?? null)) {
-            await rpc("compra_atualizar", { p_id: l.compra_id, p_versao_esperada: compra.versao, p_descricao: descricao, p_categoria_id: categoria || null, p_observacao: compra.observacao, p_chave_idempotencia: chave });
+            await rpc("compra_atualizar", { p_id: l.compra_id, p_versao_esperada: versao, p_descricao: descricao, p_categoria_id: categoria || null, p_observacao: compra.observacao, p_chave_idempotencia: chave });
           }
           if (novoValor !== valorOriginal) {
             await rpc("parcela_alterar_valor", { p_parcela_id: l.parcela_id, p_valor_centavos: novoValor, p_motivo: "Valor da parcela corrigido pelo usuário", p_chave_idempotencia: `${chave}-valor-${novoValor}` });
@@ -759,6 +766,9 @@ function DialogoEditarCompra({ l, aoFechar, aoConcluir }: { l: LancamentoFatura;
         });
       }}>
         <Campo rotulo="Descrição">{(id) => <input id={id} required maxLength={200} value={descricao} onChange={(e) => setDescricao(e.target.value)} />}</Campo>
+        <Campo rotulo="Data da compra" ajuda="Corrige só a data: o lançamento continua nesta fatura, com as mesmas parcelas e valores.">
+          {(id) => <input id={id} type="date" required max={hoje()} value={data} onChange={(e) => setData(e.target.value)} />}
+        </Campo>
         <Campo rotulo="Categoria">
           {(id) => (
             <select id={id} value={categoria} onChange={(e) => setCategoria(e.target.value)}>
@@ -775,7 +785,7 @@ function DialogoEditarCompra({ l, aoFechar, aoConcluir }: { l: LancamentoFatura;
             {(id) => <input id={id} inputMode="decimal" value={valor} onChange={(e) => setValor(e.target.value)} />}
           </Campo>
         )}
-        <p className="campo-ajuda">Data e número de parcelas não mudam: se estiverem errados, cancele (“Lancei errado”) e lance de novo.</p>
+        <p className="campo-ajuda">O número de parcelas não muda: se estiver errado, cancele (“Lancei errado”) e lance de novo.</p>
         {erro && <Alerta>{erro}</Alerta>}
         <div className="acoes">
           <button type="button" className="botao-secundario" onClick={aoFechar}>Voltar</button>

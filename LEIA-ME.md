@@ -385,6 +385,15 @@ Evidências: `docs/evidencia-pagamento-sem-conta-local.txt`.
 - Importe **cada fatura num formato só** (PDF **ou** CSV). Se a mesma fatura já foi importada, a tela avisa: importar de novo pode repetir lançamentos.
 - **Pix no Crédito** (PDF e CSV): passa a entrar na fatura como compra (valor com IOF e juros). No PDF ele fica na seção "Pagamentos e Financiamentos" e antes era ignorado.
 
+# Corrigir a data de uma compra do cartão (0018)
+
+Migração **adicional** `supabase/migrations/0018_data_da_compra.sql` (sobre a 0017). Não cria tabelas nem altera dados já gravados.
+
+- Em Cartões → fatura → **Editar** um lançamento, o campo **Data da compra** passa a poder ser corrigido (ex.: parcela do Nubank que veio com a data da cobrança). Muda **só a data**: o lançamento continua na mesma fatura, com as mesmas parcelas e valores.
+- Recusa: data no futuro; data depois do vencimento da fatura da 1ª parcela; compra depois de um estorno dela; estorno antes da compra estornada; lançamento cancelado. A mudança fica na auditoria com o motivo "Data da compra corrigida". Mudar a data direto na tabela continua proibido.
+
+Instalação: `0018_data_da_compra.sql` → Run; validação `validacao/17_validar_data_da_compra_no_supabase.sql` → `VALIDAÇÃO APROVADA: 25 de 25`; regressão: pelo menos 06 (cartões) e 09 (faturas). Localmente (PGlite), 01 a 17 aprovados e 4 de 4 mutações detectadas pelo roteiro 17.
+
 # Manter o Supabase ativo (plano gratuito)
 
 No plano gratuito, o Supabase **pausa** o projeto depois de 7 dias sem atividade no banco. O site deixa de carregar dados até alguém clicar em **Restore project** no painel. Os dados não se perdem.
