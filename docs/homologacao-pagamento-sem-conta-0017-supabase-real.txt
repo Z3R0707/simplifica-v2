@@ -1,0 +1,10 @@
+Simplifica Finanças v2 — homologação da 0017 (pagamento sem conta e centavos da fatura) no Supabase real (projeto simplifica-v2)
+Data: 2026-11-10 (horário de Brasília), executada pelo usuário no SQL Editor; resultados enviados em capturas de tela.
+
+1) Migração: 0017_pagamento_sem_conta.sql → "Success. No rows returned" (etapa 6.1e-pagamento-sem-conta)
+2) Validação: 16_validar_pagamento_sem_conta_no_supabase.sql → VALIDAÇÃO APROVADA: 34 de 34 (rollback)
+3) Regressão: 06 (versão nova, sem data fixa) → 82 de 82 · 05 → 77 de 77 · 13 → 28 de 28
+   Todos com rollback: nenhum usuário, arquivo ou dado de teste ficou gravado.
+   Os demais roteiros (01, 03, 04, 07 a 12, 14, 15) foram aprovados localmente com a 0017
+   (docs/evidencia-pagamento-sem-conta-local.txt).
+4) Site: enviado ao GitHub após a homologação.
