@@ -39,13 +39,13 @@ const valor = (t: string) => cel(t, 460 - t.length * 5, t.length * 5);   // alin
 const saldo = (t: string) => cel(t, 565 - t.length * 5, t.length * 5);   // alinhado à direita em 565 (coluna saldo)
 const lanc = (y: number, d: string, desc: string, v: string) => linha(y, cel(d, 31, 54), cel(desc, 96), valor(v));
 const sdia = (y: number, d: string, v: string) => linha(y, cel(d, 31, 54), cel("SALDO DO DIA", 96, 73), saldo(v));
-function itau(corpo: LinhaPdf[], emitido = "20/10/2026"): LinhaPdf[] {
+function itau(corpo: LinhaPdf[], emitido = "20/10/2026", hora = "10:00:00"): LinhaPdf[] {
   return [
     linha(770, cel("FULANO DE TAL", 232), cel("agência: 0001", 446), cel("conta: 01234-5", 507)),
     linha(723, cel("saldo em conta", 31)),
     linha(645, cel("extrato conta / lançamentos", 28)),
     linha(630, cel("período de visualização: 01/10/2026 até 20/10/2026", 28)),
-    linha(628, cel(`emitido em: ${emitido}`, 436), cel("10:00:00", 539)),
+    linha(628, cel(`emitido em: ${emitido}`, 436), cel(hora, 539)),
     linha(597, cel("data", 31, 22), cel("lançamentos", 96, 64), cel("valor (R$)", 413, 47), cel("saldo (R$)", 516, 49)),
     ...corpo,
   ];
@@ -94,6 +94,16 @@ test("Itaú: diferença só no dia da emissão (dia ainda aberto no banco) vira 
   const r = lerItauExtratoPdf(itau(semUm, "15/10/2026"));
   assert.deepEqual(r.erros, []);
   assert.ok(r.avisos.some((a) => /15\/10\/2026 não fecha.*emitido nesse mesmo dia/.test(a)));
+});
+
+test("Itaú: emitido de madrugada, a diferença no dia anterior (ainda fechando no banco) vira aviso", () => {
+  const semUm = CORPO.filter((l) => !l.texto.includes("PAG BOLETO LUZ"));
+  const madrugada = lerItauExtratoPdf(itau(semUm, "16/10/2026", "00:48:42"));
+  assert.deepEqual(madrugada.erros, []);
+  assert.ok(madrugada.avisos.some((a) => /15\/10\/2026 não fecha.*logo depois da meia-noite/.test(a)));
+  // emitido no fim da manhã do dia seguinte: o dia anterior já fechou, a diferença é erro
+  const manha = lerItauExtratoPdf(itau(semUm, "16/10/2026", "10:00:00"));
+  assert.ok(manha.erros.some((e) => /15\/10\/2026 não fecha/.test(e.motivo)));
 });
 
 test("Itaú: valor na coluna de saldo para um lançamento é erro; dia sem SALDO DO DIA é erro", () => {

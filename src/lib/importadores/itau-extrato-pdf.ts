@@ -36,8 +36,15 @@ export function lerItauExtratoPdf(linhas: LinhaPdf[]): ExtratoLido {
   const fronteira = xValor && xSaldo ? (xValor.x2 + xSaldo.x) / 2 : 490;
   const contaCab = linhas.slice(0, 5).map((l) => /conta:\s*([\d-]+)/i.exec(l.texto)?.[1]).find(Boolean);
   res.conta = contaCab ?? null;
-  const em = linhas.slice(0, 40).map((l) => /emitido em:\s*(\d{2}\/\d{2}\/\d{4})/i.exec(l.texto)?.[1]).find(Boolean);
-  const emitidoEm = em ? iso(em) : null;
+  const emissao = linhas.slice(0, 40).map((l) => /emitido em:\s*(\d{2}\/\d{2}\/\d{4})(?:\s*\|?\s*(\d{2}):\d{2})?/i.exec(l.texto)).find(Boolean);
+  const emitidoEm = emissao ? iso(emissao[1]) : null;
+  // emitido de madrugada (antes das 6h): o banco ainda está fechando o dia anterior
+  // (rendimento da aplicação automática entra no saldo antes de aparecer como lançamento)
+  const madrugada = emissao?.[2] !== undefined && Number(emissao[2]) < 6;
+  const diaAnterior = emitidoEm && madrugada
+    ? new Date(Date.UTC(+emitidoEm.slice(0, 4), +emitidoEm.slice(5, 7) - 1, +emitidoEm.slice(8, 10) - 1)).toISOString().slice(0, 10)
+    : null;
+  const emAndamento = (d: string) => d === emitidoEm || d === diaAnterior;
 
   const saldos = new Map<string, number>();
   const porDia = new Map<string, number>();
@@ -86,9 +93,11 @@ export function lerItauExtratoPdf(linhas: LinhaPdf[]): ExtratoLido {
     const informado = saldos.get(dias[i])!;
     if (esperado !== informado) {
       const texto = `conferência do dia ${dias[i].split("-").reverse().join("/")} não fecha: saldo anterior + lançamentos = ${reais(esperado)}, mas o banco informa ${reais(informado)} (diferença de ${reais(informado - esperado)})`;
-      if (dias[i] === emitidoEm) {
-        // o dia da emissão ainda está em andamento no banco: avisa, não bloqueia
-        res.avisos.push(`Atenção: ${texto}. O extrato foi emitido nesse mesmo dia, que ainda estava em andamento no banco; confira o saldo depois de importar.`);
+      if (emAndamento(dias[i])) {
+        // o dia ainda está em andamento no banco: avisa, não bloqueia
+        res.avisos.push(dias[i] === emitidoEm
+          ? `Atenção: ${texto}. O extrato foi emitido nesse mesmo dia, que ainda estava em andamento no banco; confira o saldo depois de importar.`
+          : `Atenção: ${texto}. O extrato foi emitido logo depois da meia-noite, quando o banco ainda fechava esse dia (por exemplo, o rendimento da aplicação automática); confira o saldo depois de importar.`);
       } else {
         falhas++;
         res.erros.push({ linha: 0, motivo: texto });
