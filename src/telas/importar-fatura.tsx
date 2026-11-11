@@ -112,9 +112,15 @@ export function TelaImportarFatura({ cartaoId }: { cartaoId: string }) {
       if (linhas.length === 0) return setErroArquivo("Este PDF não tem texto (parece uma imagem ou digitalização). Baixe a fatura pelo app do banco.");
       const leitor = LEITORES_FATURA.find((l) => l.reconhece(linhas));
       if (!leitor) {
+        const inicio = linhas.slice(0, 80).map((l) => l.texto).join(" ");
+        // fatura do Itaú cujo PDF veio com o texto picotado (versão reduzida da fatura): as
+        // palavras chegam com espaços no meio e não dá para saber quais espaços são reais
+        const itauPicotado = /Resumo da fatura em R\$/.test(inicio) && /Total desta fatura/.test(inicio);
         return setErroArquivo(reconheceItauExtrato(linhas)
           ? "Isto é o extrato da conta, não a fatura do cartão. Importe pela conta (Saldos → conta → Importar extrato)."
-          : `Não reconheci esta fatura. São lidas as faturas em PDF de: ${LEITORES_FATURA.map((l) => l.banco).join(", ")}.`);
+          : itauPicotado
+            ? "Esta fatura do Itaú veio num PDF com o texto quebrado (as palavras chegam com espaços no meio), e não dá para ler com segurança. Baixe a fatura de novo, de preferência pelo site do Itaú (Cartões → Fatura → Salvar PDF), ou use outra cópia dela."
+            : `Não reconheci esta fatura. São lidas as faturas em PDF de: ${LEITORES_FATURA.map((l) => l.banco).join(", ")}.`);
       }
       setLida(leitor.ler(linhas));
       setArquivo({ nome: f.name, bytes, tipo: "pdf", texto: null });
