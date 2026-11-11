@@ -417,15 +417,25 @@ function Historico({ dados, carregando, erro, aoRetomar, aoAlterar }: {
 }) {
   const [desfazendo, setDesfazendo] = useState<LinhaImportacao | null>(null);
   const [erroRetomar, setErroRetomar] = useState<string | null>(null);
+  // importações desfeitas ficam guardadas, mas só aparecem se a pessoa pedir
+  const [verDesfeitas, setVerDesfeitas] = useState(false);
   if (carregando) return <Carregando />;
   if (erro) return <Alerta>{erro}</Alerta>;
-  if (dados.length === 0) return null;
+  const desfeitas = dados.filter((l) => l.situacao === "cancelada").length;
+  const lista = verDesfeitas ? dados : dados.filter((l) => l.situacao !== "cancelada");
+  if (lista.length === 0 && desfeitas === 0) return null;
   return (
     <section className="secao">
       <h2>Importações desta conta</h2>
       {erroRetomar && <Alerta>{erroRetomar}</Alerta>}
+      {lista.length === 0 && <p className="texto-suave">Nenhuma importação valendo.</p>}
+      {desfeitas > 0 && (
+        <button type="button" className="botao-texto" onClick={() => setVerDesfeitas((v) => !v)}>
+          {verDesfeitas ? "Ocultar desfeitas" : `Mostrar desfeitas (${desfeitas})`}
+        </button>
+      )}
       <ul className="lista-simples">
-        {dados.map((l) => {
+        {lista.map((l) => {
           const dif = l.saldo_informado_centavos !== null && l.saldo_calculado_centavos !== null ? l.saldo_calculado_centavos - l.saldo_informado_centavos : null;
           return (
             <li key={l.importacao_id} className={l.situacao === "cancelada" ? "linha-arquivada" : ""}>

@@ -382,15 +382,25 @@ function HistoricoFatura({ dados, carregando, erro, aoRetomar, aoAlterar }: {
   const [desfazendo, setDesfazendo] = useState<LinhaHistorico | null>(null);
   const [aberta, setAberta] = useState<string | null>(null);
   const [erroRetomar, setErroRetomar] = useState<string | null>(null);
+  // importações desfeitas ficam guardadas, mas só aparecem se a pessoa pedir
+  const [verDesfeitas, setVerDesfeitas] = useState(false);
   if (carregando) return <Carregando />;
   if (erro) return <Alerta>{erro}</Alerta>;
-  if (dados.length === 0) return null;
+  const desfeitas = dados.filter((l) => l.situacao === "cancelada").length;
+  const lista = verDesfeitas ? dados : dados.filter((l) => l.situacao !== "cancelada");
+  if (lista.length === 0 && desfeitas === 0) return null;
   return (
     <section className="secao">
       <h2>Faturas importadas deste cartão</h2>
       {erroRetomar && <Alerta>{erroRetomar}</Alerta>}
+      {lista.length === 0 && <p className="texto-suave">Nenhuma importação valendo.</p>}
+      {desfeitas > 0 && (
+        <button type="button" className="botao-texto" onClick={() => setVerDesfeitas((v) => !v)}>
+          {verDesfeitas ? "Ocultar desfeitas" : `Mostrar desfeitas (${desfeitas})`}
+        </button>
+      )}
       <ul className="lista-simples">
-        {dados.map((l) => {
+        {lista.map((l) => {
           const dif = l.total_fatura_centavos - l.total_lancamentos_centavos;
           return (
             <li key={l.importacao_id} className={l.situacao === "cancelada" ? "linha-arquivada" : ""}>
