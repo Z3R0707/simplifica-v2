@@ -83,6 +83,13 @@ export function lerNubankFaturaPdf(linhas: LinhaPdf[]): FaturaLida {
     if (cartao) { final = cartao[1]; finais.add(final); meio = meio.slice(1); }
     const bruta = meio.map((x) => x.texto).join(" ").replace(/\s+/g, " ").trim();
     if (!bruta) { f.erros.push({ linha: n, motivo: "lançamento sem descrição" }); continue; }
+    if (emPagamentos && valor > 0 && /^saldo restante/i.test(bruta)) {
+      // centavos que ficaram da fatura anterior e o banco cobra nesta: entram na
+      // fatura (e na conferência) para o valor ficar igual ao total a pagar do PDF
+      financiamentos += valor;
+      f.itens.push({ data, descricao: "Saldo restante da fatura anterior", valor_centavos: valor, tipo: "encargo", subtipo: "outro", final });
+      continue;
+    }
     if (emPagamentos) {
       // Pix no Crédito: linha positiva seguida do detalhe "Total a pagar: R$ … (valor da
       // transação …)". É cobrança, não pagamento: entra na fatura e na conferência (o

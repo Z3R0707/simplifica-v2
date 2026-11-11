@@ -121,7 +121,6 @@ type AcaoCartao =
 export function TelaCartao({ cartaoId, mesInicial }: { cartaoId: string; mesInicial?: string }) {
   const [mes, setMes] = useState<string | null>(mesInicial ?? null);
   const [acao, setAcao] = useState<AcaoCartao>(null);
-  const [mostrarCancelados, setMostrarCancelados] = useState(false);
   const cartaoQ = useCarregar(async () => {
     const [resumo, cadastro] = await Promise.all([rpc<LinhaCartao[]>("cartoes_resumo"), listar<Cartao>("cartoes", { id: `eq.${cartaoId}` })]);
     return { resumo: resumo.find((r) => r.cartao_id === cartaoId) ?? null, cadastro: cadastro.find((c) => c.id === cartaoId) ?? null, todos: resumo };
@@ -148,8 +147,8 @@ export function TelaCartao({ cartaoId, mesInicial }: { cartaoId: string; mesInic
   // pagamentos aparecem na lista como o banco mostra no PDF (valor negativo),
   // mas não são créditos: não mudam o total das compras nem o resumo de despesas
   const pagamentos = faturaQ.dados?.pagamentos ?? [];
-  const visiveis = lancs.filter((l) => mostrarCancelados || l.status !== "cancelada");
-  const qtdCancelados = lancs.filter((l) => l.status === "cancelada").length;
+  // compras canceladas ficam guardadas no banco, mas não aparecem na fatura
+  const visiveis = lancs.filter((l) => l.status !== "cancelada");
   const ehAtual = resumo && mesVisto === mesDe(resumo.fatura_atual_competencia);
 
   function exportarCsv() {
@@ -278,12 +277,6 @@ export function TelaCartao({ cartaoId, mesInicial }: { cartaoId: string; mesInic
           </table>
         </div>
       )}
-      {qtdCancelados > 0 && (
-        <button type="button" className="botao-texto" onClick={() => setMostrarCancelados((v) => !v)}>
-          {mostrarCancelados ? "Ocultar cancelados" : `Mostrar cancelados (${qtdCancelados})`}
-        </button>
-      )}
-
       {resumo && (
         <section className="secao">
           <div className="titulo-secao">
