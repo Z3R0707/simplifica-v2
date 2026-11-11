@@ -96,6 +96,24 @@ test("Nubank: linha com data e sem valor reconhecível é erro", () => {
   assert.ok(f.erros.some((e) => /não reconhecida/.test(e.motivo)));
 });
 
+test("Nubank: centavo de arredondamento de compra em dólar vira ajuste; diferença maior continua recusada", () => {
+  const usd = [T("10 SET", "Loja USD", "R$ 47,29"), L(5, cel("Conversão: USD 1 = R$ 5,25", 214))];
+  // 505,28 + 47,29 = 552,57; o banco soma com o valor exato da conversão e imprime 552,56
+  const f = lerNubankFaturaPdf(nubank([...NU.slice(0, -2), ...usd, ...NU.slice(-2)], "R$ 552,56"));
+  assert.deepEqual(f.erros, []);
+  const ajuste = f.itens.filter((i) => /arredondamento/.test(i.descricao));
+  assert.deepEqual(ajuste.map((i) => [i.tipo, i.valor_centavos, i.data]), [["credito", -1, "2026-10-07"]]);
+  assert.equal(f.itens.reduce((s, i) => s + i.valor_centavos, 0), 55256, "fatura fica com o total do banco");
+  assert.ok(f.avisos.some((a) => /arredonda as compras em moeda estrangeira/.test(a)));
+  // 2 centavos com 1 compra em dólar: pode faltar lançamento de verdade
+  const g = lerNubankFaturaPdf(nubank([...NU.slice(0, -2), ...usd, ...NU.slice(-2)], "R$ 552,55"));
+  assert.equal(g.itens.filter((i) => /arredondamento/.test(i.descricao)).length, 0);
+  assert.ok(g.erros.some((e) => /não bate/.test(e.motivo)));
+  // sem compra em moeda estrangeira, nenhum centavo é tolerado
+  const h = lerNubankFaturaPdf(nubank(NU, "R$ 505,27"));
+  assert.ok(h.erros.some((e) => /não bate/.test(e.motivo)));
+});
+
 test("Nubank: portador listado depois dos pagamentos continua sendo compra", () => {
   const f = lerNubankFaturaPdf(nubank([
     ...NU,

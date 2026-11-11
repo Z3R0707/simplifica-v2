@@ -125,19 +125,19 @@ export type LinhaContaAPagar = {
 };
 export type LinhaPagamento = {
   pagamento_id: string;
-  movimento_id: string;
+  movimento_id: string | null; // null: pagamento sem conta (feito fora do Simplifica)
   data_pagamento: string;
-  conta_id: string;
-  conta: string;
+  conta_id: string | null;
+  conta: string | null;
   valor_pago_centavos: number;
   juros_centavos: number;
   multa_centavos: number;
   desconto_centavos: number;
   abatido_centavos: number;
-  origem: "pagamento" | "vinculo";
+  origem: "pagamento" | "vinculo" | "externo";
   situacao: "ativo" | "desfeito";
   desfeito_motivo: string | null;
-  movimento_situacao: string;
+  movimento_situacao: string | null;
   observacao: string | null;
   versao: number;
 };

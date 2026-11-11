@@ -124,6 +124,28 @@ export function subtipoEncargo(desc: string): ItemFatura["subtipo"] {
 }
 
 /** Confere a soma dos itens com o total do banco; diferença vira erro (a leitura é recusada). */
+/**
+ * Compras em moeda estrangeira: o banco soma o subtotal com os valores
+ * exatos da conversão e do IOF, mas imprime cada linha já arredondada, então
+ * a soma das linhas pode diferir do subtotal em até 1 centavo por compra.
+ * Dentro desse limite, acrescenta um item de ajuste para a fatura ficar com
+ * o total do banco. Acima dele, nada muda e a conferência recusa (pode faltar
+ * um lançamento de verdade).
+ */
+export const DESCRICAO_AJUSTE_CAMBIO = "Ajuste de arredondamento do banco (compras em moeda estrangeira)";
+export function ajustarArredondamentoCambio(f: FaturaLida, comprasEmMoeda: number): void {
+  if (f.total_lancamentos_centavos === null || comprasEmMoeda <= 0) return;
+  const dif = f.total_lancamentos_centavos - f.itens.reduce((s, i) => s + i.valor_centavos, 0);
+  if (dif === 0 || Math.abs(dif) > comprasEmMoeda) return;
+  const data = f.fechamento ?? f.vencimento;
+  f.itens.push(dif < 0
+    ? { data, descricao: DESCRICAO_AJUSTE_CAMBIO, valor_centavos: dif, tipo: "credito", final: null }
+    : { data, descricao: DESCRICAO_AJUSTE_CAMBIO, valor_centavos: dif, tipo: "encargo", subtipo: "outro", final: null });
+  const r = (c: number) => (c / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  f.avisos.push(`O banco arredonda as compras em moeda estrangeira: as linhas somavam R$ ${r(Math.abs(dif))} ${dif < 0 ? "a mais" : "a menos"} que o total dele. ` +
+    `Foi acrescentado um ajuste de ${dif < 0 ? "−" : ""}R$ ${r(Math.abs(dif))} para a fatura ficar igual à do banco.`);
+}
+
 export function conferirTotal(f: FaturaLida, rotulo: string): void {
   const soma = f.itens.reduce((s, i) => s + i.valor_centavos, 0);
   if (f.total_lancamentos_centavos === null) {

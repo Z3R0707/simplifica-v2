@@ -1,0 +1,39 @@
+Simplifica Finanças v2 — evidência local da 0017 (pagamento sem conta e centavos da fatura)
+Data: 2026-11-10. Executado neste computador (Windows), sem o Supabase real.
+
+Ambiente: PGlite 0.2.17 (PostgreSQL dentro do Node 24) com o stub
+supabase/tests/00_stub_supabase.sql; migrações 0001 → 0017 aplicadas em ordem.
+Os testes de supabase/tests/*.sql não rodam nesse ambiente (usam psql e dblink).
+
+1) Linha de base (migrações 0001 → 0016, roteiros como estavam):
+   01 a 05 e 07 a 15 aprovados. O 06 reprovou 2 de 82 (itens 75 e 77): a
+   compra em 3 parcelas tinha data fixa (20/09/2026) e, desde 25/10/2026, a
+   2ª parcela também já foi cobrada. Problema de calendário do roteiro, que
+   existia antes da 0017. Corrigido: a data passa a ser calculada a partir de
+   hoje (dia 20 antes do último fechamento, dia 25).
+
+2) Com a 0017 (migrações 0001 → 0017):
+   migração 0017_pagamento_sem_conta.sql: ok (etapa 6.1e-pagamento-sem-conta)
+   01: 74 de 74 | 03: 63 de 63 | 04: 30 de 30 | 05: 77 de 77 | 06: 82 de 82
+   07: 49 de 49 | 08: 26 de 26 | 09: 40 de 40 | 10: 15 de 15 | 11: 16 de 16
+   12: 37 de 37 | 13: 28 de 28 | 14: 36 de 36 | 15: 50 de 50 | 16: 34 de 34
+
+3) Mutações (cada uma aplicada na 0017; o roteiro 16 precisa reprovar):
+   1. sem a tolerância de centavos (<= 99 trocado por <= 0)       → reprovou (31 de 34)
+   2. lista de contas a pagar volta a ignorar pagamento sem conta → reprovou (32 de 34)
+   3. "já registrado" volta a ignorar pagamento sem conta         → reprovou (32 de 34)
+   4. pagamento sem conta volta a exigir lançamento               → reprovou (23 de 34)
+   4 de 4 detectadas.
+
+4) Leitor de fatura Nubank com as faturas REAIS do usuário (arquivos fora do
+   repositório; aqui só quantidades):
+   - fatura com vencimento em novembro/2026: antes recusada (linhas somavam
+     R$ 0,01 a mais que o subtotal do banco, por arredondamento de 2 compras
+     em dólar). Agora: 0 erros, 1 item de ajuste de −R$ 0,01, total igual ao
+     do banco.
+   - fatura com vencimento em outubro/2026: sem mudança (0 erros, sem ajuste).
+
+5) Site: npm test → 49 de 49 (inclui o teste novo do ajuste de câmbio: aceita
+   1 centavo com 1 compra em dólar; recusa 2 centavos com 1 compra; recusa
+   1 centavo sem compra em moeda estrangeira). npm run build → concluído.
+   Checagem de tipos (tsc 5.6, strict) nos 36 arquivos de src/: 0 erros.

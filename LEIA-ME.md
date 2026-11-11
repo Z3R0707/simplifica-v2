@@ -1,4 +1,4 @@
-# Simplifica Finanças v2 — Etapas 1 a 6 (parte 1c) + endurecimento (0016)
+# Simplifica Finanças v2 — Etapas 1 a 6 (parte 1c) + endurecimento (0016) + pagamento sem conta (0017)
 
 Base do novo sistema: banco, permissões, auditoria, idempotência, versão e exclusão
 de conta (LGPD) sem arquivos órfãos. Tudo vai num projeto Supabase **novo e separado**.
@@ -362,6 +362,20 @@ Migração **adicional** `supabase/migrations/0016_endurecimento_auditoria.sql` 
 Instalação: `0016_endurecimento_auditoria.sql` → Run; validação `validacao/15_validar_endurecimento_no_supabase.sql` → `VALIDAÇÃO APROVADA: 50 de 50`; regressão 01 a 14. Nesta versão mudaram os roteiros 07 e 09 (a verificação 6 de cada um passa a ler a ordem de exclusão da lista única; funciona antes e depois da 0016).
 
 Evidências: `docs/evidencia-endurecimento-local.txt` (migrações 0001 → 0016 e roteiros 01 a 15 num PostgreSQL local, 5 de 5 mutações detectadas pelo roteiro 15, testes dos prazos da `excluir-conta`).
+
+# Pagamento sem conta e centavos da fatura (0017)
+
+Migração **adicional** `supabase/migrations/0017_pagamento_sem_conta.sql` (sobre a 0016). Não cria tabelas nem altera dados já gravados.
+
+- **Pagamento sem conta** ("Pago por fora"): uma conta a pagar, inclusive a fatura do cartão, pode receber um pagamento feito fora do Simplifica (por outra pessoa, de uma conta não cadastrada, em dinheiro, ou um pagamento antecipado que o banco já descontou na fatura). Ele abate o "Falta pagar" e **não lança saída em nenhuma conta**: nenhum saldo muda. Aparece em A pagar → Pagar conta → "Pago por fora", e na lista de pagamentos como "Sem conta (pago por fora)". Pode ser desfeito como os outros.
+- **Pagamentos impressos na fatura importada**: logo depois de confirmar a importação, e também na tela da fatura (quadro **Segundo o PDF do banco**), cada pagamento que o banco imprimiu pode ser vinculado a uma saída do extrato, registrado saindo de uma conta, registrado **sem conta**, ou deixado sem registrar.
+- **Quadro "Segundo o PDF do banco"** na tela da fatura (Cartões): mostra o total a pagar do PDF (compras − pagamentos antecipados ± saldo de faturas anteriores), avisa quando falta registrar um pagamento antecipado e diz se o "Falta pagar" confere com o PDF.
+- **Centavos**: um pagamento impresso na fatura que passe do que falta pagar por até R$ 0,99 (o saldo de centavos da fatura anterior que o banco cobra junto) é registrado com a diferença como acréscimo, e a fatura fica quitada. Antes era recusado.
+- **Compras em moeda estrangeira (Nubank)**: o banco soma o subtotal com os valores exatos da conversão e imprime cada linha arredondada; a soma das linhas pode diferir em até 1 centavo por compra. Dentro desse limite, a leitura acrescenta o item "Ajuste de arredondamento do banco" e a fatura fica com o total do banco. Diferença maior continua recusando a leitura.
+
+Instalação: `0017_pagamento_sem_conta.sql` → Run; validação `validacao/16_validar_pagamento_sem_conta_no_supabase.sql` → `VALIDAÇÃO APROVADA: 34 de 34`; regressão 01 a 15. Nesta versão mudou o roteiro 06: a compra em 3 parcelas do item 74 passa a ter data calculada a partir de hoje (com a data fixa de setembro, os itens 75 e 77 reprovavam a partir de 25/10/2026).
+
+Evidências: `docs/evidencia-pagamento-sem-conta-local.txt`.
 
 # Manter o Supabase ativo (plano gratuito)
 

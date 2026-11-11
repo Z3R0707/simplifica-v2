@@ -392,7 +392,9 @@ function HistoricoFatura({ dados, carregando, erro, aoRetomar, aoAlterar }: {
 }
 
 // ------------------------------------------------------------ pagamentos mostrados na fatura
-type PagamentoFatura = {
+const MAX_CENTAVOS_A_MAIS = 99; // o mesmo limite do banco (migração 0017)
+
+export type PagamentoFatura = {
   ordem: number; data: string; descricao: string; valor_centavos: number; tipo: "fatura_anterior" | "antecipado";
   obrigacao_id: string | null; obrigacao: string | null; obrigacao_restante_centavos: number | null; registrado: boolean;
   pagamento_id: string | null; conta_sugerida_id: string | null; movimento_sugerido_id: string | null; movimento_sugerido: string | null;
@@ -409,7 +411,9 @@ export function PagamentosDaFatura({ importacaoId }: { importacaoId: string }) {
       <h3>Pagamentos mostrados na fatura</h3>
       <p className="campo-ajuda">
         Pagamentos não são compras. O pagamento da fatura anterior quita a anterior; o pagamento feito antes do vencimento desta fatura
-        (antecipado) abate o que falta pagar nela — registre-o para o valor a pagar ficar igual ao do banco.
+        (antecipado) abate o que falta pagar nela — registre-o para o valor a pagar ficar igual ao do banco. Você decide cada um:
+        vincular a uma saída do extrato, registrar saindo de uma conta, registrar <strong>sem conta</strong> (pago por fora, nenhum saldo
+        muda) ou deixar sem registrar.
       </p>
       <ul className="lista-conciliacao">
         {lista.map((p) => <LinhaPagamentoFatura key={p.ordem} p={p} importacaoId={importacaoId} aoAlterar={q.recarregar} />)}
@@ -423,17 +427,22 @@ function LinhaPagamentoFatura({ p, importacaoId, aoAlterar }: { p: PagamentoFatu
   const ativas = contas.filter((c) => c.ativa);
   const [conta, setConta] = useState(p.conta_sugerida_id ?? ativas[0]?.id ?? "");
   const { chave, enviando, erro, enviar } = useEnvio("fatura-pagamento");
-  const registrar = (alvo: { p_conta_id: string | null; p_movimento_id: string | null }) => void enviar(async () => {
+  const registrar = (alvo: { p_conta_id: string | null; p_movimento_id: string | null; p_sem_conta?: boolean }) => void enviar(async () => {
     await rpc("importacao_fatura_registrar_pagamento", { p_importacao_id: importacaoId, p_ordem: p.ordem, ...alvo, p_chave_idempotencia: `${chave}-${p.ordem}` });
     aoAlterar();
   });
   const tipo = p.tipo === "antecipado" ? "Pagamento antecipado desta fatura" : "Pagamento da fatura anterior";
+  const restante = p.obrigacao_restante_centavos ?? 0;
+  // até R$ 0,99 a mais: centavos que o banco cobrou junto (saldo da fatura anterior); entram como acréscimo
+  const sobra = p.valor_centavos - restante;
   let situacao: ReactNode;
   if (p.registrado) situacao = <span className="selo selo-ok">Registrado{p.obrigacao ? ` em ${p.obrigacao}` : ""}</span>;
   else if (!p.obrigacao_id) situacao = <span className="texto-suave">A fatura que ele quita não está em aberto no Simplifica — nada a registrar.</span>;
-  else if ((p.obrigacao_restante_centavos ?? 0) < p.valor_centavos) situacao = <span className="texto-suave">{p.obrigacao} já está paga no Simplifica — nada a registrar.</span>;
+  else if (restante <= 0) situacao = <span className="texto-suave">{p.obrigacao} já está paga no Simplifica — nada a registrar.</span>;
+  else if (sobra > MAX_CENTAVOS_A_MAIS) situacao = <span className="texto-suave">O pagamento passa {formatarCentavos(sobra)} do que falta em {p.obrigacao} — confira os pagamentos já registrados nela.</span>;
   else situacao = (
     <span className="acoes-pendente">
+      {sobra > 0 && <span className="texto-suave">{formatarCentavos(sobra)} a mais (centavos cobrados pelo banco) entram como acréscimo e quitam a fatura.</span>}
       {p.movimento_sugerido_id && (
         <button type="button" className="botao-secundario" disabled={enviando}
           onClick={() => registrar({ p_conta_id: null, p_movimento_id: p.movimento_sugerido_id })}>Vincular ao lançamento {p.movimento_sugerido}</button>
@@ -443,6 +452,8 @@ function LinhaPagamentoFatura({ p, importacaoId, aoAlterar }: { p: PagamentoFatu
       </select>
       <button type="button" className={p.movimento_sugerido_id ? "botao-texto" : "botao-secundario"} disabled={enviando || !conta}
         onClick={() => registrar({ p_conta_id: conta, p_movimento_id: null })}>Registrar saindo desta conta</button>
+      <button type="button" className="botao-texto" disabled={enviando}
+        onClick={() => registrar({ p_conta_id: null, p_movimento_id: null, p_sem_conta: true })}>Registrar sem conta (pago por fora)</button>
     </span>
   );
   return (
@@ -454,5 +465,75 @@ function LinhaPagamentoFatura({ p, importacaoId, aoAlterar }: { p: PagamentoFatu
         {erro && <Alerta>{erro}</Alerta>}
       </div>
     </li>
+  );
+}
+
+// ------------------------------------------------------------ na tela da fatura
+type ImportacaoConfirmada = { id: string; fatura_id: string; vencimento: string; total_lancamentos_centavos: number; total_a_pagar_centavos: number | null };
+type PagamentoDaFatura = PagamentoFatura & { importacao_id: string };
+
+/**
+ * Quadro "Segundo o PDF do banco" na tela da fatura: o total a pagar impresso
+ * no PDF importado e os pagamentos impressos que quitam ESTA fatura (os
+ * antecipados vêm no PDF dela; o da fatura anterior vem no PDF do mês
+ * seguinte), cada um com os botões para registrar ali mesmo.
+ */
+export function QuadroPdfDoBanco({ cartaoId, faturaId, obrigacaoId, mes, restanteCentavos, aoAlterar }: {
+  cartaoId: string; faturaId: string; obrigacaoId: string | null; mes: string; restanteCentavos: number; aoAlterar: () => void;
+}) {
+  const q = useCarregar(async () => {
+    const imps = await listar<ImportacaoConfirmada>("importacoes_fatura", { cartao_id: `eq.${cartaoId}`, situacao: "eq.confirmada" });
+    const desta = imps.find((i) => i.fatura_id === faturaId) ?? null;
+    // só o PDF desta fatura e o do mês seguinte imprimem pagamentos que a quitam
+    const proximoMes = (() => { const [a, m] = mes.split("-").map(Number); return m === 12 ? `${a + 1}-01` : `${a}-${String(m + 1).padStart(2, "0")}`; })();
+    const relevantes = imps.filter((i) => i.fatura_id === faturaId || i.vencimento.slice(0, 7) === proximoMes);
+    const listas = await Promise.all(relevantes.map(async (i) =>
+      (await rpc<PagamentoFatura[]>("importacao_fatura_pagamentos", { p_importacao_id: i.id })).map((p) => ({ ...p, importacao_id: i.id }))));
+    const pagamentos: PagamentoDaFatura[] = listas.flat().filter((p) => obrigacaoId && p.obrigacao_id === obrigacaoId)
+      .sort((a, b) => a.data.localeCompare(b.data));
+    return { desta, pagamentos };
+  }, [cartaoId, faturaId, obrigacaoId, mes, restanteCentavos]);
+  const d = q.dados;
+  if (q.erro) return <Alerta>{q.erro}</Alerta>;
+  if (!d || (!d.desta && d.pagamentos.length === 0)) return null;
+  const pdf = d.desta?.total_a_pagar_centavos ?? null;
+  const antecipados = d.pagamentos.filter((p) => p.importacao_id === d.desta?.id && p.tipo === "antecipado");
+  const pendentes = antecipados.filter((p) => !p.registrado).length;
+  const recarregar = () => { q.recarregar(); aoAlterar(); };
+  return (
+    <section className="secao pagamentos-fatura" aria-label="Segundo o PDF do banco">
+      <h2>Segundo o PDF do banco</h2>
+      {d.desta && pdf !== null && (
+        <p>
+          Total a pagar no PDF: <strong>{formatarCentavos(pdf)}</strong>
+          <span className="texto-suave">
+            {" "}= compras {formatarCentavos(d.desta.total_lancamentos_centavos)}
+            {antecipados.length > 0 && ` − pagamentos antecipados ${formatarCentavos(antecipados.reduce((s, p) => s + p.valor_centavos, 0))}`}
+            {(() => {
+              const outros = pdf - d.desta.total_lancamentos_centavos + antecipados.reduce((s, p) => s + p.valor_centavos, 0);
+              return outros !== 0 ? ` ${outros > 0 ? "+" : "−"} saldo de faturas anteriores ${formatarCentavos(Math.abs(outros))}` : "";
+            })()}
+          </span>
+        </p>
+      )}
+      {restanteCentavos > 0 && pendentes > 0 && (
+        <Alerta tipo="aviso">
+          O banco já descontou {pendentes === 1 ? "um pagamento antecipado" : `${pendentes} pagamentos antecipados`} desta fatura.
+          Registre {pendentes === 1 ? "ele" : "eles"} abaixo para o "Falta pagar" ficar igual ao do PDF.
+        </Alerta>
+      )}
+      {restanteCentavos > 0 && pendentes === 0 && pdf !== null && d.pagamentos.every((p) => p.importacao_id === d.desta?.id) && (
+        restanteCentavos === pdf
+          ? <Alerta tipo="ok">O "Falta pagar" confere com o total a pagar do PDF ({formatarCentavos(pdf)}).</Alerta>
+          : Math.abs(restanteCentavos - pdf) <= MAX_CENTAVOS_A_MAIS
+            ? <p className="texto-suave">Falta pagar aqui {formatarCentavos(restanteCentavos)}; no PDF {formatarCentavos(pdf)}. A diferença são centavos de faturas anteriores que o banco cobra junto: ao registrar o pagamento pelo valor do PDF, eles entram como acréscimo.</p>
+            : <Alerta tipo="aviso">Falta pagar aqui {formatarCentavos(restanteCentavos)}; no PDF {formatarCentavos(pdf)}. Confira os pagamentos já registrados nesta fatura.</Alerta>
+      )}
+      {d.pagamentos.length > 0 && (
+        <ul className="lista-conciliacao">
+          {d.pagamentos.map((p) => <LinhaPagamentoFatura key={`${p.importacao_id}-${p.ordem}`} p={p} importacaoId={p.importacao_id} aoAlterar={recarregar} />)}
+        </ul>
+      )}
+    </section>
   );
 }

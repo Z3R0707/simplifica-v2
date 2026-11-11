@@ -7,6 +7,7 @@ import type {
 } from "../lib/tipos";
 import { Alerta, Campo, Carregando, Confirmar, Dialogo, TituloPagina, Valor, useCadastros, useCarregar, useEnvio } from "../ui";
 import { DialogoPagar } from "./contas-a-pagar";
+import { QuadroPdfDoBanco } from "./importar-fatura";
 
 // ------------------------------------------------------------ utilidades
 const mesDe = (iso: string) => iso.slice(0, 7);
@@ -216,6 +217,10 @@ export function TelaCartao({ cartaoId, mesInicial }: { cartaoId: string; mesInic
               A diferença não é ajustada sozinha: confira os lançamentos e lance a compra, o encargo ou o crédito que estiver faltando.
             </Alerta>
           )
+      )}
+      {fatura && mesVisto && (
+        <QuadroPdfDoBanco cartaoId={cartaoId} faturaId={fatura.fatura_id} obrigacaoId={fatura.obrigacao_id} mes={mesVisto}
+          restanteCentavos={fatura.restante_centavos} aoAlterar={recarregar} />
       )}
 
       {faturaQ.carregando && !faturaQ.dados && <Carregando />}

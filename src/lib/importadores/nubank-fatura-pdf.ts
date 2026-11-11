@@ -10,7 +10,7 @@
 // Conferência: a soma dos itens precisa bater com a soma dos subtotais
 // dos portadores (= compras + IOF + outros lançamentos do resumo).
 import type { LinhaPdf } from "./pdf.ts";
-import { MESES, conferirTotal, dataSemAno, separarParcela, subtipoEncargo, valorBr, type FaturaLida, type ItemFatura } from "./fatura-comum.ts";
+import { MESES, ajustarArredondamentoCambio, conferirTotal, dataSemAno, separarParcela, subtipoEncargo, valorBr, type FaturaLida, type ItemFatura } from "./fatura-comum.ts";
 
 const DATA = /^(\d{2}) (JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)$/;
 const VALOR = /^[-−]?R\$ ?[\d.]+,\d{2}$|^R\$ ?[-−][\d.]+,\d{2}$/;
@@ -46,6 +46,7 @@ export function lerNubankFaturaPdf(linhas: LinhaPdf[]): FaturaLida {
   let emPagamentos = false;
   let subtotais = 0;
   let achouSubtotal = false;
+  let comprasEmMoeda = 0; // linhas "Conversão: …" (compra em moeda estrangeira)
   const finais = new Set<string>();
   let n = 0;
   for (const l of linhas) {
@@ -58,6 +59,7 @@ export function lerNubankFaturaPdf(linhas: LinhaPdf[]): FaturaLida {
     const md = DATA.exec(c[0]?.texto ?? "");
     if (!md) {
       // sem data: subtotal de portador, cabeçalho de pagamentos, ou detalhe (conversão de moeda)
+      if (!emPagamentos && /^Conversão:/i.test(l.texto)) { comprasEmMoeda++; continue; }
       if (temValor && /^Pagamentos e Financiamentos$/i.test(c.slice(0, -1).map((x) => x.texto).join(" "))) { emPagamentos = true; continue; }
       // nome + valor = subtotal de portador; se vier depois dos pagamentos,
       // é outro portador e a seção de pagamentos acabou
@@ -109,6 +111,7 @@ export function lerNubankFaturaPdf(linhas: LinhaPdf[]): FaturaLida {
     f.avisos.push("O Nubank não mostra na fatura a data original das compras parceladas: nas parcelas a partir da 2ª, a data da compra lançada será a da cobrança nesta fatura. Os valores e as faturas de cada parcela não mudam.");
   }
   f.total_lancamentos_centavos = achouSubtotal ? subtotais : null;
+  ajustarArredondamentoCambio(f, comprasEmMoeda);
   conferirTotal(f, "total de transações dos portadores");
   return f;
 }

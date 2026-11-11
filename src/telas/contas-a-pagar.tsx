@@ -395,7 +395,7 @@ const lerOpcional = (t: string) => (t.trim() === "" ? 0 : lerValor(t));
 export function DialogoPagar({ linha, aoFechar, aoConcluir }: { linha: LinhaContaAPagar; aoFechar: () => void; aoConcluir: () => void }) {
   const { contas } = useCadastros();
   const ativas = contas.filter((c) => c.ativa);
-  const [modo, setModo] = useState<"pagar" | "vincular">("pagar");
+  const [modo, setModo] = useState<"pagar" | "vincular" | "sem_conta">("pagar");
   const [conta, setConta] = useState(ativas.some((c) => c.id === linha.conta_prevista_id) ? linha.conta_prevista_id! : ativas[0]?.id ?? "");
   const [data, setData] = useState(hoje());
   const [valor, setValor] = useState(centavosParaCampo(linha.restante_centavos));
@@ -433,8 +433,8 @@ export function DialogoPagar({ linha, aoFechar, aoConcluir }: { linha: LinhaCont
         if (abate > linha.restante_centavos) {
           return setErro(`Este pagamento abate ${formatarCentavos(abate)}, mas faltam só ${formatarCentavos(linha.restante_centavos)}. Se pagou a mais, informe a diferença como juros ou multa.`);
         }
-        if (modo === "pagar") {
-          if (!conta) return setErro("Escolha a conta de onde saiu o dinheiro.");
+        if (modo === "pagar" || modo === "sem_conta") {
+          if (modo === "pagar" && !conta) return setErro("Escolha a conta de onde saiu o dinheiro.");
           if (!dataValida(data) || data > hoje()) return setErro("Informe a data do pagamento (hoje ou antes).");
         } else {
           if (!escolhido) return setErro("Escolha a saída que pagou esta conta.");
@@ -443,6 +443,9 @@ export function DialogoPagar({ linha, aoFechar, aoConcluir }: { linha: LinhaCont
         void enviar(async () => {
           if (modo === "pagar") {
             await rpc("obrigacao_pagar", { p_obrigacao_id: linha.obrigacao_id, p_conta_id: conta, p_data: data, p_valor_pago_centavos: pago,
+              p_juros_centavos: j, p_multa_centavos: m, p_desconto_centavos: d, p_observacao: null, p_chave_idempotencia: chave });
+          } else if (modo === "sem_conta") {
+            await rpc("obrigacao_pagar_externo", { p_obrigacao_id: linha.obrigacao_id, p_data: data, p_valor_pago_centavos: pago,
               p_juros_centavos: j, p_multa_centavos: m, p_desconto_centavos: d, p_observacao: null, p_chave_idempotencia: chave });
           } else {
             await rpc("obrigacao_vincular_movimento", { p_obrigacao_id: linha.obrigacao_id, p_movimento_id: movimento, p_valor_pago_centavos: pago,
@@ -459,7 +462,20 @@ export function DialogoPagar({ linha, aoFechar, aoConcluir }: { linha: LinhaCont
           <legend>Como foi pago</legend>
           <label><input type="radio" name="modo" checked={modo === "pagar"} onChange={() => setModo("pagar")} /> Registrar o pagamento agora</label>
           <label><input type="radio" name="modo" checked={modo === "vincular"} onChange={() => { setModo("vincular"); setMovimento(""); }} /> Já lancei essa saída</label>
+          <label><input type="radio" name="modo" checked={modo === "sem_conta"} onChange={() => setModo("sem_conta")} /> Pago por fora (não saiu de conta do Simplifica)</label>
         </fieldset>
+
+        {modo === "sem_conta" && (
+          <>
+            <Campo rotulo="Data do pagamento">
+              {(id) => <input id={id} type="date" required max={hoje()} value={data} onChange={(e) => setData(e.target.value)} />}
+            </Campo>
+            <p className="campo-ajuda">
+              Abate o que falta pagar sem lançar saída em nenhuma conta, então nenhum saldo muda. Use para um pagamento feito por
+              outra pessoa, de uma conta que não está no Simplifica ou em dinheiro{linha.origem === "fatura" ? ", ou um pagamento antecipado que o banco já descontou na fatura" : ""}.
+            </p>
+          </>
+        )}
 
         {modo === "pagar" && (
           <>
@@ -533,7 +549,7 @@ export function DialogoPagar({ linha, aoFechar, aoConcluir }: { linha: LinhaCont
         {erro && <Alerta>{erro}</Alerta>}
         <div className="acoes">
           <button type="button" className="botao-secundario" onClick={aoFechar}>Voltar</button>
-          <button type="submit" className="botao" disabled={enviando}>{enviando ? "Salvando…" : modo === "pagar" ? "Registrar pagamento" : "Vincular saída"}</button>
+          <button type="submit" className="botao" disabled={enviando}>{enviando ? "Salvando…" : modo === "vincular" ? "Vincular saída" : "Registrar pagamento"}</button>
         </div>
       </form>
     </Dialogo>
@@ -554,7 +570,7 @@ function DialogoPagamentos({ linha, aoFechar, aoAlterar }: { linha: LinhaContaAP
           {dados.map((p) => (
             <li key={p.pagamento_id} className={p.situacao === "desfeito" ? "linha-arquivada" : ""}>
               <div>
-                <strong>{formatarData(p.data_pagamento)} · {p.conta}</strong>
+                <strong>{formatarData(p.data_pagamento)} · {p.conta ?? "Sem conta (pago por fora)"}</strong>
                 <span className="texto-suave">
                   Pago {formatarCentavos(p.valor_pago_centavos)}
                   {p.juros_centavos > 0 && ` · juros ${formatarCentavos(p.juros_centavos)}`}
@@ -596,8 +612,10 @@ function DialogoDesfazer({ pagamento, aoFechar, aoConcluir }: { pagamento: Linha
           aoConcluir();
         });
       }}>
-        <p className="dialogo-texto">Pagamento de {formatarCentavos(pagamento.valor_pago_centavos)} em {formatarData(pagamento.data_pagamento)} ({pagamento.conta}). A conta a pagar volta a ter {formatarCentavos(pagamento.abatido_centavos)} em aberto.</p>
-        {pagamento.origem === "pagamento" ? (
+        <p className="dialogo-texto">Pagamento de {formatarCentavos(pagamento.valor_pago_centavos)} em {formatarData(pagamento.data_pagamento)} ({pagamento.conta ?? "sem conta"}). A conta a pagar volta a ter {formatarCentavos(pagamento.abatido_centavos)} em aberto.</p>
+        {pagamento.origem === "externo" ? (
+          <p className="campo-ajuda">Foi pago por fora, sem saída em conta do Simplifica: nenhum saldo muda ao desfazer.</p>
+        ) : pagamento.origem === "pagamento" ? (
           <label className="opcao-check">
             <input type="checkbox" checked={cancelarSaida} onChange={(e) => setCancelarSaida(e.target.checked)} />
             Cancelar também a saída lançada (o dinheiro volta ao saldo da conta)
