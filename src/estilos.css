@@ -175,6 +175,8 @@ a:hover { color: var(--acento-forte); }
 .linha-cancelado .descricao, .linha-cancelado .valor { text-decoration: line-through; color: var(--suave); }
 .linha-fora .valor { color: var(--suave); }
 .linha-arquivada { color: var(--suave); }
+.linha-pagamento td { background: var(--superficie-2); }
+.tabela tfoot td { border-top: 1px solid var(--linha, currentColor); font-variant-numeric: tabular-nums; }
 .acoes-linha { white-space: nowrap; text-align: right; }
 .acoes-linha .botao-texto + .botao-texto { margin-left: 4px; }
 @media (max-width: 640px) {

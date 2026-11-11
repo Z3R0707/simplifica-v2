@@ -3,7 +3,7 @@ import { listar, rpc } from "../lib/api";
 import { dataValida, formatarData, hoje, nomeDoMes } from "../lib/datas";
 import { centavosParaCampo, formatarCentavos, lerValor } from "../lib/dinheiro";
 import type {
-  Cartao, Compra, FaturaPrevista, LancamentoFatura, LinhaCartao, LinhaContaAPagar, LinhaFatura, ParcelaDaCompra, SituacaoFatura, StatusParcela,
+  Cartao, Compra, FaturaPrevista, LancamentoFatura, LinhaCartao, LinhaContaAPagar, LinhaFatura, LinhaPagamento, ParcelaDaCompra, SituacaoFatura, StatusParcela,
 } from "../lib/tipos";
 import { Alerta, Campo, Carregando, Confirmar, Dialogo, TituloPagina, Valor, useCadastros, useCarregar, useEnvio } from "../ui";
 import { DialogoPagar } from "./contas-a-pagar";
@@ -133,8 +133,11 @@ export function TelaCartao({ cartaoId, mesInicial }: { cartaoId: string; mesInic
   const faturaQ = useCarregar(async () => {
     if (!mesVisto) return null;
     const [fat] = await rpc<LinhaFatura[]>("faturas_do_cartao", { p_cartao_id: cartaoId, p_de: `${mesVisto}-01`, p_ate: `${mesVisto}-01` });
-    const lancs = fat ? await rpc<LancamentoFatura[]>("lancamentos_da_fatura", { p_fatura_id: fat.fatura_id }) : [];
-    return { fatura: fat ?? null, lancs };
+    const [lancs, pags] = await Promise.all([
+      fat ? rpc<LancamentoFatura[]>("lancamentos_da_fatura", { p_fatura_id: fat.fatura_id }) : Promise.resolve([] as LancamentoFatura[]),
+      fat?.obrigacao_id ? rpc<LinhaPagamento[]>("pagamentos_da_obrigacao", { p_obrigacao_id: fat.obrigacao_id }) : Promise.resolve([] as LinhaPagamento[]),
+    ]);
+    return { fatura: fat ?? null, lancs, pagamentos: pags.filter((p) => p.situacao === "ativo") };
   }, [cartaoId, mesVisto]);
 
   const recarregar = () => { cartaoQ.recarregar(); faturaQ.recarregar(); };
@@ -143,6 +146,9 @@ export function TelaCartao({ cartaoId, mesInicial }: { cartaoId: string; mesInic
 
   const fatura = faturaQ.dados?.fatura ?? null;
   const lancs = faturaQ.dados?.lancs ?? [];
+  // pagamentos aparecem na lista como o banco mostra no PDF (valor negativo),
+  // mas não são créditos: não mudam o total das compras nem o resumo de despesas
+  const pagamentos = faturaQ.dados?.pagamentos ?? [];
   const visiveis = lancs.filter((l) => mostrarCancelados || l.status !== "cancelada");
   const qtdCancelados = lancs.filter((l) => l.status === "cancelada").length;
   const ehAtual = resumo && mesVisto === mesDe(resumo.fatura_atual_competencia);
@@ -260,7 +266,29 @@ export function TelaCartao({ cartaoId, mesInicial }: { cartaoId: string; mesInic
                   </td>
                 </tr>
               ))}
+              {pagamentos.map((p) => (
+                <tr key={`pg-${p.pagamento_id}`} className="linha-pagamento">
+                  <td className="data">{formatarData(p.data_pagamento)}</td>
+                  <td>
+                    <span className="descricao">{fatura && p.data_pagamento < fatura.fechamento ? "Pagamento antecipado" : "Pagamento da fatura"}</span>
+                    <span className="texto-suave">
+                      Pagamento · {p.conta ?? "pago por fora (sem conta)"}
+                      {p.juros_centavos > 0 && ` · inclui ${formatarCentavos(p.juros_centavos)} de acréscimo`}
+                    </span>
+                  </td>
+                  <td className="parcela"></td>
+                  <td className="num"><Valor centavos={-p.valor_pago_centavos} classe="valor-entrada" /></td>
+                  <td className="acoes-linha"></td>
+                </tr>
+              ))}
             </tbody>
+            {fatura && pagamentos.length > 0 && (
+              <tfoot>
+                <tr><td></td><td>Total da fatura</td><td></td><td className="num"><Valor centavos={fatura.total_centavos} /></td><td></td></tr>
+                <tr><td></td><td>Pagamentos</td><td></td><td className="num"><Valor centavos={-pagamentos.reduce((s, p) => s + p.valor_pago_centavos, 0)} classe="valor-entrada" /></td><td></td></tr>
+                <tr><td></td><td><strong>Falta pagar</strong></td><td></td><td className="num"><strong><Valor centavos={fatura.restante_centavos} /></strong></td><td></td></tr>
+              </tfoot>
+            )}
           </table>
         </div>
       )}
