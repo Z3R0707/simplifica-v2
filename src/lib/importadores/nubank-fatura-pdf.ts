@@ -47,9 +47,11 @@ export function lerNubankFaturaPdf(linhas: LinhaPdf[]): FaturaLida {
   let subtotais = 0;
   let achouSubtotal = false;
   let comprasEmMoeda = 0; // linhas "Conversão: …" (compra em moeda estrangeira)
+  let financiamentos = 0; // Pix no Crédito, na seção de pagamentos
   const finais = new Set<string>();
   let n = 0;
-  for (const l of linhas) {
+  for (let iL = 0; iL < linhas.length; iL++) {
+    const l = linhas[iL];
     const c = l.celulas;
     if (/^TRANSAÇÕES$/.test(c[0]?.texto ?? "")) { emTransacoes = true; continue; }
     if (!emTransacoes) continue;
@@ -82,36 +84,51 @@ export function lerNubankFaturaPdf(linhas: LinhaPdf[]): FaturaLida {
     const bruta = meio.map((x) => x.texto).join(" ").replace(/\s+/g, " ").trim();
     if (!bruta) { f.erros.push({ linha: n, motivo: "lançamento sem descrição" }); continue; }
     if (emPagamentos) {
-      f.pagamentos.push({ data, descricao: bruta.slice(0, 200), valor_centavos: valor });
+      // Pix no Crédito: linha positiva seguida do detalhe "Total a pagar: R$ … (valor da
+      // transação …)". É cobrança, não pagamento: entra na fatura e na conferência (o
+      // subtotal dos portadores não a inclui). Saldo restante e estorno de pagamento
+      // continuam como pagamentos.
+      if (valor > 0 && /^Total a pagar: R\$ ?[\d.]+,\d{2} \(valor da transa/i.test(linhas[iL + 1]?.texto ?? "")) {
+        financiamentos += valor;
+        f.itens.push({ data, descricao: (/^pix no cr[eé]dito/i.test(bruta) ? bruta : `Pix no Crédito - ${bruta}`).slice(0, 200), valor_centavos: valor, tipo: "compra", final });
+      } else {
+        f.pagamentos.push({ data, descricao: bruta.slice(0, 200), valor_centavos: valor });
+      }
       continue;
     }
     if (valor === 0) continue;
-    let item: ItemFatura;
-    const ant = /^Antecipada - (.*)$/i.exec(bruta);
-    const desc = /^Desconto Antecipação (.*)$/i.exec(bruta);
-    if (desc && valor < 0) {
-      item = { data, descricao: desc[1].trim().slice(0, 200), valor_centavos: valor, tipo: "credito", desconto_antecipacao: true, final };
-    } else {
-      const p = separarParcela(ant ? ant[1] : bruta, "nubank");
-      const sub = subtipoEncargo(p.descricao);
-      if (valor < 0) {
-        item = { data, descricao: p.descricao.slice(0, 200), valor_centavos: valor, tipo: "credito", final };
-      } else if (sub && p.atual === null) {
-        item = { data, descricao: p.descricao.slice(0, 200), valor_centavos: valor, tipo: "encargo", subtipo: sub, final };
-      } else {
-        item = { data, descricao: p.descricao.slice(0, 200), valor_centavos: valor, tipo: "compra", final,
-                 parcela_atual: p.atual, parcelas_total: p.total, antecipada: !!ant };
-        if (ant && p.atual === null) f.erros.push({ linha: n, motivo: `antecipação sem número de parcela: "${bruta}"` });
-      }
-    }
-    f.itens.push(item);
+    const r = itemNubank(data, bruta, valor, final);
+    if (r.erro) f.erros.push({ linha: n, motivo: r.erro });
+    f.itens.push(r.item);
   }
   f.finais = [...finais].sort();
   if (f.itens.some((i) => (i.parcela_atual ?? 0) > 1 && !i.antecipada)) {
     f.avisos.push("O Nubank não mostra na fatura a data original das compras parceladas: nas parcelas a partir da 2ª, a data da compra lançada será a da cobrança nesta fatura. Os valores e as faturas de cada parcela não mudam.");
   }
-  f.total_lancamentos_centavos = achouSubtotal ? subtotais : null;
+  f.total_lancamentos_centavos = achouSubtotal ? subtotais + financiamentos : null;
   ajustarArredondamentoCambio(f, comprasEmMoeda);
   conferirTotal(f, "total de transações dos portadores");
   return f;
+}
+
+/**
+ * Classifica um lançamento da fatura Nubank pela descrição e pelo sinal (o
+ * mesmo para o PDF e o CSV): desconto de antecipação, crédito, encargo (IOF,
+ * juros…) ou compra, com parcela e antecipação.
+ */
+export function itemNubank(data: string, bruta: string, valor: number, final: string | null): { item: ItemFatura; erro?: string } {
+  const ant = /^Antecipada - (.*)$/i.exec(bruta);
+  const desc = /^Desconto Antecipação (.*)$/i.exec(bruta);
+  if (desc && valor < 0) {
+    return { item: { data, descricao: desc[1].trim().slice(0, 200), valor_centavos: valor, tipo: "credito", desconto_antecipacao: true, final } };
+  }
+  const p = separarParcela(ant ? ant[1] : bruta, "nubank");
+  const sub = subtipoEncargo(p.descricao);
+  if (valor < 0) return { item: { data, descricao: p.descricao.slice(0, 200), valor_centavos: valor, tipo: "credito", final } };
+  if (sub && p.atual === null) return { item: { data, descricao: p.descricao.slice(0, 200), valor_centavos: valor, tipo: "encargo", subtipo: sub, final } };
+  return {
+    item: { data, descricao: p.descricao.slice(0, 200), valor_centavos: valor, tipo: "compra", final,
+            parcela_atual: p.atual, parcelas_total: p.total, antecipada: !!ant },
+    erro: ant && p.atual === null ? `antecipação sem número de parcela: "${bruta}"` : undefined,
+  };
 }

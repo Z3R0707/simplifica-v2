@@ -6,7 +6,8 @@ import { guardarArquivo, listar, rpc, sessaoAtual } from "../lib/api";
 import { PDFJS_BASE } from "../config";
 import { formatarData } from "../lib/datas";
 import { formatarCentavos } from "../lib/dinheiro";
-import { sha256 } from "../lib/importadores/comum";
+import { decodificar, sha256 } from "../lib/importadores/comum";
+import { lerNubankFaturaCsv, reconheceNubankFaturaCsv, vencimentoDoNome } from "../lib/importadores/nubank-fatura-csv";
 import type { FaturaLida } from "../lib/importadores/fatura-comum";
 import { LEITORES_FATURA } from "../lib/importadores/faturas";
 import { reconheceItauExtrato } from "../lib/importadores/itau-extrato-pdf";
@@ -39,12 +40,14 @@ const SUGESTAO: Record<Sugestao, { nome: string; classe: string }> = {
   antecipar: { nome: "Antecipar", classe: "selo-neutro" },
 };
 const TRAVADAS: Sugestao[] = ["ja_importado", "ja_lancado"];
-const LEITORES: Record<string, string> = Object.fromEntries(
-  LEITORES_FATURA.map((l) => [l.id, `Fatura do cartão ${l.banco} (PDF) — leitor conferido com arquivo real.`]),
-);
+const LEITORES: Record<string, string> = {
+  ...Object.fromEntries(LEITORES_FATURA.map((l) => [l.id, `Fatura do cartão ${l.banco} (PDF) — leitor conferido com arquivo real.`])),
+  "nubank-fatura-csv": "Fatura do cartão Nubank (CSV) — leitor conferido com arquivo real.",
+};
 const mesAno = (iso: string) => `${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 
-type Arquivo = { nome: string; bytes: Uint8Array };
+// texto: conteúdo do CSV (para reler quando o vencimento muda); null no PDF
+type Arquivo = { nome: string; bytes: Uint8Array; tipo: "pdf" | "csv"; texto: string | null };
 
 export function TelaImportarFatura({ cartaoId }: { cartaoId: string }) {
   const { instituicoes } = useCadastros();
@@ -72,19 +75,36 @@ export function TelaImportarFatura({ cartaoId }: { cartaoId: string }) {
       a.push(`A fatura mostra os finais ${lida.finais.join(", ")}; o cadastro deste cartão diz ${cartao.final}. Confira (cartões virtuais têm outro final).`);
     }
     const dia = Number(lida.vencimento.slice(8, 10));
-    if (dia !== cartao.dia_vencimento) {
+    // no CSV o vencimento vem do nome do arquivo (dia nominal), então não serve para corrigir o cadastro
+    if (arquivo?.tipo === "pdf" && dia !== cartao.dia_vencimento) {
       a.push(`A fatura vence no dia ${dia}, mas o cadastro do cartão diz dia ${cartao.dia_vencimento}. A fatura importada fica com as datas do banco; corrija o cadastro em "Editar" para as próximas compras caírem na fatura certa.`);
     }
+    // a mesma fatura importada em outro formato (PDF × CSV) tem outro arquivo: o sistema não recusa sozinho
+    if (lida.vencimento && (historico.dados ?? []).some((h) => h.situacao === "confirmada" && h.vencimento.slice(0, 7) === lida.vencimento.slice(0, 7))) {
+      a.push(`A fatura de ${mesAno(lida.vencimento)} deste cartão já foi importada. Importar de novo (por exemplo, o CSV depois do PDF) pode repetir lançamentos: na prévia, confira o que aparece como novo.`);
+    }
     return a;
-  }, [lida, cartao, instituicoes]);
+  }, [lida, cartao, instituicoes, arquivo, historico.dados]);
+
+  // CSV: o vencimento é informado na tela; ao mudar, a leitura é refeita
+  const relerCsv = (texto: string, vencimento: string | null) => setLida(lerNubankFaturaCsv(texto, vencimento));
 
   async function escolher(f: File | undefined) {
     setErroArquivo(null); setLida(null); setArquivo(null);
     if (!f) return;
     if (f.size > 10 * 1024 * 1024) return setErroArquivo("Arquivo grande demais (máximo 10 MB).");
     const bytes = new Uint8Array(await f.arrayBuffer());
+    if (f.name.toLowerCase().endsWith(".csv")) {
+      const texto = decodificar(bytes);
+      if (!reconheceNubankFaturaCsv(texto)) {
+        return setErroArquivo("Não reconheci este CSV como fatura do cartão. É lida a fatura em CSV do Nubank (date, title, amount). Para o extrato da conta, use Saldos → conta → Importar extrato.");
+      }
+      setArquivo({ nome: f.name, bytes, tipo: "csv", texto });
+      setLida(lerNubankFaturaCsv(texto, vencimentoDoNome(f.name)));
+      return;
+    }
     if (!(f.name.toLowerCase().endsWith(".pdf") || new TextDecoder("latin1").decode(bytes.slice(0, 5)) === "%PDF-")) {
-      return setErroArquivo("Escolha a fatura em PDF, baixada do app ou do site do banco.");
+      return setErroArquivo("Escolha a fatura em PDF ou o CSV do Nubank, baixados do app ou do site do banco.");
     }
     setLendo(true);
     try {
@@ -97,7 +117,7 @@ export function TelaImportarFatura({ cartaoId }: { cartaoId: string }) {
           : `Não reconheci esta fatura. São lidas as faturas em PDF de: ${LEITORES_FATURA.map((l) => l.banco).join(", ")}.`);
       }
       setLida(leitor.ler(linhas));
-      setArquivo({ nome: f.name, bytes });
+      setArquivo({ nome: f.name, bytes, tipo: "pdf", texto: null });
     } catch (e) {
       const msg = String((e as Error)?.name ?? "") + String((e as Error)?.message ?? "");
       setErroArquivo(/password/i.test(msg) ? "Este PDF tem senha. Baixe a fatura sem senha pelo app ou site do banco." : "Não consegui abrir este PDF. Confira se o arquivo está inteiro.");
@@ -118,8 +138,8 @@ export function TelaImportarFatura({ cartaoId }: { cartaoId: string }) {
       <TituloPagina titulo="Importar fatura" />
       {!previa && !resultado && (
         <section className="secao estreita importar-passo">
-          <Campo rotulo="Fatura do cartão (PDF)">
-            {(id) => <input id={id} type="file" accept=".pdf,application/pdf" onChange={(e) => void escolher(e.target.files?.[0])} />}
+          <Campo rotulo="Fatura do cartão (PDF, ou CSV do Nubank)">
+            {(id) => <input id={id} type="file" accept=".pdf,application/pdf,.csv,text/csv" onChange={(e) => void escolher(e.target.files?.[0])} />}
           </Campo>
           <p className="campo-ajuda">
             Cada lançamento da fatura é comparado com o que já está no cartão: parcelas já lançadas não se repetem, e os centavos de
@@ -130,7 +150,8 @@ export function TelaImportarFatura({ cartaoId }: { cartaoId: string }) {
         </section>
       )}
       {arquivo && lida && !previa && !resultado && (
-        <ResumoFatura lida={lida} arquivo={arquivo} cartaoId={cartaoId} avisos={avisos} aoCriar={(imp, itens) => setPrevia({ imp, itens })} />
+        <ResumoFatura lida={lida} arquivo={arquivo} cartaoId={cartaoId} avisos={avisos} aoCriar={(imp, itens) => setPrevia({ imp, itens })}
+          aoMudarVencimento={arquivo.tipo === "csv" && arquivo.texto !== null ? (v) => relerCsv(arquivo.texto!, v || null) : undefined} />
       )}
       {previa && !resultado && (
         <PreviaFatura previa={previa} aoConfirmar={(r) => { setPrevia(null); setResultado(r); }} aoDescartar={recomecar} />
@@ -167,21 +188,31 @@ export function TelaImportarFatura({ cartaoId }: { cartaoId: string }) {
 }
 
 // ------------------------------------------------------------ resumo da leitura
-function ResumoFatura({ lida, arquivo, cartaoId, avisos, aoCriar }: {
+function ResumoFatura({ lida, arquivo, cartaoId, avisos, aoCriar, aoMudarVencimento }: {
   lida: FaturaLida; arquivo: Arquivo; cartaoId: string; avisos: string[]; aoCriar: (imp: ImportacaoFatura, itens: ItemFatura[]) => void;
+  aoMudarVencimento?: (vencimento: string) => void;
 }) {
   const { chave, enviando, erro, enviar } = useEnvio("importacao-fatura-criar");
-  const bloqueado = lida.erros.length > 0 || lida.itens.length === 0;
+  // o CSV não traz o total da fatura: a soma só segue depois de a pessoa conferir com o app
+  const csv = arquivo.tipo === "csv";
+  const [conferiu, setConferiu] = useState(false);
+  const bloqueado = lida.erros.length > 0 || lida.itens.length === 0 || (csv && !conferiu);
   const compras = lida.itens.filter((i) => i.valor_centavos > 0).reduce((s, i) => s + i.valor_centavos, 0);
   const creditos = lida.itens.filter((i) => i.valor_centavos < 0).reduce((s, i) => s + i.valor_centavos, 0);
   return (
     <section className="secao estreita importar-passo">
       <h2>{arquivo.nome}</h2>
       <p className="texto-suave">{LEITORES[lida.leitor] ?? lida.leitor}</p>
+      {aoMudarVencimento && (
+        <Campo rotulo="Vencimento da fatura" ajuda="O CSV não traz o vencimento: veio do nome do arquivo. Ajuste se for outro (vale o mês).">
+          {(id) => <input id={id} type="date" value={lida.vencimento} onChange={(e) => aoMudarVencimento(e.target.value)} />}
+        </Campo>
+      )}
       <ul className="lista-resultado">
-        <li>Fatura de <strong>{mesAno(lida.vencimento)}</strong>: vence em {formatarData(lida.vencimento)}{lida.fechamento ? `, fechou em ${formatarData(lida.fechamento)}` : ""}</li>
+        {lida.vencimento && <li>Fatura de <strong>{mesAno(lida.vencimento)}</strong>: vence em {formatarData(lida.vencimento)}{lida.fechamento ? `, fechou em ${formatarData(lida.fechamento)}` : ""}</li>}
         <li><strong>{lida.itens.length}</strong> lançamento(s) · compras e encargos <Valor centavos={compras} /> · créditos <Valor centavos={creditos} /></li>
-        {lida.total_lancamentos_centavos !== null && <li>Total dos lançamentos segundo o banco: <Valor centavos={lida.total_lancamentos_centavos} /></li>}
+        {!csv && lida.total_lancamentos_centavos !== null && <li>Total dos lançamentos segundo o banco: <Valor centavos={lida.total_lancamentos_centavos} /></li>}
+        {csv && lida.total_lancamentos_centavos !== null && <li>Soma dos lançamentos do CSV: <strong><Valor centavos={lida.total_lancamentos_centavos} /></strong></li>}
         {lida.total_a_pagar_centavos !== null && lida.total_a_pagar_centavos !== lida.total_lancamentos_centavos && (
           <li className="texto-suave">Total a pagar da fatura: {formatarCentavos(lida.total_a_pagar_centavos)} (inclui saldo anterior e pagamentos feitos antes do vencimento)</li>
         )}
@@ -193,9 +224,21 @@ function ResumoFatura({ lida, arquivo, cartaoId, avisos, aoCriar }: {
       {avisos.map((a) => <Alerta key={a} tipo="aviso">{a}</Alerta>)}
       {lida.erros.length > 0 && (
         <Alerta>
-          A leitura não fechou com a fatura do banco e, por segurança, nada será importado deste arquivo:
+          {csv ? "A leitura do CSV encontrou problemas e, por segurança, nada será importado deste arquivo:" : "A leitura não fechou com a fatura do banco e, por segurança, nada será importado deste arquivo:"}
           <ul className="lista-erros">{lida.erros.slice(0, 8).map((e) => <li key={`${e.linha}-${e.motivo}`}>{e.linha ? `lançamento ${e.linha}: ` : ""}{e.motivo}</li>)}</ul>
         </Alerta>
+      )}
+      {csv && lida.erros.length === 0 && lida.total_lancamentos_centavos !== null && (
+        <div className="campo">
+          <p className="campo-ajuda">
+            O CSV não traz o total da fatura, então o Simplifica não consegue conferir sozinho se veio tudo. Compare a soma acima
+            ({formatarCentavos(lida.total_lancamentos_centavos)}) com as compras da fatura no app do Nubank (ou no PDF). Centavos de IOF
+            de compras em moeda estrangeira podem vir diferentes.
+          </p>
+          <label className="opcao-check">
+            <input type="checkbox" checked={conferiu} onChange={(e) => setConferiu(e.target.checked)} /> Conferi: a soma bate com a fatura no app
+          </label>
+        </div>
       )}
       {erro && <Alerta>{erro}</Alerta>}
       <div className="acoes acoes-esquerda">
@@ -203,8 +246,8 @@ function ResumoFatura({ lida, arquivo, cartaoId, avisos, aoCriar }: {
           const uid = sessaoAtual()?.usuario.id;
           if (!uid) throw new Error("sessão");
           const hash = await sha256(arquivo.bytes);
-          const caminho = `${uid}/importacoes/${hash}.pdf`;
-          await guardarArquivo(caminho, new Blob([arquivo.bytes]), "application/pdf");
+          const caminho = `${uid}/importacoes/${hash}.${arquivo.tipo}`;
+          await guardarArquivo(caminho, new Blob([arquivo.bytes]), csv ? "text/csv" : "application/pdf");
           const imp = await rpc<ImportacaoFatura>("importacao_fatura_criar", {
             p_cartao_id: cartaoId, p_leitor: lida.leitor, p_arquivo_nome: arquivo.nome, p_arquivo_hash: hash, p_arquivo_caminho: caminho,
             p_arquivo_tamanho: arquivo.bytes.length, p_finais: lida.finais.join(",") || null, p_vencimento: lida.vencimento, p_fechamento: lida.fechamento,

@@ -8,7 +8,7 @@ Gestão financeira pessoal: Supabase (PostgreSQL, Auth, RLS, Edge Functions) + s
 src/                  site (React + TypeScript, montado com esbuild)
   lib/api.ts          cliente do Supabase (login, RPC, tabelas) via fetch
   lib/dinheiro.ts     valores em centavos (leitura e formatação pt-BR)
-  lib/importadores/   leitores de extrato (OFX, CSV, CSV do Nubank, PDF do Itaú) e de fatura em PDF (Nubank, Itaú, Santander, Mercado Pago, Sicredi, Sicoob, Riachuelo)
+  lib/importadores/   leitores de extrato (OFX, CSV, CSV do Nubank, PDF do Itaú) e de fatura em PDF (Nubank, Itaú, Santander, Mercado Pago, Sicredi, Sicoob, Riachuelo) e em CSV (Nubank)
   telas/              entrar, saldos, extrato, importar extrato e fatura, contas a pagar, cartões, contas, categorias, resumo, minha conta
 supabase/migrations/  banco, na ordem 0001 → 0017 (etapas 1 a 6.1c, endurecimento e pagamento sem conta)
 supabase/functions/   Edge Functions excluir-conta e limpar-orfaos

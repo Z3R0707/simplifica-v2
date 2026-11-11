@@ -377,6 +377,14 @@ Instalação: `0017_pagamento_sem_conta.sql` → Run; validação `validacao/16_
 
 Evidências: `docs/evidencia-pagamento-sem-conta-local.txt`.
 
+# Fatura Nubank em CSV e Pix no Crédito (só site, sem migração)
+
+- **Importar fatura** aceita o **CSV da fatura do Nubank** (`Nubank_AAAA-MM-DD.csv`, colunas `date,title,amount`), além do PDF. O CSV **não traz o total da fatura**: a tela mostra a soma dos lançamentos e só segue depois de você marcar **"Conferi: a soma bate com a fatura no app"**. O vencimento vem do nome do arquivo e pode ser ajustado na tela (o fechamento fica em branco).
+- O CSV é lido com as mesmas regras do PDF (parcelas, IOF, créditos, desconto de antecipação). "Pagamento recebido" vai para os pagamentos da fatura, como no PDF. Como o CSV não escreve "Antecipada", a parcela antecipada é reconhecida pelo "Desconto Antecipação" do mesmo dia ou por aparecer mais de uma parcela da mesma compra na fatura.
+- Conferido com os arquivos reais de 10/2026 e 11/2026: mesmos lançamentos, antecipações e pagamentos do PDF. O IOF de compra em moeda estrangeira pode vir 1 centavo diferente do PDF.
+- Importe **cada fatura num formato só** (PDF **ou** CSV). Se a mesma fatura já foi importada, a tela avisa: importar de novo pode repetir lançamentos.
+- **Pix no Crédito** (PDF e CSV): passa a entrar na fatura como compra (valor com IOF e juros). No PDF ele fica na seção "Pagamentos e Financiamentos" e antes era ignorado.
+
 # Manter o Supabase ativo (plano gratuito)
 
 No plano gratuito, o Supabase **pausa** o projeto depois de 7 dias sem atividade no banco. O site deixa de carregar dados até alguém clicar em **Restore project** no painel. Os dados não se perdem.

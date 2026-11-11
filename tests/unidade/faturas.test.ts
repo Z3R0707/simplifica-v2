@@ -114,6 +114,21 @@ test("Nubank: centavo de arredondamento de compra em dólar vira ajuste; diferen
   assert.ok(h.erros.some((e) => /não bate/.test(e.motivo)));
 });
 
+test("Nubank: Pix no Crédito na seção de pagamentos é cobrança; saldo restante e estorno de pagamento não são", () => {
+  const f = lerNubankFaturaPdf(nubank([
+    ...NU,
+    T("17 SET", "Fulano de Tal", "R$ 31,27", null),
+    L(6, cel("Total a pagar: R$ 31,26 (valor da transação de R$ 30,00 + R$ 0,18 de IOF +", 214)),
+    L(6, cel("R$ 1,09 de juros).", 214)),
+    T("14 SET", "Saldo restante da fatura anterior", "R$ 0,01", null),
+    T("20 SET", "Estorno de pagamento", "R$ 5,00", null),
+  ], "R$ 505,28"));
+  assert.deepEqual(f.erros, [], "o Pix entra na conferência (o subtotal dos portadores não o inclui)");
+  assert.equal(f.total_lancamentos_centavos, 50528 + 3127);
+  assert.deepEqual(f.itens.filter((i) => /Pix/.test(i.descricao)).map((i) => [i.descricao, i.tipo, i.valor_centavos]), [["Pix no Crédito - Fulano de Tal", "compra", 3127]]);
+  assert.deepEqual(f.pagamentos.map((p) => p.valor_centavos), [-50000, 1, 500], "saldo restante e estorno de pagamento continuam fora das compras");
+});
+
 test("Nubank: portador listado depois dos pagamentos continua sendo compra", () => {
   const f = lerNubankFaturaPdf(nubank([
     ...NU,
