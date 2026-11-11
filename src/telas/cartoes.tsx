@@ -7,7 +7,6 @@ import type {
 } from "../lib/tipos";
 import { Alerta, Campo, Carregando, Confirmar, Dialogo, TituloPagina, Valor, useCadastros, useCarregar, useEnvio } from "../ui";
 import { DialogoPagar } from "./contas-a-pagar";
-import { QuadroPdfDoBanco } from "./importar-fatura";
 
 // ------------------------------------------------------------ utilidades
 const mesDe = (iso: string) => iso.slice(0, 7);
@@ -196,12 +195,10 @@ export function TelaCartao({ cartaoId, mesInicial }: { cartaoId: string; mesInic
               Fatura de {nomeDoMes(mesVisto).toLowerCase()}{ehAtual ? " (atual)" : ""}{" "}
               {fatura && <span className={`selo ${SITUACAO_FATURA[fatura.situacao].classe}`}>{SITUACAO_FATURA[fatura.situacao].nome}</span>}
             </p>
-            <p className="valor-destaque"><Valor centavos={fatura?.total_centavos ?? 0} /></p>
+            {/* soma de tudo o que está na lista: compras, créditos e pagamentos (como o "total a pagar" do banco) */}
+            <p className="valor-destaque"><Valor centavos={fatura ? fatura.restante_centavos : 0} /></p>
             {fatura && <p className="texto-suave">Fecha {formatarData(fatura.fechamento)} · vence {formatarData(fatura.vencimento)}</p>}
           </div>
-          {fatura && fatura.pago_centavos > 0 && <div><p className="texto-suave">Pago</p><p className="valor-destaque"><Valor centavos={fatura.pago_centavos} /></p></div>}
-          {fatura && fatura.total_centavos > 0 && <div><p className="texto-suave">Falta pagar</p><p className="valor-destaque"><Valor centavos={fatura.restante_centavos} /></p></div>}
-          {fatura && fatura.creditos_centavos > 0 && <div><p className="texto-suave">Créditos e estornos</p><p className="valor-destaque"><Valor centavos={-fatura.creditos_centavos} /></p></div>}
           {resumo.limite_centavos !== null && <div><p className="texto-suave">Limite disponível</p><p className="valor-destaque"><Valor centavos={resumo.disponivel_centavos ?? 0} /></p></div>}
         </section>
       )}
@@ -223,10 +220,6 @@ export function TelaCartao({ cartaoId, mesInicial }: { cartaoId: string; mesInic
               A diferença não é ajustada sozinha: confira os lançamentos e lance a compra, o encargo ou o crédito que estiver faltando.
             </Alerta>
           )
-      )}
-      {fatura && mesVisto && (
-        <QuadroPdfDoBanco cartaoId={cartaoId} faturaId={fatura.fatura_id} obrigacaoId={fatura.obrigacao_id} mes={mesVisto}
-          restanteCentavos={fatura.restante_centavos} aoAlterar={recarregar} />
       )}
 
       {faturaQ.carregando && !faturaQ.dados && <Carregando />}
@@ -282,13 +275,6 @@ export function TelaCartao({ cartaoId, mesInicial }: { cartaoId: string; mesInic
                 </tr>
               ))}
             </tbody>
-            {fatura && pagamentos.length > 0 && (
-              <tfoot>
-                <tr><td></td><td>Total da fatura</td><td></td><td className="num"><Valor centavos={fatura.total_centavos} /></td><td></td></tr>
-                <tr><td></td><td>Pagamentos</td><td></td><td className="num"><Valor centavos={-pagamentos.reduce((s, p) => s + p.valor_pago_centavos, 0)} classe="valor-entrada" /></td><td></td></tr>
-                <tr><td></td><td><strong>Falta pagar</strong></td><td></td><td className="num"><strong><Valor centavos={fatura.restante_centavos} /></strong></td><td></td></tr>
-              </tfoot>
-            )}
           </table>
         </div>
       )}
